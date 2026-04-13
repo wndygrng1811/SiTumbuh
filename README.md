@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # si_tumbuh
 
 A new Flutter project.
@@ -14,3 +15,6 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+=======
+# SiTumbuh
+>>>>>>> 8df9399121d682812ca96bb91a572c6ee8ce35e5
