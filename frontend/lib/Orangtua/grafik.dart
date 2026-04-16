@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:si_tumbuh/widgets/bottom_nav.dart';
-import 'package:si_tumbuh/widgets/sidebar_menu.dart';
 
 class GrafikPage extends StatefulWidget {
   const GrafikPage({super.key});
@@ -49,31 +47,17 @@ class _GrafikPageState extends State<GrafikPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6EFF1),
-
-      // 🔥 SIDEBAR
-      drawer: const SidebarMenu(),
-
-      // 🔥 NAVBAR BAWAH
-      bottomNavigationBar: const BottomNav(currentIndex: 1),
-
       body: SafeArea(
         child: Column(
           children: [
-            /// HEADER
+            // 🔥 HEADER
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Builder(
-                    builder: (context) => IconButton(
-                      icon: const Icon(Icons.menu, color: Color(0xFF76172D)),
-                      onPressed: () {
-                        Scaffold.of(context).openDrawer();
-                      },
-                    ),
-                  ),
-                  const Text(
+                children: const [
+                  Icon(Icons.menu, color: Color(0xFF76172D)),
+                  Text(
                     "SiTumbuh",
                     style: TextStyle(
                       fontSize: 18,
@@ -81,10 +65,7 @@ class _GrafikPageState extends State<GrafikPage> {
                       color: Color(0xFF76172D),
                     ),
                   ),
-                  const Icon(
-                    Icons.notifications_none,
-                    color: Color(0xFF76172D),
-                  ),
+                  Icon(Icons.notifications_none, color: Color(0xFF76172D)),
                 ],
               ),
             ),
@@ -95,11 +76,11 @@ class _GrafikPageState extends State<GrafikPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  /// DROPDOWN ANAK
+                  // 🔽 DROPDOWN
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
-                      vertical: 6,
+                      vertical: 6, // diperkecil
                     ),
                     height: 40,
                     decoration: BoxDecoration(
@@ -132,7 +113,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
                   const SizedBox(height: 16),
 
-                  /// TAB BERAT / TINGGI / KEPALA
+                  // 🔥 TAB
                   Row(
                     children: [
                       _tabClick("Berat", 0),
@@ -143,7 +124,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
                   const SizedBox(height: 16),
 
-                  /// CARD GRAFIK
+                  // 🔥 CARD GRAFIK
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -163,7 +144,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
                         const SizedBox(height: 16),
 
-                        /// GRAFIK
+                        // 🔥 KMS CHART
                         SizedBox(
                           height: 180,
                           child: LineChart(
@@ -172,6 +153,7 @@ class _GrafikPageState extends State<GrafikPage> {
                               maxY: 11,
                               gridData: FlGridData(show: true),
                               borderData: FlBorderData(show: false),
+
                               titlesData: FlTitlesData(
                                 leftTitles: AxisTitles(
                                   sideTitles: SideTitles(
@@ -186,8 +168,9 @@ class _GrafikPageState extends State<GrafikPage> {
                                   ),
                                 ),
                               ),
+
                               lineBarsData: [
-                                /// AREA KUNING
+                                // 🔥 KUNING
                                 LineChartBarData(
                                   spots: const [
                                     FlSpot(0, 5),
@@ -204,7 +187,7 @@ class _GrafikPageState extends State<GrafikPage> {
                                   ),
                                 ),
 
-                                /// AREA HIJAU
+                                // 🔥 HIJAU
                                 LineChartBarData(
                                   spots: const [
                                     FlSpot(0, 6),
@@ -221,7 +204,7 @@ class _GrafikPageState extends State<GrafikPage> {
                                   ),
                                 ),
 
-                                /// GARIS ANAK
+                                // 🔥 GARIS ANAK
                                 LineChartBarData(
                                   spots: const [
                                     FlSpot(0, 5.5),
@@ -242,7 +225,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
                         const SizedBox(height: 12),
 
-                        /// STATUS
+                        // 🔥 STATUS
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
@@ -273,7 +256,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
                   const SizedBox(height: 20),
 
-                  /// RIWAYAT
+                  // 🔥 RIWAYAT
                   const Text(
                     "Riwayat Pertumbuhan",
                     style: TextStyle(
@@ -296,7 +279,27 @@ class _GrafikPageState extends State<GrafikPage> {
     );
   }
 
-  /// CARD RIWAYAT
+  // ignore: unused_element
+  static Widget _tab(String text, bool active) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFFD86487) : Colors.grey[300],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: TextStyle(color: active ? Colors.white : Colors.black),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 🔥 CARD RIWAYAT
   static Widget _card(String date, String berat, String tinggi, String kepala) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

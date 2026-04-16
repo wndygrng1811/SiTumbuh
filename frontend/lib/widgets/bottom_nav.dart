@@ -28,7 +28,7 @@ class BottomNav extends StatelessWidget {
         break;
 
       case 3:
-        page = const ProfilPage();
+        page = const ProfilePage();
         break;
 
       default:

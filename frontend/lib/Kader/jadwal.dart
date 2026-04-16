@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/sidebar_kader.dart';
+import 'buat_jadwal.dart';
+import '../widgets/bottom_navbar_kader.dart';
 
 class Jadwal extends StatefulWidget {
   const Jadwal({super.key});
@@ -11,9 +13,21 @@ class Jadwal extends StatefulWidget {
 class _JadwalState extends State<Jadwal> {
   int selectedTab = 0; // 0 = akan datang, 1 = selesai
 
+  // 🔥 TAMBAHAN DATA DUMMY
+  final List<Map<String, String>> jadwalList = [
+    {
+      "nama": "Posyandu Melati",
+      "tanggal": "Rabu, 05 Juli 2024",
+      "jam": "08.00-11.00",
+      "alamat": "Jl. Sejahtera RT 03 RW 06",
+      "poster": "assets/templatekuning.jpg",
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 1),
       drawer: const SidebarKader(),
       backgroundColor: const Color(0xFFF6F6F6),
 
@@ -48,7 +62,6 @@ class _JadwalState extends State<Jadwal> {
                         },
                       ),
                     ),
-
                     const Text(
                       "SiTumbuh",
                       style: TextStyle(
@@ -57,7 +70,6 @@ class _JadwalState extends State<Jadwal> {
                         fontSize: 18,
                       ),
                     ),
-
                     const Icon(Icons.notifications_none, color: Colors.white),
                   ],
                 ),
@@ -149,6 +161,10 @@ class _JadwalState extends State<Jadwal> {
 
   /// ================= TEMPLATE CARD =================
   Widget templateCard(String title) {
+    String image = title == "Tema Kuning"
+        ? "assets/templatekuning.jpg"
+        : "assets/templatebiru.jpg";
+
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -158,19 +174,23 @@ class _JadwalState extends State<Jadwal> {
         ),
         child: Column(
           children: [
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Center(child: Text("Poster")),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(image, height: 100, fit: BoxFit.cover),
             ),
             const SizedBox(height: 10),
             Text(title),
             const SizedBox(height: 5),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+                // 🔥 NAVIGASI KE HALAMAN BUAT JADWAL
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuatJadwalPage(template: image),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFE85D75),
                 minimumSize: const Size(double.infinity, 30),
@@ -213,6 +233,8 @@ class _JadwalState extends State<Jadwal> {
 
   /// ================= JADWAL CARD =================
   Widget jadwalCard() {
+    var data = jadwalList[0];
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -222,14 +244,14 @@ class _JadwalState extends State<Jadwal> {
       child: Row(
         children: [
           /// POSTER
-          Container(
-            width: 70,
-            height: 90,
-            decoration: BoxDecoration(
-              color: Colors.orange.shade200,
-              borderRadius: BorderRadius.circular(10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              data["poster"]!,
+              width: 70,
+              height: 90,
+              fit: BoxFit.cover,
             ),
-            child: const Center(child: Text("Poster")),
           ),
 
           const SizedBox(width: 10),
@@ -238,22 +260,15 @@ class _JadwalState extends State<Jadwal> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  "Posyandu Melati",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  data["nama"]!,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-
-                SizedBox(height: 5),
-
-                Text("Rabu, 05 Juli 2024", style: TextStyle(fontSize: 12)),
-
-                Text("08.00 - 12.00", style: TextStyle(fontSize: 12)),
-
-                Text(
-                  "Jl. Sejahtera No 123 RW 05",
-                  style: TextStyle(fontSize: 12),
-                ),
+                const SizedBox(height: 5),
+                Text(data["tanggal"]!, style: const TextStyle(fontSize: 12)),
+                Text(data["jam"]!, style: const TextStyle(fontSize: 12)),
+                Text(data["alamat"]!, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),

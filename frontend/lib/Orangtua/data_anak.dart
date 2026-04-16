@@ -156,7 +156,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const ProfilPage(),
+                            builder: (context) => const ProfilePage(),
                           ),
                         );
                       },

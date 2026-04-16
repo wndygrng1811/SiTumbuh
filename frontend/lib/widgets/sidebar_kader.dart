@@ -5,6 +5,8 @@ import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
 import 'package:si_tumbuh/Kader/jadwal.dart';
 import 'package:si_tumbuh/Kader/kehadiran.dart';
 import 'package:si_tumbuh/Kader/profil.dart';
+import 'package:si_tumbuh/login.dart';
+import 'package:si_tumbuh/Kader/data_orangtua.dart'; // 🔥 TAMBAHAN
 
 class SidebarKader extends StatelessWidget {
   const SidebarKader({super.key});
@@ -61,10 +63,36 @@ class SidebarKader extends StatelessWidget {
                   "Kehadiran",
                   const Kehadiran(),
                 ),
+                menu(
+                  // 🔥 TAMBAH INI
+                  context,
+                  Icons.people,
+                  "Data Orang Tua",
+                  const KelolaDaftarOrangTuaPage(),
+                ),
                 menu(context, Icons.person, "Profil", const Profil()),
               ],
             ),
           ),
+
+          /// ================= LOGOUT (TAMBAHAN) =================
+          const Divider(),
+
+          ListTile(
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Keluar", style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context); // tutup drawer
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false, // 🔥 hapus semua halaman sebelumnya
+              );
+            },
+          ),
+
+          const SizedBox(height: 20),
         ],
       ),
     );
@@ -77,7 +105,7 @@ class SidebarKader extends StatelessWidget {
       title: Text(title),
 
       onTap: () {
-        Navigator.pop(context); // tutup sidebar
+        Navigator.pop(context);
 
         Navigator.pushReplacement(
           context,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/sidebar_kader.dart';
+import '../widgets/bottom_navbar_kader.dart';
 
 class HalamanUtamaKader extends StatelessWidget {
   const HalamanUtamaKader({super.key});
@@ -7,6 +8,7 @@ class HalamanUtamaKader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       drawer: const SidebarKader(),
       backgroundColor: const Color(0xFFF5F5F5),
 

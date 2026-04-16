@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:si_tumbuh/orangtua/profil.dart';
-import 'package:si_tumbuh/orangtua/halaman_utama.dart';
-import 'package:si_tumbuh/orangtua/grafik.dart';
+import 'package:si_tumbuh/Orangtua/halaman_utama.dart';
+import 'package:si_tumbuh/Orangtua/profil.dart';
+import 'package:si_tumbuh/Orangtua/grafik.dart';
 
 class Artikel {
   final String title;
@@ -21,44 +21,51 @@ class Artikel {
 final List<Artikel> artikelList = [
   Artikel(
     title: "Mengenal apa itu Stunting?",
-    image: "assets/edu2.jpg",
+    image: "assets/images/stunting.jpg",
     link:
         "https://keslan.kemkes.go.id/view_artikel/1388/mengenal-apa-itu-stunting",
     kategori: "Stunting",
   ),
   Artikel(
     title: "Penuhi kebutuhan gizi anak",
-    image: "assets/edu3.jpg",
+    image: "assets/images/stunting1.png",
     link:
         "https://gayahidup.rri.co.id/banda-aceh/kesehatan/110228/kemenkes-lakukan-pendekatan-gizi-spesifik-turunkan-angka-stunting",
     kategori: "Nutrisi",
   ),
   Artikel(
     title: "Data penurunan stunting",
-    image: "assets/edu1.jpg",
+    image: "assets/images/stunting2.jpg",
     link:
         "https://jateng.antaranews.com/berita/285739/kemenkes-lima-dari-10-ibu-hamil-anemia-potensi-lahirkan-anak-stunting",
     kategori: "Stunting",
   ),
   Artikel(
     title: "Cegah stunting sejak dini",
-    image: "assets/edu3.jpg",
+    image: "assets/images/stunting.jpg",
     link:
         "https://keslan.kemkes.go.id/view_artikel/1388/mengenal-apa-itu-stunting",
     kategori: "Stunting",
   ),
   Artikel(
     title: "Pentingnya gizi ibu hamil",
-    image: "assets/edu2.jpg",
+    image: "assets/images/stunting1.png",
     link:
         "https://jateng.antaranews.com/berita/285739/kemenkes-lima-dari-10-ibu-hamil-anemia-potensi-lahirkan-anak-stunting",
     kategori: "Nutrisi",
   ),
   Artikel(
     title: "Upaya turunkan stunting",
-    image: "assets/edu1.jpg",
+    image: "assets/images/stunting2.jpg",
     link:
         "https://gayahidup.rri.co.id/banda-aceh/kesehatan/110228/kemenkes-lakukan-pendekatan-gizi-spesifik-turunkan-angka-stunting",
+    kategori: "Stunting",
+  ),
+  Artikel(
+    title: "Mengenal Stunting Anak",
+    image: "assets/images/stunting3.png",
+    link:
+        "https://ners.unair.ac.id/site/index.php/news-fkp-unair/30-lihat/1013-mengenal-stunting-dan-dampaknya-pada-tumbuh-kembang-anak",
     kategori: "Stunting",
   ),
 ];
@@ -71,8 +78,8 @@ class EdukasiPage extends StatefulWidget {
 }
 
 class _EdukasiPageState extends State<EdukasiPage> {
-  int _selectedIndex = 2;
-  String selectedTab = "Semua";
+  int _selectedIndex = 0;
+  String selectedTab = "Stunting";
 
   final List<String> tabs = ["Semua", "Nutrisi", "Stunting"];
 
@@ -91,30 +98,36 @@ class _EdukasiPageState extends State<EdukasiPage> {
         context,
         MaterialPageRoute(builder: (context) => const GrafikPage()),
       );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HalamanUtama()),
+      );
     } else if (index == 3) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ProfilPage()),
+        MaterialPageRoute(builder: (context) => const ProfilePage()),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 FILTER DATA
     final filtered = selectedTab == "Semua"
         ? artikelList
         : artikelList.where((e) => e.kategori == selectedTab).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6EFF1),
+      backgroundColor: const Color(0xFFF4EDEE),
 
       body: SafeArea(
         child: Column(
           children: [
-            /// HEADER
+            // 🔥 HEADER
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              height: 110,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              height: 120,
               decoration: const BoxDecoration(
                 color: Color(0xFFD86487),
                 borderRadius: BorderRadius.vertical(
@@ -131,7 +144,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
-                      letterSpacing: 1,
                     ),
                   ),
                   Icon(Icons.notifications_none, color: Colors.white),
@@ -139,9 +151,9 @@ class _EdukasiPageState extends State<EdukasiPage> {
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
-            /// FILTER TAB
+            // 🔥 TAB FILTER
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(6),
@@ -153,51 +165,52 @@ class _EdukasiPageState extends State<EdukasiPage> {
                 ],
               ),
               child: Row(
-                children: tabs.map((tab) {
-                  final active = tab == selectedTab;
-
-                  return Expanded(
-                    child: GestureDetector(
+                children: [
+                  ...tabs.map((tab) {
+                    final active = tab == selectedTab;
+                    return GestureDetector(
                       onTap: () {
                         setState(() {
                           selectedTab = tab;
                         });
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: active
                               ? const Color(0xFF8B1E3F)
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Center(
-                          child: Text(
-                            tab,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: active ? Colors.white : Colors.grey,
-                            ),
+                        child: Text(
+                          tab,
+                          style: TextStyle(
+                            color: active ? Colors.white : Colors.grey,
                           ),
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                  const Spacer(),
+                  const Icon(Icons.more_horiz, color: Colors.grey),
+                ],
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
-            /// GRID ARTIKEL
+            // 🔥 GRID EDUKASI (TETAP GridView.count, TIDAK DIUBAH STRUKTURNYA)
             Expanded(
               child: GridView.count(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 crossAxisCount: 2,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: 0.82,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.85,
                 children: List.generate(
                   filtered.length,
                   (index) => EduCard(data: filtered[index]),
@@ -208,7 +221,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
         ),
       ),
 
-      /// BOTTOM NAV
+      // 🔥 BOTTOM NAV (TETAP)
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF8B1E3F),
         selectedItemColor: Colors.white,
@@ -227,7 +240,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
-            label: 'Edukasi',
+            label: 'Jadwal Posyandu',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -237,8 +250,28 @@ class _EdukasiPageState extends State<EdukasiPage> {
       ),
     );
   }
+
+  // ignore: unused_element
+  static Widget _tab(String text, bool active) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF8B1E3F) : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: active ? Colors.white : Colors.grey,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
 }
 
+// 🔥 CARD (DITAMBAH DATA + CLICK + IMAGE REAL)
 class EduCard extends StatelessWidget {
   final Artikel data;
 
@@ -256,46 +289,38 @@ class EduCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// IMAGE
+            // 🔥 IMAGE REAL
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(18),
+                top: Radius.circular(16),
               ),
               child: Image.asset(
                 data.image,
-                height: 95,
+                height: 90,
                 width: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
 
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: Text(
                 data.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 13,
+                  fontSize: 12,
                 ),
               ),
             ),
 
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
+              padding: EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 "Baca selengkapnya",
                 style: TextStyle(color: Colors.grey, fontSize: 11),
@@ -305,10 +330,10 @@ class EduCard extends StatelessWidget {
             const Spacer(),
 
             const Padding(
-              padding: EdgeInsets.all(10),
+              padding: EdgeInsets.all(8),
               child: Align(
                 alignment: Alignment.bottomRight,
-                child: Icon(Icons.arrow_forward_ios, size: 13),
+                child: Icon(Icons.arrow_forward_ios, size: 12),
               ),
             ),
           ],
