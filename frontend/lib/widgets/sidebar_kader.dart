@@ -5,12 +5,9 @@ import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
 import 'package:si_tumbuh/Kader/jadwal.dart';
 import 'package:si_tumbuh/Kader/kehadiran.dart';
 import 'package:si_tumbuh/Kader/profil.dart';
-<<<<<<< Updated upstream
 import 'package:si_tumbuh/login.dart';
-import 'package:si_tumbuh/Kader/data_orangtua.dart'; // 🔥 TAMBAHAN
-=======
-import 'package:si_tumbuh/Kader/edukasi.dart';
->>>>>>> Stashed changes
+import 'package:si_tumbuh/Kader/data_orangtua.dart';
+import 'package:si_tumbuh/Kader/edukasi_kader.dart';
 
 class SidebarKader extends StatelessWidget {
   const SidebarKader({super.key});
@@ -68,20 +65,13 @@ class SidebarKader extends StatelessWidget {
                   const Kehadiran(),
                 ),
                 menu(
-                  // 🔥 TAMBAH INI
                   context,
                   Icons.people,
                   "Data Orang Tua",
                   const KelolaDaftarOrangTuaPage(),
                 ),
+                menu(context, Icons.book, "Edukasi", const EdukasiKaderPage()),
                 menu(context, Icons.person, "Profil", const Profil()),
-                menu(
-                  context,
-                  Icons.check_circle,
-                  "Kehadiran",
-                  const Kehadiran(),
-                ),
-                menu(context, Icons.person, "Edukasi", const Profil()),
               ],
             ),
           ),

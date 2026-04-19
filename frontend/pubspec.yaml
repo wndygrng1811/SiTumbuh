@@ -67,6 +67,10 @@ flutter:
     - assets/images/stunting1.png
     - assets/images/stunting2.jpg
     - assets/images/stunting3.png
+    - assets/images/ikon_edu1.jpg
+    - assets/images/ikon_edu2.jpg
+    - assets/images/ikon_edu3.jpg
+    - assets/images/ikon_edu4.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:
