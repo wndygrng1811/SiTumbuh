@@ -8,6 +8,8 @@ import 'package:si_tumbuh/Kader/profil.dart';
 import 'package:si_tumbuh/login.dart';
 import 'package:si_tumbuh/Kader/data_orangtua.dart';
 import 'package:si_tumbuh/Kader/edukasi_kader.dart';
+import 'package:si_tumbuh/Kader/laporan.dart';
+import 'package:si_tumbuh/Kader/data_pertumbuhan.dart';
 
 class SidebarKader extends StatelessWidget {
   const SidebarKader({super.key});
@@ -57,6 +59,18 @@ class SidebarKader extends StatelessWidget {
                   "Dashboard",
                   const HalamanUtamaKader(),
                 ),
+                menu(
+                  context,
+                  Icons.people,
+                  "Data Orang Tua",
+                  const KelolaDaftarOrangTuaPage(),
+                ),
+                menu(
+                  context,
+                  Icons.show_chart,
+                  "Data Pertumbuhan Anak",
+                  const DataPertumbuhanPage(),
+                ),
                 menu(context, Icons.event, "Jadwal Posyandu", const Jadwal()),
                 menu(
                   context,
@@ -64,13 +78,8 @@ class SidebarKader extends StatelessWidget {
                   "Kehadiran",
                   const Kehadiran(),
                 ),
-                menu(
-                  context,
-                  Icons.people,
-                  "Data Orang Tua",
-                  const KelolaDaftarOrangTuaPage(),
-                ),
                 menu(context, Icons.book, "Edukasi", const EdukasiKaderPage()),
+                menu(context, Icons.assessment, "Laporan", const LaporanPage()),
                 menu(context, Icons.person, "Profil", const Profil()),
               ],
             ),
