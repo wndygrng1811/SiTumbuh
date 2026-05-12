@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:si_tumbuh/Orangtua/profil_lengkap.dart';
 import 'package:si_tumbuh/Orangtua/riwayat_kunjungan.dart';
+import 'package:si_tumbuh/widgets/sidebar_menu.dart';
+import 'package:si_tumbuh/Orangtua/data_anak.dart';
+import 'package:si_tumbuh/login.dart'; // TAMBAHAN: import login page
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -10,9 +13,15 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // TAMBAHAN: Method untuk membangun drawer
+  Widget _buildDrawer(BuildContext context) {
+    return const SidebarMenu();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: _buildDrawer(context),
       backgroundColor: const Color(0xFFFFF5F7),
 
       body: SafeArea(
@@ -35,15 +44,21 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
 
+                  // TAMBAHAN: Membuat ikon menu dapat diklik
                   Positioned(
                     top: 10,
                     left: 16,
                     right: 16,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: const [
-                        Icon(Icons.menu, color: Colors.white),
-                        Text(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Scaffold.of(context).openDrawer();
+                          },
+                          child: const Icon(Icons.menu, color: Colors.white),
+                        ),
+                        const Text(
                           "SiTumbuh",
                           style: TextStyle(
                             color: Colors.white,
@@ -51,7 +66,10 @@ class _ProfilePageState extends State<ProfilePage> {
                             fontSize: 18,
                           ),
                         ),
-                        Icon(Icons.notifications_none, color: Colors.white),
+                        const Icon(
+                          Icons.notifications_none,
+                          color: Colors.white,
+                        ),
                       ],
                     ),
                   ),
@@ -122,7 +140,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   MaterialPageRoute(builder: (context) => ProfilLengkapPage()),
                 );
               }),
-              _menu(context, "Data anak", () {}),
+
+              // TAMBAHAN: Menambahkan navigasi ke DataAnakPage
+              _menu(context, "Data anak", () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DataAnakPage()),
+                );
+              }),
+
               _menu(context, "Riwayat kunjungan", () {
                 Navigator.push(
                   context,
@@ -159,8 +185,11 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 24),
 
+              // PERBAIKAN: Tombol Keluar sekarang memiliki fungsi logout
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  _showLogoutDialog(context);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5A1E28),
                   shape: RoundedRectangleBorder(
@@ -171,7 +200,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   padding: EdgeInsets.symmetric(horizontal: 60, vertical: 12),
                   child: Text(
                     "Keluar",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Color.fromARGB(255, 252, 251, 251),
+                    ),
                   ),
                 ),
               ),
@@ -283,6 +316,36 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
       ),
+    );
+  }
+
+  // TAMBAHAN: Method untuk menampilkan dialog konfirmasi logout
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Konfirmasi Keluar"),
+          content: const Text("Apakah Anda yakin ingin keluar?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Batal"),
+            ),
+            TextButton(
+              onPressed: () {
+                // Menghapus semua halaman yang ada dan mengarahkan ke login
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                  (Route<dynamic> route) => false,
+                );
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text("Keluar"),
+            ),
+          ],
+        );
+      },
     );
   }
 }

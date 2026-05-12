@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     <!-- IZIN INTERNET UNTUK WEBVIEW -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="si_tumbuh"
         android:name="${applicationName}"

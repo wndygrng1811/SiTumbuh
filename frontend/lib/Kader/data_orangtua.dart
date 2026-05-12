@@ -433,12 +433,20 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const SidebarKader(),
       backgroundColor: const Color(0xFFF5EDEE),
       appBar: AppBar(
         backgroundColor: const Color(0xFFD86487),
         foregroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
+          ),
+        ),
         title: const Text(
           'SiTumbuh',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
@@ -567,7 +575,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       ),
 
       // ─── BOTTOM NAV ───────────────────────────────────
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 1),
     );
   }
 

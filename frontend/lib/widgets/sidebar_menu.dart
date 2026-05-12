@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:si_tumbuh/orangtua/profil.dart';
 import 'package:si_tumbuh/orangtua/data_anak.dart';
+import 'package:si_tumbuh/login.dart';
+import 'package:si_tumbuh/Orangtua/cek_pertumbuhan.dart';
 
 class SidebarMenu extends StatelessWidget {
   const SidebarMenu({super.key});
@@ -44,11 +46,23 @@ class SidebarMenu extends StatelessWidget {
 
           const Divider(),
 
+          // TOMBOL KELUAR - Sudah ada di sini
           ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text("Keluar"),
-            onTap: () {},
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Keluar", style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Navigator.pop(context); // tutup drawer
+
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false, // 🔥 hapus semua halaman sebelumnya
+              );
+            },
           ),
+
+          // Memberikan jarak di bagian bawah
+          const SizedBox(height: 16),
         ],
       ),
     );
