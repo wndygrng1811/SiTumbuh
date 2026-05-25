@@ -20,13 +20,13 @@ Route::get(
     [PertumbuhanController::class, 'getRiwayat']
 );
 Route::get('/kms', [PertumbuhanController::class, 'kms']);
-Route::middleware('auth:sanctum')->group(function () {
-    // Profile Orang Tua
-    Route::get('/orangtua/profile/{userId}', [ProfileController::class, 'getProfile']);
-    
-    // Detail Anak
-    Route::get('/anak/{anakId}', [AnakController::class, 'getDetail']);
-});
+// Route::middleware('auth:sanctum')->group(function () {
+//     // Profile Orang Tua
+//     Route::get('/orangtua/profile/{userId}', [ProfileController::class, 'getProfile']);
+//     
+//     // Detail Anak
+//     Route::get('/anak/{anakId}', [AnakController::class, 'getDetail']);
+// });
 
 // Kader
 Route::post('/pertumbuhan', [PertumbuhanController::class, 'store']);
