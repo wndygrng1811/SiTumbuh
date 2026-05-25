@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:si_tumbuh/Orangtua/grafik.dart';
 import 'package:si_tumbuh/Orangtua/profil.dart';
@@ -13,17 +14,45 @@ class HalamanUtama extends StatefulWidget {
 
 class _HalamanUtamaState extends State<HalamanUtama> {
   int _selectedIndex = 0;
+  int anakId = 0;
+  String namaAnak = '';
+  String jenisKelamin = '';
 
-  final List<Widget> _pages = [
-    const DashboardContent(),
-    const GrafikPage(),
+  //  PERBAIKAN: anakId dikirim sebagai int, bukan String
+  List<Widget> get _pages => [
+    DashboardContent(
+      anakId: anakId,
+      namaAnak: namaAnak,
+      jenisKelamin: jenisKelamin,
+    ),
+    GrafikPage(
+      anakId: anakId, // int, tanpa .toString()
+      namaAnak: namaAnak,
+      jenisKelamin: jenisKelamin,
+    ),
     const Center(child: Text("Jadwal")),
-    const ProfilePage(),
+    ProfilePage(anakId: anakId, namaAnak: namaAnak, jenisKelamin: jenisKelamin),
   ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadAnak();
+  }
+
+  Future<void> loadAnak() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    setState(() {
+      anakId = prefs.getInt('anak_id') ?? 0;
+      namaAnak = prefs.getString('nama_anak') ?? '';
+      jenisKelamin = prefs.getString('jenis_kelamin') ?? '';
     });
   }
 
@@ -55,11 +84,36 @@ class _HalamanUtamaState extends State<HalamanUtama> {
 
             const SizedBox(height: 30),
 
-            _drawerItem(Icons.home, "Beranda", () {}),
-            _drawerItem(Icons.person, "Profil", () {}),
-            _drawerItem(Icons.favorite_border, "Cek pertumbuhan", () {}),
-            _drawerItem(Icons.trending_up, "Riwayat pertumbuhan", () {}),
-            _drawerItem(Icons.calendar_today, "Jadwal posyandu", () {}),
+            _drawerItem(Icons.home, "Beranda", () {
+              setState(() {
+                _selectedIndex = 0;
+              });
+              Navigator.pop(context);
+            }),
+            _drawerItem(Icons.person, "Profil", () {
+              setState(() {
+                _selectedIndex = 3;
+              });
+              Navigator.pop(context);
+            }),
+            _drawerItem(Icons.favorite_border, "Cek pertumbuhan", () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+              Navigator.pop(context);
+            }),
+            _drawerItem(Icons.trending_up, "Riwayat pertumbuhan", () {
+              setState(() {
+                _selectedIndex = 1;
+              });
+              Navigator.pop(context);
+            }),
+            _drawerItem(Icons.calendar_today, "Jadwal posyandu", () {
+              setState(() {
+                _selectedIndex = 2;
+              });
+              Navigator.pop(context);
+            }),
             _drawerItem(Icons.menu_book, "Edukasi", () {
               Navigator.push(
                 context,
@@ -79,7 +133,10 @@ class _HalamanUtamaState extends State<HalamanUtama> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: text == "Beranda"
+          color:
+              (text == "Beranda" && _selectedIndex == 0) ||
+                  (text == "Profil" && _selectedIndex == 3) ||
+                  (text == "Cek pertumbuhan" && _selectedIndex == 1)
               ? Colors.white.withOpacity(0.3)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -137,8 +194,18 @@ class _HalamanUtamaState extends State<HalamanUtama> {
   }
 }
 
+//  DASHBOARD CONTENT dengan data dinamis
 class DashboardContent extends StatefulWidget {
-  const DashboardContent({super.key});
+  final int anakId;
+  final String namaAnak;
+  final String jenisKelamin;
+
+  const DashboardContent({
+    super.key,
+    required this.anakId,
+    required this.namaAnak,
+    required this.jenisKelamin,
+  });
 
   @override
   State<DashboardContent> createState() => _DashboardContentState();
@@ -220,9 +287,10 @@ class _DashboardContentState extends State<DashboardContent> {
 
             const SizedBox(height: 20),
 
-            const Text(
-              "Hallo, Bunda!",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            // NAMA DINAMIS dari database
+            Text(
+              "Hallo, ${widget.namaAnak.isNotEmpty ? widget.namaAnak : 'Bunda'}!",
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Text(
               "Pantau pertumbuhan anak anda",
@@ -231,7 +299,7 @@ class _DashboardContentState extends State<DashboardContent> {
 
             const SizedBox(height: 16),
 
-            // CARD DATA ANAK
+            // CARD DATA ANAK - DINAMIS
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -244,9 +312,10 @@ class _DashboardContentState extends State<DashboardContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Raffi Ahmad",
-                    style: TextStyle(
+                  //  NAMA ANAK DINAMIS
+                  Text(
+                    widget.namaAnak.isNotEmpty ? widget.namaAnak : "Anak",
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF8B1E3F),
                     ),
@@ -303,7 +372,19 @@ class _DashboardContentState extends State<DashboardContent> {
                             vertical: 8,
                           ),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          // Navigasi ke GrafikPage
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => GrafikPage(
+                                anakId: widget.anakId,
+                                namaAnak: widget.namaAnak,
+                                jenisKelamin: widget.jenisKelamin,
+                              ),
+                            ),
+                          );
+                        },
                         child: const Text(
                           "Cek disini",
                           style: TextStyle(color: Colors.white, fontSize: 13),
@@ -465,7 +546,18 @@ class _DashboardContentState extends State<DashboardContent> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => GrafikPage(
+                        anakId: widget.anakId,
+                        namaAnak: widget.namaAnak,
+                        jenisKelamin: widget.jenisKelamin,
+                      ),
+                    ),
+                  );
+                },
                 child: const Text(
                   "Lihat lainnya",
                   style: TextStyle(color: Color(0xFF8B1E3F), fontSize: 13),
@@ -600,7 +692,17 @@ Widget _buildBanner(BuildContext context, String image) {
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: Image.asset(image, fit: BoxFit.cover, width: double.infinity),
+        child: Image.asset(
+          image,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              color: Colors.grey[300],
+              child: const Center(child: Icon(Icons.error, color: Colors.grey)),
+            );
+          },
+        ),
       ),
     ),
   );
@@ -662,7 +764,18 @@ class EduCard extends StatelessWidget {
             SizedBox(
               height: 130,
               width: double.infinity,
-              child: Image.asset(imagePath, fit: BoxFit.cover),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.error, color: Colors.grey),
+                    ),
+                  );
+                },
+              ),
             ),
             // Overlay gradient bawah
             Positioned(

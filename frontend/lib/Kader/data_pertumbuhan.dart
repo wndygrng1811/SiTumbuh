@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
 
@@ -388,15 +389,35 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   // ── Simpan & hitung Z-Score ──
   Future<void> _simpan() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 600));
 
     final usia = int.parse(_ctrlUsia.text.trim());
     final bb = double.parse(_ctrlBb.text.trim());
     final tb = double.parse(_ctrlTb.text.trim());
+
     final lk = _ctrlLk.text.trim().isNotEmpty
         ? double.tryParse(_ctrlLk.text.trim())
         : null;
+
+    final status = WHOZScore.kalkulasi(
+      usiaBulan: usia,
+      bb: bb,
+      tb: tb,
+      jk: _jkAnak,
+    );
+
+    bool berhasil = await ApiService.simpanPertumbuhan(
+      anakId: 1,
+      berat: bb,
+      tinggi: tb,
+      lingkarKepala: lk ?? 0,
+      statusGizi: status.labelBbTb,
+    );
+
+    if (!berhasil) {
+      throw Exception('Gagal menyimpan');
+    }
 
     final pengukuran = DataPengukuran(
       tanggal: _selectedDate ?? DateTime.now(),
@@ -404,13 +425,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
       beratBadan: bb,
       tinggiBadan: tb,
       lingkarKepala: lk,
-    );
-
-    final status = WHOZScore.kalkulasi(
-      usiaBulan: usia,
-      bb: bb,
-      tb: tb,
-      jk: _jkAnak,
     );
 
     setState(() {

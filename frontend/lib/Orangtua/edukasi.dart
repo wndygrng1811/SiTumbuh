@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:si_tumbuh/Orangtua/halaman_utama.dart';
 import 'package:si_tumbuh/Orangtua/profil.dart';
 import 'package:si_tumbuh/Orangtua/grafik.dart';
@@ -79,9 +80,29 @@ class EdukasiPage extends StatefulWidget {
 
 class _EdukasiPageState extends State<EdukasiPage> {
   int _selectedIndex = 0;
-  String selectedTab = "Stunting";
+  String selectedTab = "Semua";
+
+  // Data anak saat ini (sama seperti di halaman_utama)
+  int _currentAnakId = 0;
+  String _currentNamaAnak = '';
+  String _currentJenisKelamin = '';
 
   final List<String> tabs = ["Semua", "Nutrisi", "Stunting"];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnakData();
+  }
+
+  Future<void> _loadAnakData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentAnakId = prefs.getInt('anak_id') ?? 0;
+      _currentNamaAnak = prefs.getString('nama_anak') ?? '';
+      _currentJenisKelamin = prefs.getString('jenis_kelamin') ?? '';
+    });
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -96,35 +117,51 @@ class _EdukasiPageState extends State<EdukasiPage> {
     } else if (index == 1) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const GrafikPage()),
+        MaterialPageRoute(
+          builder: (context) => GrafikPage(
+            anakId: _currentAnakId,
+            namaAnak: _currentNamaAnak,
+            jenisKelamin: _currentJenisKelamin,
+          ),
+        ),
       );
     } else if (index == 2) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HalamanUtama()),
+      // Jadwal Posyandu
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Fitur jadwal posyandu sedang dikembangkan'),
+        ),
       );
+      setState(() {
+        _selectedIndex = 0;
+      });
     } else if (index == 3) {
+      // PERBAIKAN: Kirim parameter ke ProfilePage
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ProfilePage()),
+        MaterialPageRoute(
+          builder: (context) => ProfilePage(
+            anakId: _currentAnakId,
+            namaAnak: _currentNamaAnak,
+            jenisKelamin: _currentJenisKelamin,
+          ),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 FILTER DATA
     final filtered = selectedTab == "Semua"
         ? artikelList
         : artikelList.where((e) => e.kategori == selectedTab).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4EDEE),
-
       body: SafeArea(
         child: Column(
           children: [
-            // 🔥 HEADER
+            // HEADER
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               height: 120,
@@ -136,9 +173,12 @@ class _EdukasiPageState extends State<EdukasiPage> {
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Icon(Icons.menu, color: Colors.white),
-                  Text(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Text(
                     "SiTumbuh",
                     style: TextStyle(
                       color: Colors.white,
@@ -146,14 +186,14 @@ class _EdukasiPageState extends State<EdukasiPage> {
                       fontSize: 18,
                     ),
                   ),
-                  Icon(Icons.notifications_none, color: Colors.white),
+                  const Icon(Icons.notifications_none, color: Colors.white),
                 ],
               ),
             ),
 
             const SizedBox(height: 10),
 
-            // 🔥 TAB FILTER
+            // TAB FILTER
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(6),
@@ -203,7 +243,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
             const SizedBox(height: 16),
 
-            // 🔥 GRID EDUKASI (TETAP GridView.count, TIDAK DIUBAH STRUKTURNYA)
+            // GRID EDUKASI
             Expanded(
               child: GridView.count(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -220,8 +260,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
           ],
         ),
       ),
-
-      // 🔥 BOTTOM NAV (TETAP)
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: const Color(0xFF8B1E3F),
         selectedItemColor: Colors.white,
@@ -250,28 +288,9 @@ class _EdukasiPageState extends State<EdukasiPage> {
       ),
     );
   }
-
-  // ignore: unused_element
-  static Widget _tab(String text, bool active) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFF8B1E3F) : Colors.transparent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: active ? Colors.white : Colors.grey,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
 }
 
-// 🔥 CARD (DITAMBAH DATA + CLICK + IMAGE REAL)
+// CARD EDUKASI
 class EduCard extends StatelessWidget {
   final Artikel data;
 
@@ -295,7 +314,6 @@ class EduCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🔥 IMAGE REAL
             ClipRRect(
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(16),
@@ -305,9 +323,17 @@ class EduCard extends StatelessWidget {
                 height: 90,
                 width: double.infinity,
                 fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 90,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: Icon(Icons.error, color: Colors.grey),
+                    ),
+                  );
+                },
               ),
             ),
-
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
@@ -316,9 +342,10 @@ class EduCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8),
               child: Text(
@@ -326,14 +353,16 @@ class EduCard extends StatelessWidget {
                 style: TextStyle(color: Colors.grey, fontSize: 11),
               ),
             ),
-
             const Spacer(),
-
             const Padding(
               padding: EdgeInsets.all(8),
               child: Align(
                 alignment: Alignment.bottomRight,
-                child: Icon(Icons.arrow_forward_ios, size: 12),
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: Color(0xFF8B1E3F),
+                ),
               ),
             ),
           ],

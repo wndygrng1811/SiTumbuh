@@ -1,3 +1,5 @@
+import 'package:si_tumbuh/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'Orangtua/halaman_utama.dart';
 import 'kader/halaman_utama_kader.dart';
@@ -17,40 +19,27 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  // 🔥 DATA DUMMY
-  final List<Map<String, String>> users = [
-    {"email": "siti@email.com", "password": "123456", "role": "ortu"},
-    {"email": "kader@email.com", "password": "123456", "role": "kader"},
-  ];
-
-  void handleLoginFixed() {
+  Future<void> handleLoginFixed() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    var user = users.firstWhere(
-      (u) => u["email"] == email && u["password"] == password,
-      orElse: () => {},
-    );
+    final result = await ApiService.login(email, password);
 
-    print("EMAIL: $email");
-    print("PASSWORD: $password");
-    print("USER: $user");
-
-    if (user.isNotEmpty) {
-      if (user["role"] == "ortu") {
+    if (result['success'] == true) {
+      if (result['role'] == 'orang_tua') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HalamanUtama()),
+          MaterialPageRoute(builder: (_) => const HalamanUtama()),
         );
-      } else if (user["role"] == "kader") {
+      } else if (result['role'] == 'kader') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HalamanUtamaKader()),
+          MaterialPageRoute(builder: (_) => const HalamanUtamaKader()),
         );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email atau password salah")),
+        SnackBar(content: Text(result['message'] ?? 'Login gagal')),
       );
     }
   }
@@ -68,7 +57,6 @@ class _LoginPageState extends State<LoginPage> {
             ),
             child: Column(
               children: [
-                // 🔥 BAGIAN ATAS (LOGO + TEXT)
                 Padding(
                   padding: const EdgeInsets.only(top: 40),
                   child: Column(
@@ -95,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 40),
 
-                // 🔥 FORM
+                //  FORM
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -109,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       // EMAIL
                       TextField(
-                        controller: emailController, // 🔥 TAMBAHAN
+                        controller: emailController,
                         decoration: InputDecoration(
                           hintText: "Email",
                           prefixIcon: const Icon(Icons.email),
@@ -139,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
 
                       // PASSWORD
                       TextField(
-                        controller: passwordController, // 🔥 TAMBAHAN
+                        controller: passwordController,
                         obscureText: isHidden,
                         decoration: InputDecoration(
                           hintText: "Kata Sandi",
@@ -185,7 +173,7 @@ class _LoginPageState extends State<LoginPage> {
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: handleLoginFixed, // 🔥 DIUBAH
+                          onPressed: handleLoginFixed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFD86487),
                             elevation: 5,

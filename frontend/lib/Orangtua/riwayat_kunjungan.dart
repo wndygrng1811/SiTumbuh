@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:si_tumbuh/widgets/bottom_nav.dart';
-import 'package:si_tumbuh/widgets/sidebar_menu.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RiwayatKunjunganPage extends StatefulWidget {
-  const RiwayatKunjunganPage({super.key});
+  final int anakId;
+
+  const RiwayatKunjunganPage({super.key, required this.anakId});
 
   @override
   State<RiwayatKunjunganPage> createState() => _RiwayatKunjunganPageState();
@@ -11,116 +14,218 @@ class RiwayatKunjunganPage extends StatefulWidget {
 
 class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
   String selectedFilter = "Semua (Terbaru)";
-
   final List<String> filterList = ["Semua (Terbaru)", "Terlama"];
+
+  List<Map<String, dynamic>> riwayatList = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRiwayat();
+  }
+
+  Future<void> _loadRiwayat() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse('http://your-api.com/api/pertumbuhan/${widget.anakId}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          List<dynamic> items = data['data'];
+          setState(() {
+            riwayatList = items.map((item) {
+              return {
+                'id': item['id'],
+                'tanggal': item['tanggal'],
+                'berat': item['berat'],
+                'tinggi': item['tinggi'],
+                'l_kepala': item['l_kepala'],
+                'status': item['status'],
+                'nama_posyandu': item['nama_posyandu'] ?? 'Posyandu Setempat',
+              };
+            }).toList();
+
+            if (selectedFilter == "Terlama") {
+              riwayatList = riwayatList.reversed.toList();
+            }
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = data['message'] ?? 'Gagal memuat data';
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Gagal terhubung ke server';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6EFF1),
-
       body: SafeArea(
-        child: Column(
-          children: [
-            // 🔥 HEADER
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              height: 100,
-              decoration: const BoxDecoration(color: Color(0xFFD86487)),
-              child: Row(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage.isNotEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadRiwayat,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD86487),
+                      ),
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
+                  // HEADER
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    height: 100,
+                    decoration: const BoxDecoration(color: Color(0xFFD86487)),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Expanded(
+                          child: Center(
+                            child: Text(
+                              "Riwayat Kunjungan",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
                   ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        "Riwayat Kunjungan",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 4),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedFilter,
+                            isExpanded: true,
+                            items: filterList.map((String value) {
+                              return DropdownMenuItem(
+                                value: value,
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 16),
+                                    const SizedBox(width: 8),
+                                    Text(value),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                selectedFilter = value!;
+                                if (selectedFilter == "Terlama") {
+                                  riwayatList = riwayatList.reversed.toList();
+                                } else {
+                                  riwayatList = riwayatList.reversed.toList();
+                                }
+                              });
+                            },
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
-
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: selectedFilter,
-                      isExpanded: true,
-                      items: filterList.map((String value) {
-                        return DropdownMenuItem(
-                          value: value,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today, size: 16),
-                              const SizedBox(width: 8),
-                              Text(value),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedFilter = value!;
-                        });
-                      },
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF6EFF1),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(30),
+                        ),
+                      ),
+                      child: riwayatList.isEmpty
+                          ? const Center(
+                              child: Text('Belum ada riwayat kunjungan'),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: riwayatList.length,
+                              itemBuilder: (context, index) {
+                                return RiwayatCard(data: riwayatList[index]);
+                              },
+                            ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 🔥 BODY (CARD LIST)
-            Expanded(
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF6EFF1),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                ),
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: const [
-                    RiwayatCard(date: "04 Maret 2026"),
-                    RiwayatCard(date: "04 Februari 2026"),
-                    RiwayatCard(date: "04 Januari 2026"),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 }
 
 class RiwayatCard extends StatelessWidget {
-  final String date;
+  final Map<String, dynamic> data;
 
-  const RiwayatCard({super.key, required this.date});
+  const RiwayatCard({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +239,6 @@ class RiwayatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🔥 DATE
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
@@ -149,7 +253,7 @@ class RiwayatCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  date,
+                  data['tanggal'] ?? '-',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF8B1E3F),
@@ -158,14 +262,11 @@ class RiwayatCard extends StatelessWidget {
               ],
             ),
           ),
-
-          // 🔥 CONTENT
           Padding(
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // NAMA + STATUS
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -173,36 +274,42 @@ class RiwayatCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Raffi Ahmad",
+                          "Data Pertumbuhan",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
-                        Text("Laki-laki", style: TextStyle(color: Colors.grey)),
                       ],
                     ),
-
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade200,
+                        color: data['status'] == 'Normal'
+                            ? Colors.green.shade200
+                            : Colors.orange.shade200,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        "Normal",
-                        style: TextStyle(fontSize: 12),
+                      child: Text(
+                        data['status'] ?? 'Normal',
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
-
-                // 🔥 POSYANDU
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildInfo('Berat', '${data['berat']} kg'),
+                    _buildInfo('Tinggi', '${data['tinggi']} cm'),
+                    _buildInfo('L. Kepala', '${data['l_kepala']} cm'),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -212,31 +319,36 @@ class RiwayatCard extends StatelessWidget {
                     color: const Color(0xFFF2D7DD),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on,
                         size: 16,
                         color: Color(0xFFD86487),
                       ),
-                      SizedBox(width: 6),
-                      Text("Posyandu Bukit Kemuning"),
+                      const SizedBox(width: 6),
+                      Text(data['nama_posyandu'] ?? 'Posyandu Setempat'),
                     ],
                   ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // 🔥 DESKRIPSI
-                const Text(
-                  "Pertumbuhan sesuai usia anak, tetap lanjutkan pola makan dan kontrol rutin.",
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInfo(String label, String value) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+      ],
     );
   }
 }
