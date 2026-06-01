@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:si_tumbuh/services/api_service.dart';
+import 'package:si_tumbuh/widgets/custom_app_bar.dart';
+import 'package:si_tumbuh/widgets/bottom_nav.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,7 +27,6 @@ class _GrafikPageState extends State<GrafikPage> {
   bool _isLoading = true;
   String _errorMessage = '';
 
-  // Untuk dropdown filter
   String _selectedFilter = "Berat Badan";
   final List<String> _filterOptions = [
     "Berat Badan",
@@ -71,7 +72,6 @@ class _GrafikPageState extends State<GrafikPage> {
     }
   }
 
-  // Ambil nilai berdasarkan filter yang dipilih
   double _getNilai(RiwayatPertumbuhan data) {
     switch (_selectedFilter) {
       case "Tinggi Badan":
@@ -83,7 +83,6 @@ class _GrafikPageState extends State<GrafikPage> {
     }
   }
 
-  // Dapatkan max Y berdasarkan filter
   double _getMaxY() {
     if (_riwayat.isEmpty) return 20;
     double maxValue = 0;
@@ -101,7 +100,6 @@ class _GrafikPageState extends State<GrafikPage> {
     }
   }
 
-  // Dapatkan label Y
   String _getLabelY() {
     switch (_selectedFilter) {
       case "Tinggi Badan":
@@ -113,22 +111,41 @@ class _GrafikPageState extends State<GrafikPage> {
     }
   }
 
+  double _getInterval() {
+    double maxY = _getMaxY();
+    if (maxY <= 20) return 5;
+    if (maxY <= 50) return 10;
+    return 20;
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      "Januari",
+      "Februari",
+      "Maret",
+      "April",
+      "Mei",
+      "Juni",
+      "Juli",
+      "Agustus",
+      "September",
+      "Oktober",
+      "November",
+      "Desember",
+    ];
+    return months[month - 1];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F7),
-      appBar: AppBar(
-        title: Text(
-          'Grafik Pertumbuhan ${widget.namaAnak}',
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-        ),
-        backgroundColor: const Color(0xFF8B1E3F),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
+      appBar: CustomAppBar(
+        title: 'Grafik Pertumbuhan ${widget.namaAnak}',
+        backgroundColor: const Color(0xFFD86487),
+        titleColor: Colors.white,
+        iconColor: Colors.white,
+        showBackButton: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -160,37 +177,25 @@ class _GrafikPageState extends State<GrafikPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Info Anak
                   _buildInfoAnak(),
                   const SizedBox(height: 16),
-
-                  // Card Data Terbaru
                   _buildDataTerbaru(),
                   const SizedBox(height: 20),
-
-                  // Dropdown Filter Grafik
                   _buildDropdownFilter(),
                   const SizedBox(height: 10),
-
-                  // Grafik
                   _buildGrafik(),
                   const SizedBox(height: 8),
-
-                  // Keterangan Status
                   _buildStatusKeterangan(),
                   const SizedBox(height: 24),
-
-                  // Riwayat Pertumbuhan
                   _buildRiwayatHeader(),
                   const SizedBox(height: 10),
                   _buildRiwayatList(),
                   const SizedBox(height: 16),
-
-                  // Catatan
                   _buildCatatan(),
                 ],
               ),
             ),
+      bottomNavigationBar: const BottomNav(currentIndex: 1),
     );
   }
 
@@ -428,13 +433,6 @@ class _GrafikPageState extends State<GrafikPage> {
     );
   }
 
-  double _getInterval() {
-    double maxY = _getMaxY();
-    if (maxY <= 20) return 5;
-    if (maxY <= 50) return 10;
-    return 20;
-  }
-
   Widget _buildStatusKeterangan() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -560,24 +558,6 @@ class _GrafikPageState extends State<GrafikPage> {
         ],
       ),
     );
-  }
-
-  String _getMonthName(int month) {
-    const months = [
-      "Januari",
-      "Februari",
-      "Maret",
-      "April",
-      "Mei",
-      "Juni",
-      "Juli",
-      "Agustus",
-      "September",
-      "Oktober",
-      "November",
-      "Desember",
-    ];
-    return months[month - 1];
   }
 }
 

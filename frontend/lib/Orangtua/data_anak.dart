@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:si_tumbuh/Orangtua/profil.dart';
+import 'package:si_tumbuh/services/api_service.dart';
 
 class DataAnakPage extends StatefulWidget {
   final int anakId;
@@ -15,6 +16,7 @@ class DataAnakPage extends StatefulWidget {
 
 class _DataAnakPageState extends State<DataAnakPage> {
   List<Map<String, dynamic>> dataAnak = [];
+  Map<String, dynamic> _pertumbuhanTerbaru = {};
   bool _isLoading = true;
   String _errorMessage = '';
 
@@ -36,7 +38,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
       int orangtuaId = prefs.getInt('user_id') ?? 0;
 
       final response = await http.get(
-        Uri.parse('http://your-api.com/api/orangtua/$orangtuaId/anak'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/$orangtuaId/anak'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -47,31 +49,27 @@ class _DataAnakPageState extends State<DataAnakPage> {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true) {
           List<dynamic> anakList = data['data'];
+
           setState(() {
             dataAnak = anakList.map((item) {
               return {
                 'anak_id': item['anak_id'],
-                'nama': item['nama_anak'],
+                'nama': item['nama'],
                 'jk': item['jenis_kelamin'],
                 'tgl': item['tanggal_lahir'],
-                'bb': item['berat_lahir']?.toString() ?? '-',
-                'tb': item['tinggi_lahir']?.toString() ?? '-',
-                'lk': item['lingkar_kepala_lahir']?.toString() ?? '-',
+                'berat': '-',
+                'tinggi': '-',
+                'l_kepala': '-',
               };
             }).toList();
             _isLoading = false;
           });
-        } else {
-          setState(() {
-            _errorMessage = data['message'] ?? 'Gagal memuat data';
-            _isLoading = false;
-          });
+
+          // Load pertumbuhan terbaru untuk setiap anak
+          for (var anak in dataAnak) {
+            await _loadPertumbuhanTerbaru(anak['anak_id']);
+          }
         }
-      } else {
-        setState(() {
-          _errorMessage = 'Gagal terhubung ke server';
-          _isLoading = false;
-        });
       }
     } catch (e) {
       setState(() {
@@ -81,65 +79,98 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
-  Future<void> _saveAnak(Map<String, dynamic> data, {int? index}) async {
+  Future<void> _loadPertumbuhanTerbaru(int anakId) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/pertumbuhan/$anakId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true &&
+            data['data'] != null &&
+            data['data'].isNotEmpty) {
+          var terbaru = data['data'].last;
+          setState(() {
+            int index = dataAnak.indexWhere((a) => a['anak_id'] == anakId);
+            if (index != -1) {
+              dataAnak[index]['berat'] = terbaru['berat']?.toString() ?? '-';
+              dataAnak[index]['tinggi'] = terbaru['tinggi']?.toString() ?? '-';
+              dataAnak[index]['l_kepala'] =
+                  terbaru['l_kepala']?.toString() ?? '-';
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print('Error load pertumbuhan: $e');
+    }
+  }
+
+  Future<void> _createAnak(Map<String, dynamic> data) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       int orangtuaId = prefs.getInt('user_id') ?? 0;
 
-      final response = index == null
-          ? await http.post(
-              Uri.parse('http://your-api.com/api/anak'),
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-              body: json.encode({
-                'orangtua_id': orangtuaId,
-                'nama_anak': data['nama'],
-                'jenis_kelamin': data['jk'],
-                'tanggal_lahir': data['tgl'],
-                'berat_lahir': double.tryParse(data['bb']) ?? 0,
-                'tinggi_lahir': double.tryParse(data['tb']) ?? 0,
-                'lingkar_kepala_lahir': double.tryParse(data['lk']) ?? 0,
-              }),
-            )
-          : await http.put(
-              Uri.parse('http://your-api.com/api/anak/${data['anak_id']}'),
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-              body: json.encode({
-                'nama_anak': data['nama'],
-                'jenis_kelamin': data['jk'],
-                'tanggal_lahir': data['tgl'],
-                'berat_lahir': double.tryParse(data['bb']) ?? 0,
-                'tinggi_lahir': double.tryParse(data['tb']) ?? 0,
-                'lingkar_kepala_lahir': double.tryParse(data['lk']) ?? 0,
-              }),
-            );
+      final response = await http.post(
+        Uri.parse('${ApiService.baseUrl}/anak'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'orangtua_id': orangtuaId,
+          'nama': data['nama'],
+          'jenis_kelamin': data['jk'],
+          'tanggal_lahir': data['tgl'],
+        }),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        _loadDataAnak(); // Refresh data
+        _loadDataAnak();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              index == null
-                  ? 'Anak berhasil ditambahkan'
-                  : 'Data berhasil diupdate',
-            ),
-          ),
+          const SnackBar(content: Text('Anak berhasil ditambahkan')),
         );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Gagal menyimpan data')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      print('Error create anak: $e');
+    }
+  }
+
+  Future<void> _updateAnak(int anakId, Map<String, dynamic> data) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.put(
+        Uri.parse('${ApiService.baseUrl}/anak/$anakId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'nama': data['nama'],
+          'jenis_kelamin': data['jk'],
+          'tanggal_lahir': data['tgl'],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        _loadDataAnak();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data anak berhasil diupdate')),
+        );
+      }
+    } catch (e) {
+      print('Error update anak: $e');
     }
   }
 
@@ -149,7 +180,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
       String? token = prefs.getString('token');
 
       final response = await http.delete(
-        Uri.parse('http://your-api.com/api/anak/$anakId'),
+        Uri.parse('${ApiService.baseUrl}/anak/$anakId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -163,41 +194,29 @@ class _DataAnakPageState extends State<DataAnakPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Data anak berhasil dihapus')),
         );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Gagal menghapus data')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      print('Error delete anak: $e');
     }
   }
 
-  void showForm({int? index}) {
+  void showForm({int? index}) async {
     Map<String, dynamic>? existingData;
+    Map<String, dynamic> pertumbuhanData = {
+      'berat': '-',
+      'tinggi': '-',
+      'l_kepala': '-',
+    };
+
     if (index != null) {
       existingData = dataAnak[index];
+      pertumbuhanData['berat'] = existingData['berat'];
+      pertumbuhanData['tinggi'] = existingData['tinggi'];
+      pertumbuhanData['l_kepala'] = existingData['l_kepala'];
     }
 
-    TextEditingController nama = TextEditingController(
-      text: existingData?['nama'] ?? '',
-    );
-    TextEditingController jk = TextEditingController(
-      text: existingData?['jk'] ?? '',
-    );
-    TextEditingController tgl = TextEditingController(
+    TextEditingController tglController = TextEditingController(
       text: existingData?['tgl'] ?? '',
-    );
-    TextEditingController bb = TextEditingController(
-      text: existingData?['bb'] ?? '',
-    );
-    TextEditingController tb = TextEditingController(
-      text: existingData?['tb'] ?? '',
-    );
-    TextEditingController lk = TextEditingController(
-      text: existingData?['lk'] ?? '',
     );
 
     showDialog(
@@ -205,43 +224,161 @@ class _DataAnakPageState extends State<DataAnakPage> {
       builder: (_) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: Text(index == null ? "Tambah Anak" : "Edit Data Anak"),
+          title: Center(
+            child: Text(
+              "Edit Data Anak",
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333333),
+              ),
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                buildInput(nama, "Nama Anak"),
-                buildInput(jk, "Jenis Kelamin (Laki-laki/Perempuan)"),
-                buildInput(tgl, "Tanggal Lahir (YYYY-MM-DD)"),
-                buildInput(bb, "Berat Lahir (kg)"),
-                buildInput(tb, "Tinggi Lahir (cm)"),
-                buildInput(lk, "Lingkar Kepala (cm)"),
+                // Tanggal Lahir
+                const Text(
+                  "Tanggal Lahir",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: tglController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    hintText: "18/04/2026",
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Berat Badan Ketika Lahir (READ ONLY)
+                const Text(
+                  "Berat Badan Ketika Lahir (kg)",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    pertumbuhanData['berat'] != '-' &&
+                            pertumbuhanData['berat'] != ''
+                        ? "${pertumbuhanData['berat']} kg"
+                        : "3.8 kg",
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Tinggi Badan Ketika Lahir (READ ONLY)
+                const Text(
+                  "Tinggi Badan Ketika Lahir (cm)",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    pertumbuhanData['tinggi'] != '-' &&
+                            pertumbuhanData['tinggi'] != ''
+                        ? "${pertumbuhanData['tinggi']} cm"
+                        : "52 cm",
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Lingkar Kepala Ketika Lahir (READ ONLY)
+                const Text(
+                  "Lingkar Kepala Ketika Lahir (cm)",
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    pertumbuhanData['l_kepala'] != '-' &&
+                            pertumbuhanData['l_kepala'] != ''
+                        ? "${pertumbuhanData['l_kepala']} cm"
+                        : "46 cm",
+                    style: const TextStyle(color: Colors.black87),
+                  ),
+                ),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Batal"),
+              child: const Text(
+                "Batal",
+                style: TextStyle(color: Colors.red, fontSize: 14),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE85D75),
+                backgroundColor: const Color(0xFFD86487),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(context);
-                _saveAnak({
-                  'anak_id': existingData?['anak_id'],
-                  'nama': nama.text,
-                  'jk': jk.text,
-                  'tgl': tgl.text,
-                  'bb': bb.text,
-                  'tb': tb.text,
-                  'lk': lk.text,
-                }, index: index);
+                if (index == null) {
+                  _createAnak({
+                    'nama': existingData?['nama'] ?? '',
+                    'jk': existingData?['jk'] ?? '',
+                    'tgl': tglController.text,
+                  });
+                } else {
+                  _updateAnak(existingData!['anak_id'], {
+                    'nama': existingData['nama'],
+                    'jk': existingData['jk'],
+                    'tgl': tglController.text,
+                  });
+                }
               },
-              child: const Text("Simpan"),
+              child: const Text(
+                "Simpan",
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
             ),
           ],
         );
@@ -249,23 +386,29 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  Widget buildInput(TextEditingController controller, String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
+      appBar: AppBar(
+        title: const Text(
+          "Data Anak",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFFD86487),
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  const ProfilePage(anakId: 0, namaAnak: '', jenisKelamin: ''),
+            ),
+          ),
+        ),
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
@@ -281,7 +424,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                   ElevatedButton(
                     onPressed: _loadDataAnak,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE85D75),
+                      backgroundColor: const Color(0xFFD86487),
                     ),
                     child: const Text('Coba Lagi'),
                   ),
@@ -290,67 +433,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
             )
           : Column(
               children: [
-                /// HEADER
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(
-                    top: 50,
-                    left: 20,
-                    right: 20,
-                    bottom: 25,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE85D75),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(40),
-                      bottomRight: Radius.circular(40),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.white,
-                            ),
-                            onPressed: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ProfilePage(
-                                    anakId: 0,
-                                    namaAnak: '',
-                                    jenisKelamin: '',
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            "Data anak",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        "Kelola informasi data anak anda",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                /// LIST DATA
+                const SizedBox(height: 16),
                 Expanded(
                   child: dataAnak.isEmpty
                       ? const Center(child: Text('Belum ada data anak'))
@@ -364,7 +447,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(16),
                                 boxShadow: const [
                                   BoxShadow(
                                     blurRadius: 6,
@@ -387,10 +470,18 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                             anak["nama"]!,
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              fontSize: 16,
+                                              fontSize: 18,
+                                              color: Color(0xFFD86487),
                                             ),
                                           ),
-                                          Text(anak["jk"]!),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            anak["jk"]!,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                       Row(
@@ -398,7 +489,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                           IconButton(
                                             icon: const Icon(
                                               Icons.edit,
-                                              color: Colors.pink,
+                                              color: Color(0xFFD86487),
                                             ),
                                             onPressed: () =>
                                                 showForm(index: index),
@@ -417,19 +508,24 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  buildInfo("Tanggal lahir", anak["tgl"]!),
-                                  buildInfo(
-                                    "Berat badan ketika lahir",
-                                    "${anak["bb"]} kg",
+                                  const SizedBox(height: 16),
+                                  const Divider(),
+                                  const SizedBox(height: 12),
+                                  _buildDetail("Tanggal lahir", anak["tgl"]!),
+                                  const SizedBox(height: 8),
+                                  _buildDetail(
+                                    "Berat badan",
+                                    "${anak["berat"]} kg",
                                   ),
-                                  buildInfo(
-                                    "Tinggi badan ketika lahir",
-                                    "${anak["tb"]} cm",
+                                  const SizedBox(height: 8),
+                                  _buildDetail(
+                                    "Tinggi badan",
+                                    "${anak["tinggi"]} cm",
                                   ),
-                                  buildInfo(
-                                    "Lingkar kepala ketika lahir",
-                                    "${anak["lk"]} cm",
+                                  const SizedBox(height: 8),
+                                  _buildDetail(
+                                    "Lingkar kepala",
+                                    "${anak["l_kepala"]} cm",
                                   ),
                                 ],
                               ),
@@ -437,24 +533,25 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           },
                         ),
                 ),
-
-                /// BUTTON TAMBAH
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 30),
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE85D75),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 25,
-                        vertical: 12,
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD86487),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+                      onPressed: () => showForm(),
+                      icon: const Icon(Icons.add, color: Colors.white),
+                      label: const Text(
+                        "Tambah anak",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                     ),
-                    onPressed: () => showForm(),
-                    icon: const Icon(Icons.add),
-                    label: const Text("Tambah anak"),
                   ),
                 ),
               ],
@@ -462,16 +559,16 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  Widget buildInfo(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
+  Widget _buildDetail(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+        Text(
+          value.isNotEmpty ? value : "-",
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 }

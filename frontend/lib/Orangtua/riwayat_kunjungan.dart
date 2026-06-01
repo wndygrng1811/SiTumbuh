@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:si_tumbuh/services/api_service.dart';
 
 class RiwayatKunjunganPage extends StatefulWidget {
   final int anakId;
@@ -13,12 +14,13 @@ class RiwayatKunjunganPage extends StatefulWidget {
 }
 
 class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
-  String selectedFilter = "Semua (Terbaru)";
-  final List<String> filterList = ["Semua (Terbaru)", "Terlama"];
-
   List<Map<String, dynamic>> riwayatList = [];
   bool _isLoading = true;
   String _errorMessage = '';
+
+  // 🔥 TAMBAHKAN INI
+  String selectedFilter = "Terbaru";
+  final List<String> filterList = ["Terbaru", "Terlama"];
 
   @override
   void initState() {
@@ -37,12 +39,14 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
       String? token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('http://your-api.com/api/pertumbuhan/${widget.anakId}'),
+        Uri.parse('${ApiService.baseUrl}/anak/${widget.anakId}/riwayat'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+
+      print('Riwayat response: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -51,19 +55,15 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
           setState(() {
             riwayatList = items.map((item) {
               return {
-                'id': item['id'],
-                'tanggal': item['tanggal'],
-                'berat': item['berat'],
-                'tinggi': item['tinggi'],
-                'l_kepala': item['l_kepala'],
-                'status': item['status'],
-                'nama_posyandu': item['nama_posyandu'] ?? 'Posyandu Setempat',
+                'id': item['tumbuh_id'],
+                'tanggal': item['created_at'] ?? '-',
+                'berat': item['berat_badan'],
+                'tinggi': item['tinggi_badan'],
+                'l_kepala': item['lingkar_kepala'],
+                'status': item['status_gizi'] ?? 'Normal',
               };
             }).toList();
-
-            if (selectedFilter == "Terlama") {
-              riwayatList = riwayatList.reversed.toList();
-            }
+            _applyFilter();
             _isLoading = false;
           });
         } else {
@@ -74,15 +74,28 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Gagal terhubung ke server';
+          _errorMessage = 'Gagal terhubung ke server (${response.statusCode})';
           _isLoading = false;
         });
       }
     } catch (e) {
+      print('Error: $e');
       setState(() {
         _errorMessage = 'Error: $e';
         _isLoading = false;
       });
+    }
+  }
+
+  void _applyFilter() {
+    if (selectedFilter == "Terlama") {
+      riwayatList.sort(
+        (a, b) => (a['tanggal'] ?? '').compareTo(b['tanggal'] ?? ''),
+      );
+    } else {
+      riwayatList.sort(
+        (a, b) => (b['tanggal'] ?? '').compareTo(a['tanggal'] ?? ''),
+      );
     }
   }
 
@@ -115,7 +128,6 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
               )
             : Column(
                 children: [
-                  // HEADER
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     height: 100,
@@ -179,14 +191,12 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
                               );
                             }).toList(),
                             onChanged: (value) {
-                              setState(() {
-                                selectedFilter = value!;
-                                if (selectedFilter == "Terlama") {
-                                  riwayatList = riwayatList.reversed.toList();
-                                } else {
-                                  riwayatList = riwayatList.reversed.toList();
-                                }
-                              });
+                              if (value != null) {
+                                setState(() {
+                                  selectedFilter = value;
+                                  _applyFilter();
+                                });
+                              }
                             },
                           ),
                         ),
@@ -270,17 +280,12 @@ class RiwayatCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Data Pertumbuhan",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                    const Text(
+                      "Data Pertumbuhan",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -308,28 +313,6 @@ class RiwayatCard extends StatelessWidget {
                     _buildInfo('Tinggi', '${data['tinggi']} cm'),
                     _buildInfo('L. Kepala', '${data['l_kepala']} cm'),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2D7DD),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Color(0xFFD86487),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(data['nama_posyandu'] ?? 'Posyandu Setempat'),
-                    ],
-                  ),
                 ),
               ],
             ),

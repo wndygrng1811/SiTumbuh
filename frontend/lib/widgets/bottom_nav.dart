@@ -75,40 +75,44 @@ class _BottomNavState extends State<BottomNav> {
     return BottomNavigationBar(
       currentIndex: widget.currentIndex,
       onTap: (index) => _navigate(context, index),
-      selectedItemColor: const Color(0xFFE85D75),
-      unselectedItemColor: Colors.grey,
+      backgroundColor: const Color(0xFF76172D), // Warna bottom navbar
+      selectedItemColor: const Color(
+        0xFFFFFFFF,
+      ), // Ikon & teks putih saat aktif
+      unselectedItemColor: const Color(
+        0xFFFFFFFF,
+      ).withOpacity(0.7), // Ikon & teks putih transparan saat tidak aktif
       type: BottomNavigationBarType.fixed,
-
-      // PERKECIL IKON & FONT
-      iconSize: 20, // ukuran icon (default 24)
-      // Perkecil label font
+      elevation: 8,
+      iconSize: 22,
       selectedLabelStyle: const TextStyle(
-        fontSize: 10, // default 12
-        fontWeight: FontWeight.w500,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
       ),
       unselectedLabelStyle: const TextStyle(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w400,
       ),
-
-      // Tambahkan padding agar tidak kepotong
       landscapeLayout: BottomNavigationBarLandscapeLayout.linear,
-
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home, size: 20),
+          icon: Icon(Icons.home_outlined, size: 22),
+          activeIcon: Icon(Icons.home, size: 22),
           label: "Beranda",
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.show_chart, size: 20),
+          icon: Icon(Icons.show_chart_outlined, size: 22),
+          activeIcon: Icon(Icons.show_chart, size: 22),
           label: "Pertumbuhan",
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today, size: 20),
+          icon: Icon(Icons.calendar_today_outlined, size: 22),
+          activeIcon: Icon(Icons.calendar_today, size: 22),
           label: "Edukasi",
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person, size: 20),
+          icon: Icon(Icons.person_outline, size: 22),
+          activeIcon: Icon(Icons.person, size: 22),
           label: "Profil",
         ),
       ],

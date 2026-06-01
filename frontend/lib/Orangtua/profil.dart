@@ -7,6 +7,9 @@ import 'package:si_tumbuh/Orangtua/riwayat_kunjungan.dart';
 import 'package:si_tumbuh/widgets/sidebar_menu.dart';
 import 'package:si_tumbuh/Orangtua/data_anak.dart';
 import 'package:si_tumbuh/login.dart';
+import 'package:si_tumbuh/widgets/custom_app_bar.dart';
+import 'package:si_tumbuh/widgets/bottom_nav.dart';
+import 'package:si_tumbuh/services/api_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final int anakId;
@@ -34,14 +37,16 @@ class _ProfilePageState extends State<ProfilePage> {
   String noHp = '';
   String alamat = '';
 
-  // Data Anak (lengkap)
+  // Data Anak (dari tabel anak)
   String tanggalLahir = '';
-  String beratLahir = '';
-  String tinggiLahir = '';
-  String lingkarKepalaLahir = '';
-  String statusGizi = 'Normal';
   String namaLengkapAnak = '';
   String jk = '';
+
+  // Data Pertumbuhan TERBARU (dari tabel pertumbuhan)
+  String beratTerbaru = '';
+  String tinggiTerbaru = '';
+  String lingkarKepalaTerbaru = '';
+  String statusGizi = 'Normal';
 
   @override
   void initState() {
@@ -55,10 +60,38 @@ class _ProfilePageState extends State<ProfilePage> {
       _errorMessage = '';
     });
 
-    await Future.wait([_loadUserData(), _loadAnakDetailData()]);
+    try {
+      await Future.wait([
+        _loadUserData().timeout(const Duration(seconds: 10)),
+        _loadAnakData().timeout(const Duration(seconds: 10)),
+        _loadPertumbuhanTerbaru().timeout(const Duration(seconds: 10)),
+      ]);
+    } catch (e) {
+      print('Timeout atau error: $e');
+      _loadDataFromPrefs();
+    }
 
     setState(() {
       _isLoading = false;
+    });
+  }
+
+  void _loadDataFromPrefs() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      namaOrangTua = prefs.getString('nama_anak') ?? 'Bunda A';
+      email = prefs.getString('email') ?? 'bunda@gmail.com';
+      noHp = '08123456789';
+      alamat = 'Batam';
+      namaLengkapAnak = widget.namaAnak.isNotEmpty
+          ? widget.namaAnak
+          : 'Raffi Ahmad';
+      jk = widget.jenisKelamin.isNotEmpty ? widget.jenisKelamin : 'Laki-laki';
+      tanggalLahir = '2025-01-15';
+      beratTerbaru = '9.8';
+      tinggiTerbaru = '78';
+      lingkarKepalaTerbaru = '44';
+      statusGizi = 'Normal';
     });
   }
 
@@ -69,12 +102,14 @@ class _ProfilePageState extends State<ProfilePage> {
       String? token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('http://your-api.com/api/orangtua/profile/$userId'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/profile/$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+
+      print('Profile response: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -82,7 +117,7 @@ class _ProfilePageState extends State<ProfilePage> {
           setState(() {
             namaOrangTua = data['data']['nama_lengkap'] ?? '';
             email = data['data']['email'] ?? '';
-            noHp = data['data']['no_hp'] ?? '';
+            noHp = data['data']['no_hp']?.toString() ?? '';
             alamat = data['data']['alamat'] ?? '';
           });
         }
@@ -92,18 +127,21 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _loadAnakDetailData() async {
+  // Ambil data anak (nama, jenis kelamin, tanggal lahir)
+  Future<void> _loadAnakData() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('http://your-api.com/api/anak/${widget.anakId}'),
+        Uri.parse('${ApiService.baseUrl}/anak/${widget.anakId}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+
+      print('Anak response: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -112,16 +150,46 @@ class _ProfilePageState extends State<ProfilePage> {
             namaLengkapAnak = data['data']['nama_anak'] ?? widget.namaAnak;
             jk = data['data']['jenis_kelamin'] ?? widget.jenisKelamin;
             tanggalLahir = data['data']['tanggal_lahir'] ?? '-';
-            beratLahir = data['data']['berat_lahir']?.toString() ?? '-';
-            tinggiLahir = data['data']['tinggi_lahir']?.toString() ?? '-';
-            lingkarKepalaLahir =
-                data['data']['lingkar_kepala_lahir']?.toString() ?? '-';
-            statusGizi = data['data']['status_gizi'] ?? 'Normal';
           });
         }
       }
     } catch (e) {
-      print('Error load anak detail: $e');
+      print('Error load anak data: $e');
+    }
+  }
+
+  // Ambil data pertumbuhan TERBARU dari tabel pertumbuhan
+  Future<void> _loadPertumbuhanTerbaru() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/pertumbuhan/${widget.anakId}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('Pertumbuhan response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true &&
+            data['data'] != null &&
+            data['data'].isNotEmpty) {
+          var terbaru = data['data'].last;
+          setState(() {
+            beratTerbaru = terbaru['berat']?.toString() ?? '-';
+            tinggiTerbaru = terbaru['tinggi']?.toString() ?? '-';
+            lingkarKepalaTerbaru = terbaru['l_kepala']?.toString() ?? '-';
+            statusGizi = terbaru['status'] ?? 'Normal';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error load pertumbuhan: $e');
     }
   }
 
@@ -134,228 +202,147 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       drawer: _buildDrawer(context),
       backgroundColor: const Color(0xFFFFF5F7),
-
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _errorMessage.isNotEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _errorMessage,
-                      style: const TextStyle(color: Colors.red),
+      appBar: CustomAppBar(
+        title: 'Profil',
+        backgroundColor: const Color(0xFFD86487),
+        titleColor: Colors.white,
+        iconColor: Colors.white,
+        showBackButton: true,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  const Center(
+                    child: CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Color(0xFF7A1C2E),
+                      child: Icon(Icons.person, size: 50, color: Colors.white),
                     ),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _loadAllData,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B1E3F),
+                  ),
+                  const SizedBox(height: 12),
+                  Column(
+                    children: [
+                      Text(
+                        namaOrangTua.isNotEmpty ? namaOrangTua : "Orang Tua",
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Color(0xFF5A2A2A),
+                        ),
                       ),
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
-                ),
-              )
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // HEADER
-                    Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          height: 180,
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFD86487),
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(30),
-                              bottomRight: Radius.circular(30),
-                            ),
+                      const SizedBox(height: 6),
+                      Text(
+                        email.isNotEmpty ? email : "email@example.com",
+                        style: const TextStyle(
+                          color: Color(0xFFD86487),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "No Hp : ${noHp.isNotEmpty ? noHp : '-'}",
+                        style: const TextStyle(
+                          color: Color(0xFF7A1C2E),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _profilAnak(),
+                  const SizedBox(height: 16),
+                  _menu(context, "Profil lengkap", () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfilLengkapPage(
+                          anakId: widget.anakId,
+                          onProfileUpdated: (Map<String, dynamic> dataBaru) {
+                            // 🔥 Update state langsung tanpa refresh
+                            setState(() {
+                              namaOrangTua = dataBaru['nama_lengkap'];
+                              email = dataBaru['email'];
+                              noHp = dataBaru['no_hp'];
+                              alamat = dataBaru['alamat'];
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                  _menu(context, "Data anak", () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            DataAnakPage(anakId: widget.anakId),
+                      ),
+                    );
+                  }),
+                  _menu(context, "Riwayat kunjungan", () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            RiwayatKunjunganPage(anakId: widget.anakId),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: const [
+                        Text(
+                          "Informasi Privasi",
+                          style: TextStyle(
+                            color: Color(0xFF7A1C2E),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Positioned(
-                          top: 10,
-                          left: 16,
-                          right: 16,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  Scaffold.of(context).openDrawer();
-                                },
-                                child: const Icon(
-                                  Icons.menu,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const Text(
-                                "SiTumbuh",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              const Icon(
-                                Icons.notifications_none,
-                                color: Colors.white,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          bottom: -45,
-                          left: 0,
-                          right: 0,
-                          child: const Center(
-                            child: CircleAvatar(
-                              radius: 48,
-                              backgroundColor: Color(0xFF7A1C2E),
-                              child: Icon(
-                                Icons.person,
-                                size: 45,
-                                color: Colors.white,
-                              ),
-                            ),
+                        Text(
+                          "Syarat & Ketentuan",
+                          style: TextStyle(
+                            color: Color(0xFF7A1C2E),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 60),
-
-                    // USER INFO - DARI DATABASE
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        children: [
-                          Text(
-                            namaOrangTua.isNotEmpty
-                                ? namaOrangTua
-                                : "Orang Tua",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Color(0xFF5A2A2A),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            email,
-                            style: const TextStyle(
-                              color: Color(0xFFD86487),
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "No Hp : ${noHp.isNotEmpty ? noHp : '-'}",
-                            style: const TextStyle(
-                              color: Color(0xFF7A1C2E),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => _showLogoutDialog(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF5A1E28),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // PROFIL ANAK - DARI DATABASE
-                    _profilAnak(),
-
-                    const SizedBox(height: 16),
-
-                    _menu(context, "Profil lengkap", () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ProfilLengkapPage(anakId: widget.anakId),
-                        ),
-                      );
-                    }),
-
-                    _menu(context, "Data anak", () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              DataAnakPage(anakId: widget.anakId),
-                        ),
-                      );
-                    }),
-
-                    _menu(context, "Riwayat kunjungan", () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              RiwayatKunjunganPage(anakId: widget.anakId),
-                        ),
-                      );
-                    }),
-
-                    const SizedBox(height: 20),
-
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: const [
-                          Text(
-                            "Informasi Privasi",
-                            style: TextStyle(
-                              color: Color(0xFF7A1C2E),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Text(
-                            "Syarat & Ketentuan",
-                            style: TextStyle(
-                              color: Color(0xFF7A1C2E),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 60,
+                        vertical: 12,
                       ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    ElevatedButton(
-                      onPressed: () {
-                        _showLogoutDialog(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5A1E28),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 60,
-                          vertical: 12,
-                        ),
-                        child: Text(
-                          "Keluar",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
+                      child: Text(
+                        "Keluar",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
-      ),
+            ),
+      bottomNavigationBar: const BottomNav(currentIndex: 3),
     );
   }
 
@@ -383,7 +370,6 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,13 +424,13 @@ class _ProfilePageState extends State<ProfilePage> {
             "Tanggal lahir : ${tanggalLahir != '-' ? tanggalLahir : 'Belum diisi'}",
           ),
           Text(
-            "Berat badan lahir : ${beratLahir != '-' ? '$beratLahir kg' : 'Belum diisi'}",
+            "Berat badan : ${beratTerbaru != '-' ? '$beratTerbaru kg' : 'Belum diisi'}",
           ),
           Text(
-            "Tinggi badan lahir : ${tinggiLahir != '-' ? '$tinggiLahir cm' : 'Belum diisi'}",
+            "Tinggi badan : ${tinggiTerbaru != '-' ? '$tinggiTerbaru cm' : 'Belum diisi'}",
           ),
           Text(
-            "Lingkar kepala lahir : ${lingkarKepalaLahir != '-' ? '$lingkarKepalaLahir cm' : 'Belum diisi'}",
+            "Lingkar kepala : ${lingkarKepalaTerbaru != '-' ? '$lingkarKepalaTerbaru cm' : 'Belum diisi'}",
           ),
         ],
       ),
@@ -500,11 +486,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             TextButton(
               onPressed: () async {
-                // Hapus semua data session
                 SharedPreferences prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
-
-                // Navigasi ke login
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (context) => const LoginPage()),
                   (Route<dynamic> route) => false,
@@ -512,6 +495,21 @@ class _ProfilePageState extends State<ProfilePage> {
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text("Keluar"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginPage()),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text(
+                "Reset Data & Login Ulang",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         );

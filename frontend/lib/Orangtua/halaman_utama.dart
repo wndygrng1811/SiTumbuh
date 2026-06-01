@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:si_tumbuh/Orangtua/grafik.dart';
 import 'package:si_tumbuh/Orangtua/profil.dart';
 import 'package:si_tumbuh/Orangtua/edukasi.dart';
+import 'package:si_tumbuh/widgets/bottom_nav.dart';
 
 class HalamanUtama extends StatefulWidget {
   const HalamanUtama({super.key});
@@ -17,19 +18,16 @@ class _HalamanUtamaState extends State<HalamanUtama> {
   int anakId = 0;
   String namaAnak = '';
   String jenisKelamin = '';
+  String namaOrangTua = ''; // 🔥 NAMA ORANG TUA
 
-  //  PERBAIKAN: anakId dikirim sebagai int, bukan String
   List<Widget> get _pages => [
     DashboardContent(
       anakId: anakId,
       namaAnak: namaAnak,
       jenisKelamin: jenisKelamin,
+      namaOrangTua: namaOrangTua,
     ),
-    GrafikPage(
-      anakId: anakId, // int, tanpa .toString()
-      namaAnak: namaAnak,
-      jenisKelamin: jenisKelamin,
-    ),
+    GrafikPage(anakId: anakId, namaAnak: namaAnak, jenisKelamin: jenisKelamin),
     const Center(child: Text("Jadwal")),
     ProfilePage(anakId: anakId, namaAnak: namaAnak, jenisKelamin: jenisKelamin),
   ];
@@ -48,11 +46,11 @@ class _HalamanUtamaState extends State<HalamanUtama> {
 
   Future<void> loadAnak() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-
     setState(() {
       anakId = prefs.getInt('anak_id') ?? 0;
       namaAnak = prefs.getString('nama_anak') ?? '';
       jenisKelamin = prefs.getString('jenis_kelamin') ?? '';
+      namaOrangTua = prefs.getString('nama') ?? 'Bunda'; // 🔥 NAMA ORANG TUA
     });
   }
 
@@ -63,7 +61,6 @@ class _HalamanUtamaState extends State<HalamanUtama> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // HEADER
             Container(
               padding: const EdgeInsets.only(top: 50, left: 16, right: 16),
               child: Row(
@@ -81,37 +78,25 @@ class _HalamanUtamaState extends State<HalamanUtama> {
                 ],
               ),
             ),
-
             const SizedBox(height: 30),
-
             _drawerItem(Icons.home, "Beranda", () {
-              setState(() {
-                _selectedIndex = 0;
-              });
+              setState(() => _selectedIndex = 0);
               Navigator.pop(context);
             }),
             _drawerItem(Icons.person, "Profil", () {
-              setState(() {
-                _selectedIndex = 3;
-              });
+              setState(() => _selectedIndex = 3);
               Navigator.pop(context);
             }),
             _drawerItem(Icons.favorite_border, "Cek pertumbuhan", () {
-              setState(() {
-                _selectedIndex = 1;
-              });
+              setState(() => _selectedIndex = 1);
               Navigator.pop(context);
             }),
             _drawerItem(Icons.trending_up, "Riwayat pertumbuhan", () {
-              setState(() {
-                _selectedIndex = 1;
-              });
+              setState(() => _selectedIndex = 1);
               Navigator.pop(context);
             }),
             _drawerItem(Icons.calendar_today, "Jadwal posyandu", () {
-              setState(() {
-                _selectedIndex = 2;
-              });
+              setState(() => _selectedIndex = 2);
               Navigator.pop(context);
             }),
             _drawerItem(Icons.menu_book, "Edukasi", () {
@@ -161,50 +146,24 @@ class _HalamanUtamaState extends State<HalamanUtama> {
       drawer: _buildDrawer(context),
       backgroundColor: const Color(0xFFFFF5F7),
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: Container(
-        color: const Color(0xFF8B1E3F),
-        child: BottomNavigationBar(
-          backgroundColor: const Color(0xFF8B1E3F),
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.white70,
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              label: 'Beranda',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.show_chart),
-              label: 'Pertumbuhan',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today),
-              label: 'Jadwal Posyandu',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              label: 'Profil',
-            ),
-          ],
-        ),
-      ),
+      bottomNavigationBar: BottomNav(currentIndex: _selectedIndex),
     );
   }
 }
 
-//  DASHBOARD CONTENT dengan data dinamis
+// ==================== DASHBOARD CONTENT ====================
 class DashboardContent extends StatefulWidget {
   final int anakId;
   final String namaAnak;
   final String jenisKelamin;
+  final String namaOrangTua; // 🔥 NAMA ORANG TUA
 
   const DashboardContent({
     super.key,
     required this.anakId,
     required this.namaAnak,
     required this.jenisKelamin,
+    required this.namaOrangTua,
   });
 
   @override
@@ -224,16 +183,13 @@ class _DashboardContentState extends State<DashboardContent> {
   void _autoSlide() {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
-
       _currentPage++;
       if (_currentPage > 2) _currentPage = 0;
-
       _pageController.animateToPage(
         _currentPage,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
-
       _autoSlide();
     });
   }
@@ -246,16 +202,13 @@ class _DashboardContentState extends State<DashboardContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Builder(
                   builder: (context) => IconButton(
                     icon: const Icon(Icons.menu, color: Color(0xFF8B1E3F)),
-                    onPressed: () {
-                      Scaffold.maybeOf(context)?.openDrawer();
-                    },
+                    onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
                   ),
                 ),
                 const Text(
@@ -269,10 +222,7 @@ class _DashboardContentState extends State<DashboardContent> {
                 const Icon(Icons.notifications_none, color: Color(0xFF8B1E3F)),
               ],
             ),
-
             const SizedBox(height: 16),
-
-            // BANNER AUTO SLIDE
             SizedBox(
               height: 120,
               child: PageView(
@@ -284,22 +234,20 @@ class _DashboardContentState extends State<DashboardContent> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
 
-            // NAMA DINAMIS dari database
+            // 🔥 HALLO DENGAN NAMA ORANG TUA
             Text(
-              "Hallo, ${widget.namaAnak.isNotEmpty ? widget.namaAnak : 'Bunda'}!",
+              "Hallo, ${widget.namaOrangTua.isNotEmpty ? widget.namaOrangTua : 'Bunda'}!",
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const Text(
               "Pantau pertumbuhan anak anda",
               style: TextStyle(color: Colors.grey),
             ),
-
             const SizedBox(height: 16),
 
-            // CARD DATA ANAK - DINAMIS
+            // CARD DATA ANAK
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -312,7 +260,6 @@ class _DashboardContentState extends State<DashboardContent> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  //  NAMA ANAK DINAMIS
                   Text(
                     widget.namaAnak.isNotEmpty ? widget.namaAnak : "Anak",
                     style: const TextStyle(
@@ -321,8 +268,6 @@ class _DashboardContentState extends State<DashboardContent> {
                     ),
                   ),
                   const SizedBox(height: 10),
-
-                  // Info berat, tinggi, kepala dengan divider
                   IntrinsicHeight(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -335,9 +280,7 @@ class _DashboardContentState extends State<DashboardContent> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: const [
@@ -348,9 +291,7 @@ class _DashboardContentState extends State<DashboardContent> {
                       Text("04-03-2026", style: TextStyle(fontSize: 13)),
                     ],
                   ),
-
                   const Divider(),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -373,7 +314,6 @@ class _DashboardContentState extends State<DashboardContent> {
                           ),
                         ),
                         onPressed: () {
-                          // Navigasi ke GrafikPage
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -395,10 +335,7 @@ class _DashboardContentState extends State<DashboardContent> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // GRAFIK PERTUMBUHAN HEADER
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
@@ -412,10 +349,7 @@ class _DashboardContentState extends State<DashboardContent> {
                 ),
               ],
             ),
-
             const SizedBox(height: 10),
-
-            // CHART
             Container(
               height: 220,
               padding: const EdgeInsets.all(12),
@@ -450,10 +384,7 @@ class _DashboardContentState extends State<DashboardContent> {
                               interval: 1,
                               getTitlesWidget: (value, meta) => Text(
                                 value.toInt().toString(),
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey,
-                                ),
+                                style: const TextStyle(fontSize: 9),
                               ),
                             ),
                           ),
@@ -463,10 +394,7 @@ class _DashboardContentState extends State<DashboardContent> {
                               interval: 3,
                               getTitlesWidget: (value, meta) => Text(
                                 value.toInt().toString(),
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey,
-                                ),
+                                style: const TextStyle(fontSize: 9),
                               ),
                             ),
                           ),
@@ -476,10 +404,7 @@ class _DashboardContentState extends State<DashboardContent> {
                               interval: 1,
                               getTitlesWidget: (value, meta) => Text(
                                 value.toInt().toString(),
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.grey,
-                                ),
+                                style: const TextStyle(fontSize: 9),
                               ),
                             ),
                           ),
@@ -488,7 +413,6 @@ class _DashboardContentState extends State<DashboardContent> {
                           ),
                         ),
                         lineBarsData: [
-                          // Zona kuning (bawah)
                           LineChartBarData(
                             spots: const [
                               FlSpot(0, 5),
@@ -504,7 +428,6 @@ class _DashboardContentState extends State<DashboardContent> {
                               color: Colors.yellow.withOpacity(0.6),
                             ),
                           ),
-                          // Zona hijau (atas)
                           LineChartBarData(
                             spots: const [
                               FlSpot(0, 6),
@@ -520,7 +443,6 @@ class _DashboardContentState extends State<DashboardContent> {
                               color: Colors.green.withOpacity(0.4),
                             ),
                           ),
-                          // Garis data anak
                           LineChartBarData(
                             spots: const [
                               FlSpot(0, 5.5),
@@ -541,8 +463,6 @@ class _DashboardContentState extends State<DashboardContent> {
                 ],
               ),
             ),
-
-            // Lihat lainnya
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -564,8 +484,6 @@ class _DashboardContentState extends State<DashboardContent> {
                 ),
               ),
             ),
-
-            // JADWAL POSYANDU
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -602,10 +520,7 @@ class _DashboardContentState extends State<DashboardContent> {
                 ],
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // EDUKASI ORANG TUA
             const Text(
               "Edukasi Orang Tua",
               style: TextStyle(
@@ -614,10 +529,7 @@ class _DashboardContentState extends State<DashboardContent> {
                 color: Color(0xFF8B1E3F),
               ),
             ),
-
             const SizedBox(height: 10),
-
-            // CARD EDUKASI dengan gambar & navigasi ke EdukasiPage
             Row(
               children: [
                 Expanded(
@@ -625,14 +537,12 @@ class _DashboardContentState extends State<DashboardContent> {
                     imagePath: 'assets/images/stunting.jpg',
                     caption:
                         'Cegah Hambatan Tumbuh Kembang Anak\ndengan Skrining Tumbuh Kembang!',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EdukasiPage(),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EdukasiPage(),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -640,38 +550,29 @@ class _DashboardContentState extends State<DashboardContent> {
                   child: EduCard(
                     imagePath: 'assets/images/stunting2.jpg',
                     caption: '',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EdukasiPage(),
-                        ),
-                      );
-                    },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EdukasiPage(),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-
-            // Baca selengkapnya
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EdukasiPage(),
-                    ),
-                  );
-                },
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EdukasiPage()),
+                ),
                 child: const Text(
                   "Baca selengkapnya",
                   style: TextStyle(color: Color(0xFF8B1E3F), fontSize: 13),
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
           ],
         ),
@@ -682,12 +583,10 @@ class _DashboardContentState extends State<DashboardContent> {
 
 Widget _buildBanner(BuildContext context, String image) {
   return GestureDetector(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const EdukasiPage()),
-      );
-    },
+    onTap: () => Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const EdukasiPage()),
+    ),
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 2),
       child: ClipRRect(
@@ -696,12 +595,10 @@ Widget _buildBanner(BuildContext context, String image) {
           image,
           fit: BoxFit.cover,
           width: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey[300],
-              child: const Center(child: Icon(Icons.error, color: Colors.grey)),
-            );
-          },
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: Colors.grey[300],
+            child: const Center(child: Icon(Icons.error, color: Colors.grey)),
+          ),
         ),
       ),
     ),
@@ -711,7 +608,6 @@ Widget _buildBanner(BuildContext context, String image) {
 class InfoItem extends StatelessWidget {
   final String title;
   final String value;
-
   const InfoItem(this.title, this.value, {super.key});
 
   @override
@@ -744,7 +640,6 @@ class EduCard extends StatelessWidget {
   final String imagePath;
   final String caption;
   final VoidCallback? onTap;
-
   const EduCard({
     super.key,
     required this.imagePath,
@@ -760,24 +655,20 @@ class EduCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            // Gambar
             SizedBox(
               height: 130,
               width: double.infinity,
               child: Image.asset(
                 imagePath,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.error, color: Colors.grey),
-                    ),
-                  );
-                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(Icons.error, color: Colors.grey),
+                  ),
+                ),
               ),
             ),
-            // Overlay gradient bawah
             Positioned(
               bottom: 0,
               left: 0,

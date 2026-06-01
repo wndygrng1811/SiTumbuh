@@ -23,7 +23,11 @@ class _LoginPageState extends State<LoginPage> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
+    print('Mencoba login dengan: $email / $password');
+
     final result = await ApiService.login(email, password);
+
+    print('Hasil login: $result');
 
     if (result['success'] == true) {
       if (result['role'] == 'orang_tua') {

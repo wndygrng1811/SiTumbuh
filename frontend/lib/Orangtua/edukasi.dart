@@ -1,75 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:si_tumbuh/Orangtua/halaman_utama.dart';
-import 'package:si_tumbuh/Orangtua/profil.dart';
-import 'package:si_tumbuh/Orangtua/grafik.dart';
-
-class Artikel {
-  final String title;
-  final String image;
-  final String link;
-  final String kategori;
-
-  Artikel({
-    required this.title,
-    required this.image,
-    required this.link,
-    required this.kategori,
-  });
-}
-
-final List<Artikel> artikelList = [
-  Artikel(
-    title: "Mengenal apa itu Stunting?",
-    image: "assets/images/stunting.jpg",
-    link:
-        "https://keslan.kemkes.go.id/view_artikel/1388/mengenal-apa-itu-stunting",
-    kategori: "Stunting",
-  ),
-  Artikel(
-    title: "Penuhi kebutuhan gizi anak",
-    image: "assets/images/stunting1.png",
-    link:
-        "https://gayahidup.rri.co.id/banda-aceh/kesehatan/110228/kemenkes-lakukan-pendekatan-gizi-spesifik-turunkan-angka-stunting",
-    kategori: "Nutrisi",
-  ),
-  Artikel(
-    title: "Data penurunan stunting",
-    image: "assets/images/stunting2.jpg",
-    link:
-        "https://jateng.antaranews.com/berita/285739/kemenkes-lima-dari-10-ibu-hamil-anemia-potensi-lahirkan-anak-stunting",
-    kategori: "Stunting",
-  ),
-  Artikel(
-    title: "Cegah stunting sejak dini",
-    image: "assets/images/stunting.jpg",
-    link:
-        "https://keslan.kemkes.go.id/view_artikel/1388/mengenal-apa-itu-stunting",
-    kategori: "Stunting",
-  ),
-  Artikel(
-    title: "Pentingnya gizi ibu hamil",
-    image: "assets/images/stunting1.png",
-    link:
-        "https://jateng.antaranews.com/berita/285739/kemenkes-lima-dari-10-ibu-hamil-anemia-potensi-lahirkan-anak-stunting",
-    kategori: "Nutrisi",
-  ),
-  Artikel(
-    title: "Upaya turunkan stunting",
-    image: "assets/images/stunting2.jpg",
-    link:
-        "https://gayahidup.rri.co.id/banda-aceh/kesehatan/110228/kemenkes-lakukan-pendekatan-gizi-spesifik-turunkan-angka-stunting",
-    kategori: "Stunting",
-  ),
-  Artikel(
-    title: "Mengenal Stunting Anak",
-    image: "assets/images/stunting3.png",
-    link:
-        "https://ners.unair.ac.id/site/index.php/news-fkp-unair/30-lihat/1013-mengenal-stunting-dan-dampaknya-pada-tumbuh-kembang-anak",
-    kategori: "Stunting",
-  ),
-];
+import 'package:si_tumbuh/widgets/custom_app_bar.dart';
+import 'package:si_tumbuh/widgets/bottom_nav.dart';
+import 'dart:convert';
+import 'package:si_tumbuh/services/api_service.dart';
 
 class EdukasiPage extends StatefulWidget {
   const EdukasiPage({super.key});
@@ -79,232 +14,183 @@ class EdukasiPage extends StatefulWidget {
 }
 
 class _EdukasiPageState extends State<EdukasiPage> {
-  int _selectedIndex = 0;
   String selectedTab = "Semua";
-
-  // Data anak saat ini (sama seperti di halaman_utama)
-  int _currentAnakId = 0;
-  String _currentNamaAnak = '';
-  String _currentJenisKelamin = '';
-
   final List<String> tabs = ["Semua", "Nutrisi", "Stunting"];
+
+  List<Map<String, dynamic>> _artikelList = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadAnakData();
+    _loadData();
   }
 
-  Future<void> _loadAnakData() async {
+  Future<void> _loadData() async {
+    // 🔥 CEK CACHE DULU (SUPAY CEPAT)
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _currentAnakId = prefs.getInt('anak_id') ?? 0;
-      _currentNamaAnak = prefs.getString('nama_anak') ?? '';
-      _currentJenisKelamin = prefs.getString('jenis_kelamin') ?? '';
-    });
+    String? cachedData = prefs.getString('edukasi_cache');
+
+    if (cachedData != null) {
+      setState(() {
+        _artikelList = List<Map<String, dynamic>>.from(json.decode(cachedData));
+        _isLoading = false;
+      });
+    }
+
+    // 🔥 AMBIL DATA BARU DARI DATABASE DI BACKGROUND
+    _fetchDataFromApi();
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+  Future<void> _fetchDataFromApi() async {
+    try {
+      final List<dynamic> data = await ApiService.getEdukasi();
 
-    if (index == 0) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HalamanUtama()),
-      );
-    } else if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => GrafikPage(
-            anakId: _currentAnakId,
-            namaAnak: _currentNamaAnak,
-            jenisKelamin: _currentJenisKelamin,
-          ),
-        ),
-      );
-    } else if (index == 2) {
-      // Jadwal Posyandu
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Fitur jadwal posyandu sedang dikembangkan'),
-        ),
-      );
-      setState(() {
-        _selectedIndex = 0;
-      });
-    } else if (index == 3) {
-      // PERBAIKAN: Kirim parameter ke ProfilePage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ProfilePage(
-            anakId: _currentAnakId,
-            namaAnak: _currentNamaAnak,
-            jenisKelamin: _currentJenisKelamin,
-          ),
-        ),
-      );
+      if (data.isNotEmpty) {
+        List<Map<String, dynamic>> artikelBaru = data.map((item) {
+          return {
+            'id': item['edukasi_id'],
+            'title': item['judul'],
+            'link': item['isi'],
+            'kategori': item['kategori'] ?? 'Stunting',
+            'image': 'assets/images/stunting.jpg',
+          };
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            _artikelList = artikelBaru;
+            _isLoading = false;
+          });
+        }
+
+        // 🔥 SIMPAN KE CACHE
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('edukasi_cache', json.encode(artikelBaru));
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error fetch edukasi: $e');
+      if (mounted && _artikelList.isEmpty) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final filtered = selectedTab == "Semua"
-        ? artikelList
-        : artikelList.where((e) => e.kategori == selectedTab).toList();
+        ? _artikelList
+        : _artikelList.where((e) => e['kategori'] == selectedTab).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4EDEE),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // HEADER
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              height: 120,
-              decoration: const BoxDecoration(
-                color: Color(0xFFD86487),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(30),
+      appBar: CustomAppBar(
+        title: 'Edukasi',
+        backgroundColor: const Color(0xFFD86487),
+        titleColor: Colors.white,
+        iconColor: Colors.white,
+        showBackButton: false,
+      ),
+      body: _isLoading && _artikelList.isEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                const SizedBox(height: 10),
+                // TAB FILTER
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black12, blurRadius: 6),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      ...tabs.map((tab) {
+                        final active = tab == selectedTab;
+                        return GestureDetector(
+                          onTap: () => setState(() => selectedTab = tab),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: active
+                                  ? const Color(0xFF8B1E3F)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              tab,
+                              style: TextStyle(
+                                color: active ? Colors.white : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      const Spacer(),
+                      const Icon(Icons.more_horiz, color: Colors.grey),
+                    ],
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Text(
-                    "SiTumbuh",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const Icon(Icons.notifications_none, color: Colors.white),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // TAB FILTER
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 6),
-                ],
-              ),
-              child: Row(
-                children: [
-                  ...tabs.map((tab) {
-                    final active = tab == selectedTab;
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedTab = tab;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: active
-                              ? const Color(0xFF8B1E3F)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          tab,
-                          style: TextStyle(
-                            color: active ? Colors.white : Colors.grey,
+                const SizedBox(height: 16),
+                // GRID EDUKASI
+                Expanded(
+                  child: filtered.isEmpty
+                      ? const Center(child: Text('Belum ada artikel edukasi'))
+                      : GridView.count(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: 0.85,
+                          children: List.generate(
+                            filtered.length,
+                            (index) => EduCard(data: filtered[index]),
                           ),
                         ),
-                      ),
-                    );
-                  }).toList(),
-                  const Spacer(),
-                  const Icon(Icons.more_horiz, color: Colors.grey),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // GRID EDUKASI
-            Expanded(
-              child: GridView.count(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.85,
-                children: List.generate(
-                  filtered.length,
-                  (index) => EduCard(data: filtered[index]),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: const Color(0xFF8B1E3F),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            label: 'Beranda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.trending_up),
-            label: 'Pertumbuhan',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
-            label: 'Jadwal Posyandu',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: 'Profil',
-          ),
-        ],
-      ),
+      bottomNavigationBar: const BottomNav(currentIndex: 2),
     );
   }
 }
 
-// CARD EDUKASI
+// CARD EDUKASI - BUKA PAKAI WEBVIEW
 class EduCard extends StatelessWidget {
-  final Artikel data;
+  final Map<String, dynamic> data;
 
   const EduCard({super.key, required this.data});
+
+  void _openArticle(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            WebViewPage(url: data['link'], title: data['title']),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        final uri = Uri.parse(data.link);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        }
-      },
+      onTap: () => _openArticle(context),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -319,25 +205,23 @@ class EduCard extends StatelessWidget {
                 top: Radius.circular(16),
               ),
               child: Image.asset(
-                data.image,
+                data['image'],
                 height: 90,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 90,
-                    color: Colors.grey[300],
-                    child: const Center(
-                      child: Icon(Icons.error, color: Colors.grey),
-                    ),
-                  );
-                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 90,
+                  color: Colors.grey[300],
+                  child: const Center(
+                    child: Icon(Icons.error, color: Colors.grey),
+                  ),
+                ),
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
-                data.title,
+                data['title'],
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
@@ -367,6 +251,59 @@ class EduCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// HALAMAN WEBVIEW UNTUK MEMBUKA ARTIKEL
+class WebViewPage extends StatefulWidget {
+  final String url;
+  final String title;
+
+  const WebViewPage({super.key, required this.url, required this.title});
+
+  @override
+  State<WebViewPage> createState() => _WebViewPageState();
+}
+
+class _WebViewPageState extends State<WebViewPage> {
+  late final WebViewController _controller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) => setState(() => _isLoading = true),
+          onPageFinished: (String url) => setState(() => _isLoading = false),
+        ),
+      )
+      ..loadRequest(Uri.parse(widget.url));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: CustomAppBar(
+        title: widget.title,
+        backgroundColor: const Color(0xFFD86487),
+        titleColor: Colors.white,
+        iconColor: Colors.white,
+        showBackButton: true,
+      ),
+      body: Stack(
+        children: [
+          WebViewWidget(controller: _controller),
+          if (_isLoading)
+            const Center(
+              child: CircularProgressIndicator(color: Color(0xFF8B1E3F)),
+            ),
+        ],
       ),
     );
   }
