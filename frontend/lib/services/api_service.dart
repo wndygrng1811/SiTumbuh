@@ -3,20 +3,24 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.43.115:8000/api';
+  // PASTIKAN URL INI BENAR - harus diakhiri dengan /api
+  static const String baseUrl = 'http://192.168.100.29:8000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
     return {
       'Content-Type': 'application/json',
+      'Accept': 'application/json', // Tambahkan Accept header
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
 
   static Future<http.Response> get(String endpoint) async {
     final headers = await _getHeaders();
-    return await http.get(Uri.parse('$baseUrl$endpoint'), headers: headers);
+    final url = '$baseUrl$endpoint';
+    print('GET URL: $url');
+    return await http.get(Uri.parse(url), headers: headers);
   }
 
   static Future<http.Response> post(
@@ -24,8 +28,11 @@ class ApiService {
     Map<String, dynamic> body,
   ) async {
     final headers = await _getHeaders();
+    final url = '$baseUrl$endpoint';
+    print('POST URL: $url');
+    print('POST Body: $body');
     return await http.post(
-      Uri.parse('$baseUrl$endpoint'),
+      Uri.parse(url),
       headers: headers,
       body: json.encode(body),
     );
@@ -36,8 +43,11 @@ class ApiService {
     Map<String, dynamic> body,
   ) async {
     final headers = await _getHeaders();
+    final url = '$baseUrl$endpoint';
+    print('PUT URL: $url');
+    print('PUT Body: $body');
     return await http.put(
-      Uri.parse('$baseUrl$endpoint'),
+      Uri.parse(url),
       headers: headers,
       body: json.encode(body),
     );
@@ -45,7 +55,9 @@ class ApiService {
 
   static Future<http.Response> delete(String endpoint) async {
     final headers = await _getHeaders();
-    return await http.delete(Uri.parse('$baseUrl$endpoint'), headers: headers);
+    final url = '$baseUrl$endpoint';
+    print('DELETE URL: $url');
+    return await http.delete(Uri.parse(url), headers: headers);
   }
 
   // ============ AUTH (LOGIN) ============
@@ -73,10 +85,7 @@ class ApiService {
           await prefs.setString('token', data['token'] ?? '');
           await prefs.setInt('user_id', data['user_id'] ?? 0);
           await prefs.setString('role', data['role'] ?? '');
-          await prefs.setString(
-            'nama',
-            data['nama'] ?? '',
-          ); // 🔥 NAMA ORANG TUA
+          await prefs.setString('nama', data['nama'] ?? '');
           await prefs.setInt('anak_id', data['anak_id'] ?? 0);
           await prefs.setString('nama_anak', data['nama_anak'] ?? '');
           await prefs.setString('jenis_kelamin', data['jenis_kelamin'] ?? '');

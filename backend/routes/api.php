@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\PertumbuhanController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\AnakController;
 use App\Http\Controllers\Api\EdukasiController;
-
+use App\Http\Controllers\Api\JadwalController;
 Route::get('/health', function () {
     return response()->json([
         'success' => true,
@@ -16,10 +16,6 @@ Route::get('/health', function () {
 
 // API Routes
 Route::post('/login', [AuthController::class, 'login']);
-
-// Orang Tua & Kader
-Route::get('/pertumbuhan/{anakId}', [PertumbuhanController::class, 'getRiwayat']);
-Route::get('/kms', [PertumbuhanController::class, 'kms']);
 
 // Profile
 Route::get('/orangtua/profile/{userId}', [ProfileController::class, 'getProfile']);
@@ -34,9 +30,16 @@ Route::post('/anak', [AnakController::class, 'store']);
 Route::put('/anak/{anakId}', [AnakController::class, 'update']);
 Route::delete('/anak/{anakId}', [AnakController::class, 'destroy']);
 
-// 🔥 EDUKASI - PASTIKAN INI ADA
+// Edukasi
 Route::get('/edukasi', [EdukasiController::class, 'index']);
 Route::get('/edukasi/{id}', [EdukasiController::class, 'show']);
 
-// Kader
+// Pertumbuhan
+Route::get('/pertumbuhan/{anakId}', [PertumbuhanController::class, 'getRiwayat']);
 Route::post('/pertumbuhan', [PertumbuhanController::class, 'store']);
+
+// 🔥 JADWAL (tambah ini)
+Route::get('/jadwal', [JadwalController::class, 'index']);
+Route::post('/jadwal', [JadwalController::class, 'store']);
+Route::put('/jadwal/{id}', [JadwalController::class, 'update']);
+Route::delete('/jadwal/{id}', [JadwalController::class, 'destroy']);

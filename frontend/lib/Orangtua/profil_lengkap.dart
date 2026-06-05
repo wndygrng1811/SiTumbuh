@@ -3,11 +3,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:si_tumbuh/services/api_service.dart';
+import 'package:flutter/services.dart';
 
 class ProfilLengkapPage extends StatefulWidget {
   final int anakId;
-  final Function(Map<String, dynamic>)
-  onProfileUpdated; // 🔥 callback dengan data
+  final Function(Map<String, dynamic>) onProfileUpdated;
 
   const ProfilLengkapPage({
     super.key,
@@ -21,7 +21,9 @@ class ProfilLengkapPage extends StatefulWidget {
 
 class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   bool _isLoading = true;
+  bool _isSaving = false;
   bool _isEditing = false;
+  String _errorMessage = '';
 
   String namaLengkap = '';
   String email = '';
@@ -49,12 +51,23 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       int userId = prefs.getInt('user_id') ?? 0;
+
+      if (userId == 0) {
+        setState(() {
+          _errorMessage = 'Session tidak valid, silakan login ulang';
+          _isLoading = false;
+        });
+        return;
+      }
 
       final response = await http.get(
         Uri.parse('${ApiService.baseUrl}/orangtua/$userId/profile-lengkap'),
@@ -66,11 +79,11 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        if (data['success'] == true) {
+        if (data['success'] == true && data['data'] != null) {
           setState(() {
             namaLengkap = data['data']['nama_lengkap'] ?? '';
             email = data['data']['email'] ?? '';
-            noHp = data['data']['no_hp'] ?? '';
+            noHp = data['data']['no_hp']?.toString() ?? '';
             alamat = data['data']['alamat'] ?? '';
 
             _namaController.text = namaLengkap;
@@ -80,22 +93,77 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
 
             _isLoading = false;
           });
+        } else {
+          setState(() {
+            _errorMessage = data['message'] ?? 'Gagal memuat data profil';
+            _isLoading = false;
+          });
         }
+      } else if (response.statusCode == 401) {
+        setState(() {
+          _errorMessage = 'Session habis, silakan login ulang';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Gagal memuat data profil (${response.statusCode})';
+          _isLoading = false;
+        });
       }
     } catch (e) {
+      debugPrint('Error load profile: $e');
       setState(() {
+        _errorMessage = 'Terjadi kesalahan: $e';
         _isLoading = false;
       });
     }
   }
 
+  bool _isValidEmail(String email) {
+    if (email.isEmpty) return false;
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    return emailRegex.hasMatch(email);
+  }
+
   Future<void> _updateProfile() async {
-    setState(() => _isLoading = true);
+    if (_namaController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Nama lengkap wajib diisi')));
+      return;
+    }
+
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Email wajib diisi')));
+      return;
+    }
+
+    if (!_isValidEmail(_emailController.text.trim())) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Format email tidak valid')));
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
       int userId = prefs.getInt('user_id') ?? 0;
+
+      final requestBody = {
+        'nama_lengkap': _namaController.text.trim(),
+        'email': _emailController.text.trim(),
+        'no_hp': _noHpController.text.trim(),
+        'alamat': _alamatController.text.trim(),
+      };
+
+      debugPrint('Request body: $requestBody');
 
       final response = await http.put(
         Uri.parse('${ApiService.baseUrl}/orangtua/$userId/profile-lengkap'),
@@ -103,41 +171,57 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode({
-          'nama_lengkap': _namaController.text,
-          'email': _emailController.text,
-          'no_hp': _noHpController.text,
-          'alamat': _alamatController.text,
-        }),
+        body: json.encode(requestBody),
       );
 
+      debugPrint('Response status: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final dataBaru = {
-          'nama_lengkap': _namaController.text,
-          'email': _emailController.text,
-          'no_hp': _noHpController.text,
-          'alamat': _alamatController.text,
-        };
+        final Map<String, dynamic> responseData = json.decode(response.body);
 
-        // 🔥 HANYA UPDATE NAMA ORANG TUA (BUKAN NAMA ANAK)
-        await prefs.setString('nama', _namaController.text);
-        // ❌ JANGAN update 'nama_anak' di sini!
+        if (responseData['success'] == true) {
+          await prefs.setString('nama', _namaController.text.trim());
+          await prefs.setString('email', _emailController.text.trim());
+          await prefs.setString('no_hp', _noHpController.text.trim());
+          await prefs.setString('alamat', _alamatController.text.trim());
 
-        // 🔥 Panggil callback dengan data baru
-        widget.onProfileUpdated(dataBaru);
+          setState(() {
+            namaLengkap = _namaController.text.trim();
+            email = _emailController.text.trim();
+            noHp = _noHpController.text.trim();
+            alamat = _alamatController.text.trim();
+            _isEditing = false;
+            _isSaving = false;
+          });
 
-        // 🔥 Kembali ke halaman profil sambil bawa data
-        Navigator.pop(context, dataBaru);
+          widget.onProfileUpdated({
+            'nama_lengkap': namaLengkap,
+            'email': email,
+            'no_hp': noHp,
+            'alamat': alamat,
+          });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profil berhasil diupdate'),
-            backgroundColor: Colors.green,
-          ),
-        );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profil berhasil diupdate'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception(responseData['message'] ?? 'Gagal mengupdate profil');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint('Error update profile: $e');
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
     }
   }
 
@@ -147,7 +231,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       backgroundColor: const Color(0xFFF6EFF1),
       appBar: AppBar(
         title: const Text(
-          "Profil lengkap",
+          "Profil Lengkap",
           style: TextStyle(
             color: Color(0xFF76172D),
             fontWeight: FontWeight.w600,
@@ -160,23 +244,71 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF76172D)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: _isEditing
+            ? [
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = false;
+                      _namaController.text = namaLengkap;
+                      _emailController.text = email;
+                      _noHpController.text = noHp;
+                      _alamatController.text = alamat;
+                    });
+                  },
+                  child: const Text(
+                    "Batal",
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ]
+            : null,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD86487),
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            )
           : SingleChildScrollView(
               child: Column(
                 children: [
                   const SizedBox(height: 30),
-
-                  const Center(
+                  Center(
                     child: CircleAvatar(
                       radius: 45,
-                      backgroundColor: Color(0xFFD86487),
-                      child: Icon(Icons.person, size: 45, color: Colors.white),
+                      backgroundColor: const Color(0xFFD86487),
+                      child: Icon(
+                        _isEditing ? Icons.edit : Icons.person,
+                        size: 45,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
-
                   Text(
                     namaLengkap.isNotEmpty ? namaLengkap : "Orang Tua",
                     style: const TextStyle(
@@ -190,7 +322,6 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                   const SizedBox(height: 30),
-
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
@@ -206,44 +337,52 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                     ),
                     child: _isEditing ? _buildEditForm() : _buildInfoView(),
                   ),
-
                   const SizedBox(height: 30),
-
                   Center(
                     child: SizedBox(
-                      width: 140,
+                      width: 160,
                       child: ElevatedButton(
-                        onPressed: () {
-                          if (_isEditing) {
-                            _updateProfile();
-                          } else {
-                            setState(() {
-                              _isEditing = true;
-                            });
-                          }
-                        },
+                        onPressed: _isSaving
+                            ? null
+                            : () {
+                                if (_isEditing) {
+                                  _updateProfile();
+                                } else {
+                                  setState(() {
+                                    _isEditing = true;
+                                  });
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD86487),
                           padding: const EdgeInsets.symmetric(
-                            vertical: 10,
+                            vertical: 12,
                             horizontal: 20,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
                         ),
-                        child: Text(
-                          _isEditing ? "Simpan" : "Ubah Profil",
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                _isEditing ? "Simpan" : "Ubah Profil",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -254,11 +393,16 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   Widget _buildInfoView() {
     return Column(
       children: [
-        _infoItem("Email", email),
+        _infoItem(
+          "Nama Lengkap",
+          namaLengkap.isNotEmpty ? namaLengkap : "Belum diisi",
+        ),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _infoItem("Nomor HP", noHp),
+        _infoItem("Email", email.isNotEmpty ? email : "Belum diisi"),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _infoItem("Alamat", alamat),
+        _infoItem("Nomor HP", noHp.isNotEmpty ? noHp : "Belum diisi"),
+        const Divider(height: 1, thickness: 0.5, color: Colors.grey),
+        _infoItem("Alamat", alamat.isNotEmpty ? alamat : "Belum diisi"),
       ],
     );
   }
@@ -269,7 +413,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       child: Row(
         children: [
           SizedBox(
-            width: 90,
+            width: 100,
             child: Text(
               title,
               style: const TextStyle(
@@ -281,7 +425,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
           ),
           Expanded(
             child: Text(
-              value.isNotEmpty ? value : "Belum diisi",
+              value,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -301,7 +445,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
         _editField(_emailController, "Email"),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _editField(_noHpController, "Nomor HP"),
+        _editFieldPhone(_noHpController, "Nomor HP"),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
         _editField(_alamatController, "Alamat"),
       ],
@@ -318,6 +462,26 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
           labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
           border: InputBorder.none,
           isDense: true,
+        ),
+        style: const TextStyle(fontSize: 14),
+      ),
+    );
+  }
+
+  Widget _editFieldPhone(TextEditingController controller, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: TextField(
+        controller: controller,
+        keyboardType: TextInputType.phone,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          border: InputBorder.none,
+          isDense: true,
+          helperText: 'Hanya angka',
+          helperStyle: const TextStyle(fontSize: 10, color: Colors.grey),
         ),
         style: const TextStyle(fontSize: 14),
       ),
