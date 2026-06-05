@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 
 class Kehadiran extends StatefulWidget {
@@ -8,201 +11,313 @@ class Kehadiran extends StatefulWidget {
   State<Kehadiran> createState() => _KehadiranState();
 }
 
-class _KehadiranState extends State<Kehadiran>
-    with SingleTickerProviderStateMixin {
-  int selectedTab = 0;
+class _KehadiranState extends State<Kehadiran> {
+  int selectedTab = 0; // 0: Anak, 1: Orang Tua
   String filter = "semua";
   String search = "";
 
-  late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
   final _searchCtrl = TextEditingController();
 
-  // ─── Warna tema ───
-  static const _primary = Color(0xFFE85D75);
-  static const _primaryLight = Color(0xFFFFF0F3);
-  static const _bg = Color(0xFFF8F9FC);
+  static const Color _primary = Color(0xFFE85D75);
+  static const Color _bg = Color(0xFFF8F9FC);
 
-  List<Map<String, dynamic>> dataAnak = [
-    {"nama": "Jesica Kristina", "hadir": true},
-    {"nama": "Grace Anastasya", "hadir": true},
-    {"nama": "Ameylia Sandi", "hadir": false},
-    {"nama": "Karina Jakti", "hadir": true},
-  ];
+  // Data dari API
+  List<Map<String, dynamic>> _listJadwal = [];
+  List<Map<String, dynamic>> _kehadiranList = [];
 
-  List<Map<String, dynamic>> dataOrtu = [
-    {"nama": "Ibu Jesica", "hadir": true},
-    {"nama": "Ibu Grace", "hadir": false},
-  ];
+  int? _selectedJadwalId;
+  String _selectedTanggal = '';
 
-  List<Map<String, dynamic>> get data => selectedTab == 0 ? dataAnak : dataOrtu;
+  bool _isLoading = true;
+  String _errorMessage = '';
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    )..forward();
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+    _loadData();
+    _searchCtrl.addListener(() {
+      setState(() {
+        search = _searchCtrl.text;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  void toggleAll(bool value) {
+  Future<void> _loadData() async {
     setState(() {
-      for (var item in data) {
-        item["hadir"] = value;
-      }
+      _isLoading = true;
+      _errorMessage = '';
     });
+
+    try {
+      await _loadSemuaJadwal();
+
+      if (_listJadwal.isNotEmpty && _selectedJadwalId != null) {
+        await _loadKehadiranByJadwal(_selectedJadwalId!);
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('❌ Error load data: $e');
+      setState(() {
+        _errorMessage = 'Error: $e';
+        _isLoading = false;
+      });
+    }
   }
 
-  void simpanData() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-            SizedBox(width: 8),
-            Text("Data kehadiran berhasil disimpan"),
-          ],
-        ),
-        backgroundColor: Colors.green.shade600,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
-      ),
+  Future<void> _loadSemuaJadwal() async {
+    try {
+      final response = await ApiService.get('/kader/semua-jadwal');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          _listJadwal = List<Map<String, dynamic>>.from(data['data'] ?? []);
+
+          if (_listJadwal.isNotEmpty) {
+            _selectedJadwalId = _listJadwal.first['jadwal_id'];
+            _selectedTanggal = _listJadwal.first['tanggal'] ?? '';
+            print('✅ Loaded ${_listJadwal.length} jadwal');
+          }
+        }
+      }
+    } catch (e) {
+      print('❌ Error load jadwal: $e');
+    }
+  }
+
+  Future<void> _loadKehadiranByJadwal(int jadwalId) async {
+    try {
+      final response = await ApiService.get('/kehadiran/jadwal/$jadwalId');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            _kehadiranList = List<Map<String, dynamic>>.from(
+              data['data'] ?? [],
+            );
+          });
+          print(
+            '✅ Loaded ${_kehadiranList.length} kehadiran untuk jadwal ID: $jadwalId',
+          );
+        }
+      }
+    } catch (e) {
+      print('❌ Error load kehadiran: $e');
+    }
+  }
+
+  // Data untuk tab Anak
+  List<Map<String, dynamic>> get _dataAnak {
+    return _kehadiranList.map((item) {
+      return {
+        'anak_id': item['anak_id'],
+        'nama': item['nama_anak'] ?? 'Unknown',
+        'hadir': item['hadir'] ?? false,
+        'nama_ortu': item['nama_ortu'] ?? '-',
+        'no_telp_ortu': item['no_telp_ortu'] ?? '',
+      };
+    }).toList();
+  }
+
+  // Data untuk tab Orang Tua (hanya yang anaknya tidak hadir)
+  List<Map<String, dynamic>> get _dataOrangTua {
+    Map<String, Map<String, dynamic>> orangTuaMap = {};
+
+    for (var item in _kehadiranList) {
+      final String namaOrtu = item['nama_ortu'] ?? '-';
+      final String noTelp = item['no_telp_ortu'] ?? '';
+      final bool hadir = item['hadir'] ?? false;
+      final String namaAnak = item['nama_anak'] ?? 'Unknown';
+
+      if (namaOrtu != '-') {
+        if (!orangTuaMap.containsKey(namaOrtu)) {
+          orangTuaMap[namaOrtu] = {
+            'nama_ortu': namaOrtu,
+            'no_telp': noTelp,
+            'anak_tidak_hadir': <String>[],
+          };
+        }
+
+        if (!hadir) {
+          (orangTuaMap[namaOrtu]!['anak_tidak_hadir'] as List<String>).add(
+            namaAnak,
+          );
+        }
+      }
+    }
+
+    return orangTuaMap.values
+        .where((o) => (o['anak_tidak_hadir'] as List).isNotEmpty)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> get _currentData {
+    return selectedTab == 0 ? _dataAnak : _dataOrangTua;
+  }
+
+  List<Map<String, dynamic>> get _filteredData {
+    final data = _currentData;
+    return data.where((item) {
+      final String nama = selectedTab == 0
+          ? (item['nama'] as String)
+          : (item['nama_ortu'] as String);
+      final bool cocokNama = nama.toLowerCase().contains(search.toLowerCase());
+
+      if (filter == 'hadir' && selectedTab == 0) {
+        return (item['hadir'] as bool) && cocokNama;
+      }
+      if (filter == 'tidak' && selectedTab == 0) {
+        return !(item['hadir'] as bool) && cocokNama;
+      }
+      return cocokNama;
+    }).toList();
+  }
+
+  int get _totalHadir => _dataAnak.where((e) => e['hadir'] as bool).length;
+  int get _totalTidak => _dataAnak.where((e) => !(e['hadir'] as bool)).length;
+  int get _total => _dataAnak.length;
+  double get _persen => _total == 0 ? 0.0 : _totalHadir / _total;
+
+  // Kirim WhatsApp
+  Future<void> _sendWhatsApp(
+    String noTelp,
+    String namaOrtu,
+    List<String> anakTidakHadir,
+  ) async {
+    final String anakList = anakTidakHadir.join(', ');
+    final String message =
+        '''Halo $namaOrtu,
+      
+Kami ingin mengingatkan bahwa anak Anda ($anakList) belum melakukan pengukuran pertumbuhan pada kegiatan Posyandu tanggal $_selectedTanggal.
+
+Jangan lupa ya untuk hadir di kegiatan Posyandu berikutnya agar perkembangan buah hati tetap terpantau.
+
+Terima kasih.
+- Tim SiTumbuh''';
+
+    String formattedNumber = noTelp.replaceAll(RegExp(r'[^0-9]'), '');
+    if (formattedNumber.startsWith('0')) {
+      formattedNumber = '62${formattedNumber.substring(1)}';
+    }
+    if (!formattedNumber.startsWith('62')) {
+      formattedNumber = '62$formattedNumber';
+    }
+
+    final Uri url = Uri.parse(
+      'https://wa.me/$formattedNumber?text=${Uri.encodeComponent(message)}',
     );
+
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url);
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+
+  Future<void> _onJadwalChanged(int? jadwalId) async {
+    if (jadwalId == null) return;
+
+    final selected = _listJadwal.firstWhere((j) => j['jadwal_id'] == jadwalId);
+
+    setState(() {
+      _selectedJadwalId = jadwalId;
+      _selectedTanggal = selected['tanggal'] ?? '';
+      _isLoading = true;
+    });
+
+    await _loadKehadiranByJadwal(jadwalId);
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final filtered = data.where((item) {
-      final cocokNama = (item["nama"] as String).toLowerCase().contains(
-        search.toLowerCase(),
-      );
-      if (filter == "hadir") return (item["hadir"] as bool) && cocokNama;
-      if (filter == "tidak") return !(item["hadir"] as bool) && cocokNama;
-      return cocokNama;
-    }).toList();
-
-    final hadir = data.where((e) => e["hadir"] as bool).length;
-    final tidak = data.where((e) => !(e["hadir"] as bool)).length;
-    final total = data.length;
-    final persen = total == 0 ? 0.0 : hadir / total;
-
     return Scaffold(
       drawer: const SidebarKader(),
       backgroundColor: _bg,
-      appBar: _buildAppBar(),
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: Column(
-          children: [
-            // ── Header gradient card ──
-            _buildHeaderCard(hadir, tidak, total, persen),
-
-            // ── Body ──
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-
-                    // ── Search + Filter ──
-                    _buildSearchRow(),
-
-                    const SizedBox(height: 12),
-
-                    // ── Tab ──
-                    _buildTab(),
-
-                    const SizedBox(height: 14),
-
-                    // ── Action buttons ──
-                    _buildActionRow(),
-
-                    const SizedBox(height: 14),
-
-                    // ── List ──
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? _buildEmpty()
-                          : ListView.builder(
-                              itemCount: filtered.length,
-                              itemBuilder: (_, i) =>
-                                  _buildItemCard(filtered, i),
-                            ),
+      appBar: AppBar(
+        backgroundColor: _primary,
+        elevation: 0,
+        centerTitle: true,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        title: const Text(
+          "Kehadiran Posyandu",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        actions: const [
+          Padding(
+            padding: EdgeInsets.only(right: 14),
+            child: Icon(Icons.notifications_none),
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? Center(child: Text(_errorMessage))
+          : Column(
+              children: [
+                _buildHeaderCard(),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        _buildJadwalDropdown(),
+                        const SizedBox(height: 16),
+                        _buildSearchRow(),
+                        const SizedBox(height: 12),
+                        _buildTab(),
+                        const SizedBox(height: 12),
+                        if (selectedTab == 0) _buildFilterRow(),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: _filteredData.isEmpty
+                              ? _buildEmpty()
+                              : ListView.builder(
+                                  itemCount: _filteredData.length,
+                                  itemBuilder: (_, i) =>
+                                      _buildItemCard(_filteredData[i]),
+                                ),
+                        ),
+                      ],
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // ── Simpan ──
-                    _buildSimpanButton(),
-                    const SizedBox(height: 16),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
     );
   }
 
-  // ── AppBar ──
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: _primary,
-      elevation: 0,
-      centerTitle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(0)),
-      ),
-      leading: Builder(
-        builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => Scaffold.of(ctx).openDrawer(),
-        ),
-      ),
-      title: const Text(
-        "Kehadiran Posyandu",
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 17,
-          letterSpacing: 0.3,
-        ),
-      ),
-      actions: const [
-        Padding(
-          padding: EdgeInsets.only(right: 14),
-          child: Icon(Icons.notifications_none),
-        ),
-      ],
-    );
-  }
-
-  // ── Header Card dengan gradient + progress ──
-  Widget _buildHeaderCard(int hadir, int tidak, int total, double persen) {
+  Widget _buildHeaderCard() {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFFE85D75), Color(0xFFC23F5E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       child: Column(
         children: [
-          // Tanggal
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -215,67 +330,37 @@ class _KehadiranState extends State<Kehadiran>
                 const Icon(Icons.calendar_today, color: Colors.white, size: 13),
                 const SizedBox(width: 6),
                 Text(
-                  _todayLabel(),
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  _selectedTanggal.isEmpty ? 'Pilih Jadwal' : _selectedTanggal,
+                  style: const TextStyle(color: Colors.white),
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Stat row
           Row(
             children: [
-              _headerStat("$hadir", "Hadir", Icons.check_circle_outline),
-              _headerDivider(),
-              _headerStat("$tidak", "Tidak Hadir", Icons.cancel_outlined),
-              _headerDivider(),
-              _headerStat("$total", "Total", Icons.people_outline),
+              _statBox("$_totalHadir", "Hadir", Icons.check_circle_outline),
+              _statBox("$_totalTidak", "Tidak Hadir", Icons.cancel_outlined),
+              _statBox("$_total", "Total Anak", Icons.people_outline),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Progress bar
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Tingkat Kehadiran",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  Text(
-                    "${(persen * 100).toStringAsFixed(0)}%",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(
-                  value: persen,
-                  minHeight: 8,
-                  backgroundColor: Colors.white.withOpacity(0.25),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-            ],
+          LinearProgressIndicator(
+            value: _persen,
+            backgroundColor: Colors.white.withOpacity(0.25),
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "${(_persen * 100).toStringAsFixed(0)}% Kehadiran",
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
     );
   }
 
-  Widget _headerStat(String val, String label, IconData icon) {
+  Widget _statBox(String val, String label, IconData icon) {
     return Expanded(
       child: Column(
         children: [
@@ -285,89 +370,123 @@ class _KehadiranState extends State<Kehadiran>
             val,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 11),
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
           ),
         ],
       ),
     );
   }
 
-  Widget _headerDivider() {
+  Widget _buildJadwalDropdown() {
+    if (_listJadwal.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Center(child: Text('Belum ada jadwal posyandu')),
+      );
+    }
+
     return Container(
-      height: 40,
-      width: 1,
-      color: Colors.white.withOpacity(0.3),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _selectedJadwalId,
+          isExpanded: true,
+          hint: const Text('Pilih Jadwal Posyandu'),
+          icon: const Icon(Icons.arrow_drop_down, color: _primary),
+          items: _listJadwal.map((jadwal) {
+            return DropdownMenuItem<int>(
+              value: jadwal['jadwal_id'],
+              child: Text(
+                '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
+              ),
+            );
+          }).toList(),
+          onChanged: _onJadwalChanged,
+        ),
+      ),
     );
   }
 
-  // ── Search + Filter Row ──
   Widget _buildSearchRow() {
+    return TextField(
+      controller: _searchCtrl,
+      decoration: InputDecoration(
+        hintText: "Cari nama ${selectedTab == 0 ? 'anak' : 'orang tua'}...",
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: search.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.close, size: 18),
+                onPressed: () {
+                  _searchCtrl.clear();
+                  setState(() => search = '');
+                },
+              )
+            : null,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterRow() {
     return Row(
       children: [
-        Expanded(
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: (v) => setState(() => search = v),
-            decoration: InputDecoration(
-              hintText: "Cari nama...",
-              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-              prefixIcon: const Icon(Icons.search, size: 20),
-              suffixIcon: search.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() => search = '');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade200),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: DropdownButton<String>(
-            value: filter,
-            underline: const SizedBox(),
-            icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-            style: const TextStyle(fontSize: 13, color: Colors.black87),
-            items: const [
-              DropdownMenuItem(value: "semua", child: Text("Semua")),
-              DropdownMenuItem(value: "hadir", child: Text("Hadir")),
-              DropdownMenuItem(value: "tidak", child: Text("Tidak Hadir")),
-            ],
-            onChanged: (v) => setState(() => filter = v!),
-          ),
-        ),
+        _filterChip("Semua", "semua"),
+        const SizedBox(width: 8),
+        _filterChip("Hadir", "hadir"),
+        const SizedBox(width: 8),
+        _filterChip("Tidak Hadir", "tidak"),
       ],
     );
   }
 
-  // ── Tab ──
+  Widget _filterChip(String label, String value) {
+    final bool isActive = filter == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => filter = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? _primary : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isActive ? _primary : Colors.grey.shade200,
+            ),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTab() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -386,25 +505,15 @@ class _KehadiranState extends State<Kehadiran>
   }
 
   Widget _tabBtn(String label, int idx, IconData icon) {
-    final active = selectedTab == idx;
+    final bool active = selectedTab == idx;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => selectedTab = idx),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+        child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: active ? _primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: _primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -416,7 +525,6 @@ class _KehadiranState extends State<Kehadiran>
                 style: TextStyle(
                   color: active ? Colors.white : Colors.black54,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
                 ),
               ),
             ],
@@ -426,138 +534,105 @@ class _KehadiranState extends State<Kehadiran>
     );
   }
 
-  // ── Action Row ──
-  Widget _buildActionRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _actionBtn(
-            label: "Semua Hadir",
-            icon: Icons.check_circle_outline,
-            color: Colors.green.shade600,
-            onTap: () => toggleAll(true),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _actionBtn(
-            label: "Reset Semua",
-            icon: Icons.refresh_rounded,
-            color: Colors.orange.shade600,
-            onTap: () => toggleAll(false),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildItemCard(Map<String, dynamic> item) {
+    if (selectedTab == 0) {
+      final bool hadir = item['hadir'] as bool;
+      final String nama = item['nama'] as String;
 
-  Widget _actionBtn({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 11),
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.09),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hadir
+                ? Colors.green.withOpacity(0.3)
+                : Colors.red.withOpacity(0.3),
+          ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              label,
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: hadir
+                ? Colors.green.withOpacity(0.15)
+                : Colors.red.withOpacity(0.15),
+            child: Text(
+              nama.isNotEmpty ? nama[0].toUpperCase() : '?',
               style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+                color: hadir ? Colors.green : Colors.red,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Item Card ──
-  Widget _buildItemCard(List<Map<String, dynamic>> list, int i) {
-    final item = list[i];
-    final hadir = item["hadir"] as bool;
-    final initial = (item["nama"] as String)[0].toUpperCase();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: hadir
-              ? Colors.green.withOpacity(0.25)
-              : Colors.red.withOpacity(0.15),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
           ),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-        leading: CircleAvatar(
-          backgroundColor: hadir
-              ? Colors.green.withOpacity(0.15)
-              : Colors.red.withOpacity(0.12),
-          child: Text(
-            initial,
-            style: TextStyle(
-              color: hadir ? Colors.green.shade700 : Colors.red.shade400,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+          title: Text(
+            nama,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            hadir ? "✅ Hadir" : "❌ Tidak Hadir",
+            style: TextStyle(color: hadir ? Colors.green : Colors.red),
+          ),
+          trailing: hadir
+              ? null
+              : Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    "Tidak Hadir",
+                    style: TextStyle(color: Colors.red.shade400, fontSize: 11),
+                  ),
+                ),
+        ),
+      );
+    } else {
+      final String namaOrtu = item['nama_ortu'] as String;
+      final String noTelp = item['no_telp'] as String;
+      final List<String> anakTidakHadir = (item['anak_tidak_hadir'] as List)
+          .cast<String>();
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: Colors.orange.withOpacity(0.15),
+            child: Text(
+              namaOrtu.isNotEmpty ? namaOrtu[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Colors.orange,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-        title: Text(
-          item["nama"] as String,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        subtitle: Text(
-          hadir ? "Hadir" : "Tidak Hadir",
-          style: TextStyle(
-            fontSize: 12,
-            color: hadir ? Colors.green.shade600 : Colors.red.shade400,
-            fontWeight: FontWeight.w500,
+          title: Text(
+            namaOrtu,
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-        ),
-        trailing: Transform.scale(
-          scale: 1.1,
-          child: Checkbox(
-            activeColor: _primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(5),
-            ),
-            side: BorderSide(color: Colors.grey.shade300),
-            value: hadir,
-            onChanged: (val) {
-              setState(() {
-                item["hadir"] = val;
-              });
-            },
+          subtitle: Text(
+            "Anak tidak hadir: ${anakTidakHadir.join(', ')}",
+            style: const TextStyle(fontSize: 12),
           ),
+          trailing: noTelp.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.chat, color: Colors.green, size: 28),
+                  onPressed: () =>
+                      _sendWhatsApp(noTelp, namaOrtu, anakTidakHadir),
+                )
+              : null,
         ),
-      ),
-    );
+      );
+    }
   }
 
-  // ── Empty State ──
   Widget _buildEmpty() {
     return Center(
       child: Column(
@@ -566,62 +641,17 @@ class _KehadiranState extends State<Kehadiran>
           Icon(Icons.search_off_rounded, size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 10),
           Text(
-            "Tidak ada data ditemukan",
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            selectedTab == 0
+                ? (search.isNotEmpty
+                      ? "Tidak ada anak dengan nama '$search'"
+                      : "Tidak ada data kehadiran")
+                : (search.isNotEmpty
+                      ? "Tidak ada orang tua dengan nama '$search'"
+                      : "Semua anak hadir"),
+            style: TextStyle(color: Colors.grey.shade500),
           ),
         ],
       ),
     );
-  }
-
-  // ── Simpan Button ──
-  Widget _buildSimpanButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: simpanData,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          elevation: 3,
-          shadowColor: _primary.withOpacity(0.4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.save_outlined, size: 20),
-            SizedBox(width: 8),
-            Text(
-              "Simpan Kehadiran",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _todayLabel() {
-    final now = DateTime.now();
-    const bulan = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    return "${now.day} ${bulan[now.month]} ${now.year}";
   }
 }

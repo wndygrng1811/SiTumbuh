@@ -7,6 +7,7 @@ import 'package:si_tumbuh/Kader/kehadiran.dart';
 import 'package:si_tumbuh/Kader/profil.dart';
 import 'package:si_tumbuh/login.dart';
 import 'package:si_tumbuh/Kader/data_orangtua.dart';
+import 'package:si_tumbuh/Kader/data_anak.dart';
 import 'package:si_tumbuh/Kader/edukasi_kader.dart';
 import 'package:si_tumbuh/Kader/laporan.dart';
 import 'package:si_tumbuh/Kader/data_pertumbuhan.dart';
@@ -65,6 +66,7 @@ class SidebarKader extends StatelessWidget {
                   "Data Orang Tua",
                   const KelolaDaftarOrangTuaPage(),
                 ),
+                menu(context, Icons.people, "Data Anak", const DataAnakPage()),
                 menu(
                   context,
                   Icons.show_chart,

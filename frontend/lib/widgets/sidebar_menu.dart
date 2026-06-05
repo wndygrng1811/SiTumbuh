@@ -5,6 +5,7 @@ import 'package:si_tumbuh/Orangtua/profil.dart';
 import 'package:si_tumbuh/Orangtua/edukasi.dart';
 import 'package:si_tumbuh/Orangtua/grafik.dart';
 import 'package:si_tumbuh/Orangtua/data_anak.dart';
+import 'package:si_tumbuh/Orangtua/cek_pertumbuhan.dart';
 
 class SidebarMenu extends StatefulWidget {
   const SidebarMenu({super.key});
@@ -87,11 +88,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => GrafikPage(
-                    anakId: _currentAnakId,
-                    namaAnak: _currentNamaAnak,
-                    jenisKelamin: _currentJenisKelamin,
-                  ),
+                  builder: (context) => const CekPertumbuhanPage(),
                 ),
               );
             }),
