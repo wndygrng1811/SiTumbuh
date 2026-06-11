@@ -65,4 +65,57 @@ class KehadiranController extends Controller
             'data' => $kehadiran
         ], 200);
     }
+
+    // 3. POST - Simpan semua kehadiran (massal)
+    public function simpanSemuaKehadiran(Request $request)
+    {
+        try {
+            $request->validate([
+                'jadwal_id' => 'required|integer',
+                'kehadiran' => 'required|array',
+                'kehadiran.*.anak_id' => 'required|integer',
+                'kehadiran.*.status' => 'required|in:hadir,tidak_hadir'
+            ]);
+
+            $jadwalId = $request->jadwal_id;
+
+            DB::beginTransaction();
+
+            foreach ($request->kehadiran as $item) {
+                $existing = DB::table('kehadiran')
+                    ->where('anak_id', $item['anak_id'])
+                    ->where('jadwal_id', $jadwalId)
+                    ->first();
+
+                if ($existing) {
+                    DB::table('kehadiran')
+                        ->where('anak_id', $item['anak_id'])
+                        ->where('jadwal_id', $jadwalId)
+                        ->update([
+                            'status' => $item['status']
+                        ]);
+                } else {
+                    DB::table('kehadiran')->insert([
+                        'anak_id' => $item['anak_id'],
+                        'jadwal_id' => $jadwalId,
+                        'status' => $item['status']
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data kehadiran berhasil disimpan'
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

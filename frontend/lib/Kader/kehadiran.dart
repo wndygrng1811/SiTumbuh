@@ -12,7 +12,7 @@ class Kehadiran extends StatefulWidget {
 }
 
 class _KehadiranState extends State<Kehadiran> {
-  int selectedTab = 0; // 0: Anak, 1: Orang Tua
+  int selectedTab = 0;
   String filter = "semua";
   String search = "";
 
@@ -21,7 +21,6 @@ class _KehadiranState extends State<Kehadiran> {
   static const Color _primary = Color(0xFFE85D75);
   static const Color _bg = Color(0xFFF8F9FC);
 
-  // Data dari API
   List<Map<String, dynamic>> _listJadwal = [];
   List<Map<String, dynamic>> _kehadiranList = [];
 
@@ -29,6 +28,7 @@ class _KehadiranState extends State<Kehadiran> {
   String _selectedTanggal = '';
 
   bool _isLoading = true;
+  bool _isSaving = false;
   String _errorMessage = '';
 
   @override
@@ -65,7 +65,7 @@ class _KehadiranState extends State<Kehadiran> {
         _isLoading = false;
       });
     } catch (e) {
-      print('❌ Error load data: $e');
+      print('Error load data: $e');
       setState(() {
         _errorMessage = 'Error: $e';
         _isLoading = false;
@@ -85,12 +85,12 @@ class _KehadiranState extends State<Kehadiran> {
           if (_listJadwal.isNotEmpty) {
             _selectedJadwalId = _listJadwal.first['jadwal_id'];
             _selectedTanggal = _listJadwal.first['tanggal'] ?? '';
-            print('✅ Loaded ${_listJadwal.length} jadwal');
+            print('Loaded ${_listJadwal.length} jadwal');
           }
         }
       }
     } catch (e) {
-      print('❌ Error load jadwal: $e');
+      print('Error load jadwal: $e');
     }
   }
 
@@ -107,16 +107,85 @@ class _KehadiranState extends State<Kehadiran> {
             );
           });
           print(
-            '✅ Loaded ${_kehadiranList.length} kehadiran untuk jadwal ID: $jadwalId',
+            'Loaded ${_kehadiranList.length} kehadiran untuk jadwal ID: $jadwalId',
           );
         }
       }
     } catch (e) {
-      print('❌ Error load kehadiran: $e');
+      print('Error load kehadiran: $e');
     }
   }
 
-  // Data untuk tab Anak
+  Future<void> _simpanSemuaKehadiran() async {
+    if (_selectedJadwalId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih jadwal terlebih dahulu'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final List<Map<String, dynamic>> dataKehadiran = _kehadiranList.map((
+        item,
+      ) {
+        return {
+          'anak_id': item['anak_id'],
+          'status': item['hadir'] ? 'hadir' : 'tidak_hadir',
+        };
+      }).toList();
+
+      final response = await ApiService.post('/kehadiran/simpan-semua', {
+        'jadwal_id': _selectedJadwalId,
+        'kehadiran': dataKehadiran,
+      });
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Data kehadiran berhasil disimpan'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Gagal menyimpan'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal menyimpan data'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error simpan kehadiran: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
+  }
+
   List<Map<String, dynamic>> get _dataAnak {
     return _kehadiranList.map((item) {
       return {
@@ -129,7 +198,6 @@ class _KehadiranState extends State<Kehadiran> {
     }).toList();
   }
 
-  // Data untuk tab Orang Tua (hanya yang anaknya tidak hadir)
   List<Map<String, dynamic>> get _dataOrangTua {
     Map<String, Map<String, dynamic>> orangTuaMap = {};
 
@@ -188,7 +256,6 @@ class _KehadiranState extends State<Kehadiran> {
   int get _total => _dataAnak.length;
   double get _persen => _total == 0 ? 0.0 : _totalHadir / _total;
 
-  // Kirim WhatsApp
   Future<void> _sendWhatsApp(
     String noTelp,
     String namaOrtu,
@@ -196,14 +263,7 @@ class _KehadiranState extends State<Kehadiran> {
   ) async {
     final String anakList = anakTidakHadir.join(', ');
     final String message =
-        '''Halo $namaOrtu,
-      
-Kami ingin mengingatkan bahwa anak Anda ($anakList) belum melakukan pengukuran pertumbuhan pada kegiatan Posyandu tanggal $_selectedTanggal.
-
-Jangan lupa ya untuk hadir di kegiatan Posyandu berikutnya agar perkembangan buah hati tetap terpantau.
-
-Terima kasih.
-- Tim SiTumbuh''';
+        'Halo $namaOrtu,\n\nKami ingin mengingatkan bahwa anak Anda ($anakList) belum melakukan pengukuran pertumbuhan pada kegiatan Posyandu tanggal $_selectedTanggal.\n\nJangan lupa ya untuk hadir di kegiatan Posyandu berikutnya agar perkembangan buah hati tetap terpantau.\n\nTerima kasih.\n- Tim SiTumbuh';
 
     String formattedNumber = noTelp.replaceAll(RegExp(r'[^0-9]'), '');
     if (formattedNumber.startsWith('0')) {
@@ -298,6 +358,36 @@ Terima kasih.
                                   itemBuilder: (_, i) =>
                                       _buildItemCard(_filteredData[i]),
                                 ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: _isSaving ? null : _simpanSemuaKehadiran,
+                            child: _isSaving
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Simpan Data Kehadiran',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ],
                     ),
@@ -568,7 +658,7 @@ Terima kasih.
             style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            hadir ? "✅ Hadir" : "❌ Tidak Hadir",
+            hadir ? "Hadir" : "Tidak Hadir",
             style: TextStyle(color: hadir ? Colors.green : Colors.red),
           ),
           trailing: hadir

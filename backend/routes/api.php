@@ -110,7 +110,7 @@ Route::put('/kader/profil/{userId}', [ProfilKaderController::class, 'updateProfi
 // =============================================
 Route::get('/kader/semua-jadwal', [KehadiranController::class, 'getAllJadwal']);
 Route::get('/kehadiran/jadwal/{jadwalId}', [KehadiranController::class, 'getKehadiranByJadwal']);
-
+Route::post('/kehadiran/simpan-semua', [KehadiranController::class, 'simpanSemuaKehadiran']);   
 // =============================================
 // LOGOUT
 // =============================================

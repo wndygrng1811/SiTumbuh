@@ -246,7 +246,6 @@ class WHOZScore {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
 class DataPertumbuhanPage extends StatefulWidget {
   const DataPertumbuhanPage({super.key});
 
@@ -282,6 +281,16 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
 
   StatusGizi? _statusGizi;
   DataPengukuran? _pengukuranTerbaru;
+
+  double _safeParseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
 
   @override
   void initState() {
@@ -328,7 +337,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     setState(() => _isLoading = true);
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? role = prefs.getString('role');
-    print('📱 Role user: $role');
+    print('Role user: $role');
     try {
       final response = await ApiService.get('/kader/semua-anak');
       if (response.statusCode == 200) {
@@ -352,7 +361,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('❌ Error load data: $e');
+      print('Error load data: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -365,22 +374,30 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         final data = json.decode(response.body);
         if (data['success'] == true) {
           final List<dynamic> riwayatData = data['data'] ?? [];
+          final riwayatList = riwayatData.map((item) {
+            double berat = _safeParseDouble(item['berat_badan']);
+            double tinggi = _safeParseDouble(item['tinggi_badan']);
+            double? lk = item['lingkar_kepala'] != null
+                ? _safeParseDouble(item['lingkar_kepala'])
+                : null;
+            DateTime tanggal;
+            try {
+              tanggal = DateTime.parse(
+                item['created_at'] ?? DateTime.now().toString(),
+              );
+            } catch (e) {
+              tanggal = DateTime.now();
+            }
+            return DataPengukuran(
+              tanggal: tanggal,
+              usiaBulan: _hitungUsiaBulan(item['created_at']),
+              beratBadan: berat,
+              tinggiBadan: tinggi,
+              lingkarKepala: lk,
+            );
+          }).toList();
           setState(() {
-            _riwayat = riwayatData
-                .map(
-                  (item) => DataPengukuran(
-                    tanggal: DateTime.parse(
-                      item['created_at'] ?? DateTime.now().toString(),
-                    ),
-                    usiaBulan: _hitungUsiaBulan(item['created_at']),
-                    beratBadan: double.parse(item['berat_badan'].toString()),
-                    tinggiBadan: double.parse(item['tinggi_badan'].toString()),
-                    lingkarKepala: item['lingkar_kepala'] != null
-                        ? double.parse(item['lingkar_kepala'].toString())
-                        : null,
-                  ),
-                )
-                .toList();
+            _riwayat = riwayatList;
           });
         }
       }
@@ -523,7 +540,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
             _statusGizi = status;
             _isSaving = false;
           });
-          _showSnack('Data berhasil disimpan!', Colors.green);
+          _showSnack('Data berhasil disimpan', Colors.green);
           _ctrlUsia.clear();
           _ctrlBb.clear();
           _ctrlTb.clear();
@@ -552,7 +569,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -568,7 +584,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildSectionLabel('Pilih Anak & Jadwal'),
+                      _buildSectionLabel('Pilih Anak dan Jadwal'),
                       const SizedBox(height: 12),
                       _buildSelectionCard(),
                       const SizedBox(height: 24),
@@ -597,7 +613,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── SLIVER APP BAR ──────────────────────────────────────────
   Widget _buildSliverAppBar() {
     return SliverAppBar(
       expandedHeight: 130,
@@ -636,7 +651,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
               ),
               const SizedBox(height: 4),
               Text(
-                'Input pengukuran & pantau status gizi',
+                'Input pengukuran dan pantau status gizi',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.78),
                   fontSize: 12,
@@ -649,7 +664,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── SECTION LABEL ───────────────────────────────────────────
   Widget _buildSectionLabel(String label) {
     return Row(
       children: [
@@ -674,13 +688,11 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── SELECTION CARD (Anak + Jadwal digabung) ─────────────────
   Widget _buildSelectionCard() {
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Dropdown Anak
           _dropdownLabel('Anak', Icons.child_care_rounded),
           const SizedBox(height: 8),
           _dropdownContainer(
@@ -728,10 +740,8 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
               ),
             ),
           ),
-
           if (_selectedAnakId != null) ...[
             const SizedBox(height: 10),
-            // Info strip anak terpilih
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
@@ -794,12 +804,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
               ),
             ),
           ],
-
           const SizedBox(height: 16),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           const SizedBox(height: 16),
-
-          // Dropdown Jadwal
           _dropdownLabel('Jadwal Posyandu', Icons.calendar_month_rounded),
           const SizedBox(height: 8),
           _dropdownContainer(
@@ -866,7 +873,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── FORM CARD ────────────────────────────────────────────────
   Widget _buildFormCard() {
     return _card(
       child: Form(
@@ -889,7 +895,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                 Expanded(
                   child: _inputField(
                     label: 'Usia (bulan)',
-                    hint: 'cth: 4',
+                    hint: 'contoh: 4',
                     ctrl: _ctrlUsia,
                     icon: Icons.cake_rounded,
                     keyboardType: TextInputType.number,
@@ -897,7 +903,8 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       final n = int.tryParse(v);
-                      if (n == null || n < 0 || n > 60) return 'Usia 0–60';
+                      if (n == null || n < 0 || n > 60)
+                        return 'Usia 0 sampai 60';
                       return null;
                     },
                   ),
@@ -906,7 +913,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                 Expanded(
                   child: _inputField(
                     label: 'Berat Badan (kg)',
-                    hint: 'cth: 7.5',
+                    hint: 'contoh: 7.5',
                     ctrl: _ctrlBb,
                     icon: Icons.monitor_weight_rounded,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -930,7 +937,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                 Expanded(
                   child: _inputField(
                     label: 'Tinggi Badan (cm)',
-                    hint: 'cth: 63.5',
+                    hint: 'contoh: 63.5',
                     ctrl: _ctrlTb,
                     icon: Icons.height_rounded,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -950,7 +957,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                 Expanded(
                   child: _inputField(
                     label: 'Lingkar Kepala (cm)',
-                    hint: 'cth: 40.5',
+                    hint: 'contoh: 40.5',
                     ctrl: _ctrlLk,
                     icon: Icons.radio_button_checked_rounded,
                     keyboardType: const TextInputType.numberWithOptions(
@@ -1063,7 +1070,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── STATUS GIZI CARD ─────────────────────────────────────────
   Widget _buildStatusGiziCard() {
     final s = _statusGizi!;
     return _card(
@@ -1123,14 +1129,12 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── GRAFIK CARD ──────────────────────────────────────────────
   Widget _buildGrafikCard() {
     return _card(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tab bar
           Container(
             height: 34,
             decoration: BoxDecoration(
@@ -1175,7 +1179,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  // ── RIWAYAT CARD ─────────────────────────────────────────────
   Widget _buildRiwayatCard() {
     return _card(
       padding: EdgeInsets.zero,
@@ -1190,8 +1193,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
             ),
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
-
-          // Table header
           Container(
             color: const Color(0xFFFAFAFA),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1206,7 +1207,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
             ),
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
-
           if (_riwayat.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
@@ -1239,7 +1239,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                         _tdCell(
                           item.lingkarKepala != null
                               ? '${item.lingkarKepala}'
-                              : '—',
+                              : '-',
                           flex: 2,
                         ),
                       ],
@@ -1283,7 +1283,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     ),
   );
 
-  // ── SHARED CARD WRAPPER ──────────────────────────────────────
   Widget _card({required Widget child, EdgeInsets? padding}) {
     return Container(
       padding: padding ?? const EdgeInsets.all(16),
@@ -1303,9 +1302,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  Z-SCORE CHIP
-// ─────────────────────────────────────────────────────────────
 class _ZScoreChip extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -1376,9 +1372,6 @@ class _ZScoreChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-//  GRAFIK
-// ─────────────────────────────────────────────────────────────
 class _GrafikPertumbuhan extends StatelessWidget {
   final List<DataPengukuran> riwayat;
   final int mode;
@@ -1531,7 +1524,6 @@ class _GrafikPainter extends CustomPainter {
     double px(double x) => pad.left + x / 24.0 * w;
     double py(double y) => pad.top + h - (y - minY) / (maxY - minY) * h;
 
-    // Grid lines
     final gridPaint = Paint()
       ..color = const Color(0xFFF0F0F0)
       ..strokeWidth = 1;
@@ -1549,7 +1541,6 @@ class _GrafikPainter extends CustomPainter {
       tp.paint(canvas, Offset(0, y - 5));
     }
 
-    // WHO reference band (+2/-2 SD)
     final refXs = List.generate(13, (i) => (i * 2).toDouble());
     final bandPath = Path();
     bandPath.moveTo(px(refXs[0]), py(median[0] + 2 * sd));
@@ -1565,7 +1556,6 @@ class _GrafikPainter extends CustomPainter {
       Paint()..color = const Color(0xFFE85D75).withOpacity(0.07),
     );
 
-    // Median line
     final medPaint = Paint()
       ..color = const Color(0xFFE85D75).withOpacity(0.5)
       ..strokeWidth = 1.5
@@ -1578,7 +1568,6 @@ class _GrafikPainter extends CustomPainter {
     }
     canvas.drawPath(medPath, medPaint);
 
-    // Data line
     final xs = riwayat.map((r) => r.usiaBulan.toDouble()).toList();
     final ys = vals;
     final validPoints = <Offset>[];
@@ -1602,7 +1591,6 @@ class _GrafikPainter extends CustomPainter {
       );
     }
 
-    // Dots
     for (final pt in validPoints) {
       canvas.drawCircle(pt, 5, Paint()..color = Colors.white);
       canvas.drawCircle(

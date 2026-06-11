@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 class PertumbuhanController extends Controller
 {
-    //GET riwayat pertumbuhan berdasarkan anak_id
+    /**
+     * GET riwayat pertumbuhan berdasarkan anak_id
+     */
     public function getRiwayat($anakId)
     {
         try {
@@ -30,33 +32,39 @@ class PertumbuhanController extends Controller
         }
     }
 
-    // SIMPAN data pertumbuhan baru
+    /**
+     * SIMPAN data pertumbuhan baru
+     */
     public function simpanPertumbuhan(Request $request)
     {
         try {
             $request->validate([
                 'anak_id' => 'required|integer',
-                'orangtua_id' => 'nullable|integer',  // 🔥 TAMBAHKAN
-                'jadwal_id' => 'nullable|integer',    // 🔥 TAMBAHKAN
+                'orangtua_id' => 'nullable|integer',
+                'jadwal_id' => 'nullable|integer',
                 'berat_badan' => 'required|numeric|min:0|max:50',
                 'tinggi_badan' => 'required|numeric|min:0|max:200',
                 'lingkar_kepala' => 'nullable|numeric|min:0|max:100',
-                'status_gizi' => 'required|string|max:20'
+                'status_gizi' => 'required|string|max:20',
+                'tanggal_pengukuran' => 'nullable|date'
             ]);
 
             $data = [
                 'anak_id' => $request->anak_id,
-                'orangtua_id' => $request->orangtua_id,  // 🔥 TAMBAHKAN
-                'jadwal_id' => $request->jadwal_id,      // 🔥 TAMBAHKAN
                 'berat_badan' => $request->berat_badan,
                 'tinggi_badan' => $request->tinggi_badan,
                 'lingkar_kepala' => $request->lingkar_kepala ?? null,
                 'status_gizi' => $request->status_gizi,
-                'created_at' => now()
+                'created_at' => $request->tanggal_pengukuran ?: now()
             ];
 
-            // CETAK DATA UNTUK DEBUG
-            \Log::info('Data yang akan disimpan:', $data);
+            // Hanya tambah jika ada
+            if ($request->has('orangtua_id')) {
+                $data['orangtua_id'] = $request->orangtua_id;
+            }
+            if ($request->has('jadwal_id')) {
+                $data['jadwal_id'] = $request->jadwal_id;
+            }
 
             $tumbuhId = DB::table('pertumbuhan')->insertGetId($data);
 
@@ -67,8 +75,6 @@ class PertumbuhanController extends Controller
                     'data' => [
                         'tumbuh_id' => $tumbuhId,
                         'anak_id' => $data['anak_id'],
-                        'orangtua_id' => $data['orangtua_id'],
-                        'jadwal_id' => $data['jadwal_id'],
                         'berat_badan' => $data['berat_badan'],
                         'tinggi_badan' => $data['tinggi_badan'],
                         'lingkar_kepala' => $data['lingkar_kepala'],
@@ -90,7 +96,9 @@ class PertumbuhanController extends Controller
         }
     }
 
-    // GET semua anak (untuk kader) 
+    /**
+     * GET semua anak (untuk kader) - JOIN dengan orang_tua
+     */
     public function getAllAnak(Request $request)
     {
         try {
@@ -101,7 +109,6 @@ class PertumbuhanController extends Controller
                     'anak.nama as nama_anak',
                     'anak.jenis_kelamin',
                     'anak.tanggal_lahir',
-                    'anak.orangtua_id',  
                     'orang_tua.orangtua_id',
                     'orang_tua.nama as nama_ortu'
                 )
@@ -121,7 +128,9 @@ class PertumbuhanController extends Controller
         }
     }
 
-    // GET semua orang tua
+    /**
+     * GET semua orang tua
+     */
     public function getAllOrangTua(Request $request)
     {
         try {
@@ -142,7 +151,9 @@ class PertumbuhanController extends Controller
         }
     }
 
-    // KMS endpoint
+    /**
+     * KMS endpoint
+     */
     public function kms(Request $request)
     {
         return response()->json([
@@ -151,7 +162,9 @@ class PertumbuhanController extends Controller
         ]);
     }
 
-    // Store method alias
+    /**
+     * Store method alias
+     */
     public function store(Request $request)
     {
         return $this->simpanPertumbuhan($request);
