@@ -20,7 +20,7 @@ class _ProfilState extends State<Profil> {
   String email = "";
   String telp = "";
   String alamat = "";
-  int _selectedIndex = 3;
+  final int _selectedIndex = 3;
 
   @override
   void initState() {

@@ -19,7 +19,7 @@ class HalamanUtama extends StatefulWidget {
 }
 
 class _HalamanUtamaState extends State<HalamanUtama> {
-  int _selectedIndex = 0;
+  final int _selectedIndex = 0;
   int anakId = 0;
   String namaAnak = '';
   String jenisKelamin = '';
@@ -253,7 +253,7 @@ class _DashboardContentState extends State<DashboardContent> {
       String? token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/anak/${_currentAnakId}'),
+        Uri.parse('${ApiService.baseUrl}/anak/$_currentAnakId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -296,7 +296,7 @@ class _DashboardContentState extends State<DashboardContent> {
       String? token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/pertumbuhan/${_currentAnakId}'),
+        Uri.parse('${ApiService.baseUrl}/pertumbuhan/$_currentAnakId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

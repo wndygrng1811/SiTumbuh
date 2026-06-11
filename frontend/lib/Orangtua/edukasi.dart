@@ -247,7 +247,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
                     Navigator.pop(context);
                   },
                 );
-              }).toList(),
+              }),
               const SizedBox(height: 8),
             ],
           ),
@@ -337,7 +337,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
                 ),
               ),
             );
-          }).toList(),
+          }),
           const Spacer(),
           GestureDetector(
             onTap: () => _showMoreMenu(context),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
@@ -20,7 +19,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
   bool _isSubmitting = false;
   String _errorMessage = '';
   String _searchQuery = '';
-  int _selectedIndex = 1;
+  final int _selectedIndex = 1;
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -290,7 +289,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     int? selectedOrangTuaId;
     DateTime? selectedTanggal;
 
-    Future<void> _pickTanggal(
+    Future<void> pickTanggal(
       BuildContext context,
       Function setDialogState,
     ) async {
@@ -358,8 +357,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           });
                         },
                         validator: (value) {
-                          if (value == null)
+                          if (value == null) {
                             return 'Pilih orang tua terlebih dahulu';
+                          }
                           return null;
                         },
                       ),
@@ -374,8 +374,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           prefixIcon: const Icon(Icons.person),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Nama anak harus diisi';
+                          }
                           return null;
                         },
                       ),
@@ -404,14 +405,15 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           });
                         },
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Pilih jenis kelamin';
+                          }
                           return null;
                         },
                       ),
                       const SizedBox(height: 12),
                       GestureDetector(
-                        onTap: () => _pickTanggal(context, setDialogState),
+                        onTap: () => pickTanggal(context, setDialogState),
                         child: AbsorbPointer(
                           child: TextFormField(
                             controller: tglCtrl,
@@ -425,8 +427,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               suffixIcon: const Icon(Icons.arrow_drop_down),
                             ),
                             validator: (value) {
-                              if (value == null || value.isEmpty)
+                              if (value == null || value.isEmpty) {
                                 return 'Tanggal lahir harus diisi';
+                              }
                               return null;
                             },
                           ),

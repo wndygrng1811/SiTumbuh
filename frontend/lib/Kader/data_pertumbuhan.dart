@@ -313,8 +313,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         if (data['success'] == true) {
           setState(() {
             _listJadwal = data['data'] ?? [];
-            if (_listJadwal.isNotEmpty)
+            if (_listJadwal.isNotEmpty) {
               _selectedJadwalId = _listJadwal.first['jadwal_id'];
+            }
           });
         }
       }
@@ -359,7 +360,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   Future<void> _loadRiwayat() async {
     if (_selectedAnakId == null) return;
     try {
-      final response = await ApiService.get('/pertumbuhan/${_selectedAnakId}');
+      final response = await ApiService.get('/pertumbuhan/$_selectedAnakId');
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -914,8 +915,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       final n = double.tryParse(v);
-                      if (n == null || n <= 0 || n > 50)
+                      if (n == null || n <= 0 || n > 50) {
                         return 'Nilai tidak valid';
+                      }
                       return null;
                     },
                   ),
@@ -937,8 +939,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       final n = double.tryParse(v);
-                      if (n == null || n <= 0 || n > 200)
+                      if (n == null || n <= 0 || n > 200) {
                         return 'Nilai tidak valid';
+                      }
                       return null;
                     },
                   ),
@@ -1550,10 +1553,12 @@ class _GrafikPainter extends CustomPainter {
     final refXs = List.generate(13, (i) => (i * 2).toDouble());
     final bandPath = Path();
     bandPath.moveTo(px(refXs[0]), py(median[0] + 2 * sd));
-    for (int i = 1; i < 13; i++)
+    for (int i = 1; i < 13; i++) {
       bandPath.lineTo(px(refXs[i]), py(median[i] + 2 * sd));
-    for (int i = 12; i >= 0; i--)
+    }
+    for (int i = 12; i >= 0; i--) {
       bandPath.lineTo(px(refXs[i]), py(median[i] - 2 * sd));
+    }
     bandPath.close();
     canvas.drawPath(
       bandPath,
@@ -1568,7 +1573,9 @@ class _GrafikPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     final medPath = Path();
     medPath.moveTo(px(refXs[0]), py(median[0]));
-    for (int i = 1; i < 13; i++) medPath.lineTo(px(refXs[i]), py(median[i]));
+    for (int i = 1; i < 13; i++) {
+      medPath.lineTo(px(refXs[i]), py(median[i]));
+    }
     canvas.drawPath(medPath, medPaint);
 
     // Data line
@@ -1582,8 +1589,9 @@ class _GrafikPainter extends CustomPainter {
 
     if (validPoints.length > 1) {
       final linePath = Path()..moveTo(validPoints[0].dx, validPoints[0].dy);
-      for (int i = 1; i < validPoints.length; i++)
+      for (int i = 1; i < validPoints.length; i++) {
         linePath.lineTo(validPoints[i].dx, validPoints[i].dy);
+      }
       canvas.drawPath(
         linePath,
         Paint()

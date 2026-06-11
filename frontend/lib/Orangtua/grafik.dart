@@ -452,22 +452,20 @@ class _GrafikPageState extends State<GrafikPage> {
     Map<int, double>? data;
 
     if (gender == 'Laki-laki') {
-      if (jenis == 'berat')
+      if (jenis == 'berat') {
         data = WHOData.beratLaki;
-      else if (jenis == 'tinggi')
+      } else if (jenis == 'tinggi')
         data = WHOData.tinggiLaki;
       else
         data = WHOData.lkLaki;
     } else {
-      if (jenis == 'berat')
+      if (jenis == 'berat') {
         data = WHOData.beratPerempuan;
-      else if (jenis == 'tinggi')
+      } else if (jenis == 'tinggi')
         data = WHOData.tinggiPerempuan;
       else
         data = WHOData.lkPerempuan;
     }
-
-    if (data == null) return 0;
 
     List<int> ages = data.keys.toList()..sort();
     if (umurBulan <= ages.first) return data[ages.first] ?? 0;

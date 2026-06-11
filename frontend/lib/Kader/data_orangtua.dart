@@ -20,7 +20,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
   String _searchQuery = '';
   bool _isLoading = true;
   bool _isSubmitting = false;
-  int _selectedIndex = 1;
+  final int _selectedIndex = 1;
 
   @override
   void initState() {
@@ -107,7 +107,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
           ],
         ),
         backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -204,13 +204,14 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     );
   }
 
-  // ============ TAMBAH ORANG TUA ============
+  // ============ TAMBAH ORANG TUA (DENGAN PASSWORD) ============
   void _tambahOrangTua() {
     final formKey = GlobalKey<FormState>();
     final namaCtrl = TextEditingController();
     final emailCtrl = TextEditingController();
     final teleponCtrl = TextEditingController();
     final alamatCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -244,6 +245,14 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(alamatCtrl, 'Alamat', Icons.location_on),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  passwordCtrl,
+                  'Password',
+                  Icons.lock,
+                  obscure: true,
+                  keyboardType: TextInputType.text,
+                ),
               ],
             ),
           ),
@@ -262,12 +271,32 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                 ? null
                 : () async {
                     if (formKey.currentState!.validate()) {
+                      // Validasi password tidak boleh kosong
+                      if (passwordCtrl.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password harus diisi!'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
+                      if (passwordCtrl.text.length < 6) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Password minimal 6 karakter!'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
                       Navigator.pop(context);
                       await _simpanOrangTua({
                         'nama': namaCtrl.text,
                         'email': emailCtrl.text,
                         'telepon': teleponCtrl.text,
                         'alamat': alamatCtrl.text,
+                        'password': passwordCtrl.text,
                       });
                     }
                   },
@@ -300,7 +329,9 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _loadData();
-        _showSuccessSnackbar('✓ Data orang tua berhasil ditambahkan!');
+        _showSuccessSnackbar(
+          '✓ Data orang tua berhasil ditambahkan! Email notifikasi telah dikirim.',
+        );
       } else {
         final error = json.decode(response.body);
         _showErrorDialog(
@@ -583,9 +614,11 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     String label,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
+    bool obscure = false,
   }) {
     return TextFormField(
       controller: controller,
+      obscureText: obscure,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
@@ -594,10 +627,15 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return '$label harus diisi';
-        if (label == 'Email' && !value.contains('@'))
+        if (label == 'Email' && !value.contains('@')) {
           return 'Email tidak valid';
-        if (label == 'No Telepon' && value.length < 10)
+        }
+        if (label == 'No Telepon' && value.length < 10) {
           return 'Nomor telepon minimal 10 digit';
+        }
+        if (label == 'Password' && value.length < 6) {
+          return 'Password minimal 6 karakter';
+        }
         return null;
       },
     );
@@ -714,7 +752,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     );
   }
 
-  // ============ CARD ORANG TUA (FIX OVERFLOW) ============
+  // ============ CARD ORANG TUA ============
   Widget _buildCard(Map<String, dynamic> data, int index) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -732,7 +770,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 🔥 ROW NAMA + TOMBOL - FIX OVERFLOW
+          // Row NAMA + TOMBOL
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

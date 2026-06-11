@@ -140,7 +140,7 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     with SingleTickerProviderStateMixin {
   // ── State ──
   List<KategoriModel> _kategoriList = List.from(_dummyKategori);
-  List<EdukasiModel> _edukasiList = List.from(_dummyEdukasi);
+  final List<EdukasiModel> _edukasiList = List.from(_dummyEdukasi);
   String _filterKategoriId = 'semua';
   String _searchQuery = '';
   late AnimationController _fadeCtrl;

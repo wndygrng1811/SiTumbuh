@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AkunBaruMail;
 
 class KelolaOrangTuaController extends Controller
 {
@@ -14,7 +16,8 @@ class KelolaOrangTuaController extends Controller
     {
         try {
             $data = DB::table('orang_tua')
-                ->orderBy('orangtua_id', 'desc')
+                ->select('orangtua_id', 'nama', 'email', 'no_telp', 'alamat')
+                ->orderBy('nama')
                 ->get();
 
             return response()->json([
@@ -38,6 +41,7 @@ class KelolaOrangTuaController extends Controller
             'email' => 'required|email|unique:orang_tua,email|unique:users,email',
             'telepon' => 'nullable|string|max:15',
             'alamat' => 'nullable|string',
+            'password' => 'nullable|string|min:6',
         ]);
 
         if ($validator->fails()) {
@@ -51,15 +55,15 @@ class KelolaOrangTuaController extends Controller
         try {
             DB::beginTransaction();
 
-            // Buat user dengan nama juga
+            $plainPassword = $request->password ?? '123456';
+
             $userId = DB::table('users')->insertGetId([
                 'nama' => $request->nama,
                 'email' => $request->email,
-                'password' => bcrypt('password123'),
+                'password' => bcrypt($plainPassword),
                 'role' => 'orang_tua'
             ]);
 
-            // Buat orang tua
             $id = DB::table('orang_tua')->insertGetId([
                 'nama' => $request->nama,
                 'email' => $request->email,
@@ -70,9 +74,22 @@ class KelolaOrangTuaController extends Controller
 
             DB::commit();
 
+            // Kirim email notifikasi
+            try {
+                Mail::to($request->email)->send(new AkunBaruMail(
+                    $request->nama,
+                    $request->email,
+                    $plainPassword,
+                    null
+                ));
+            } catch (\Exception $mailError) {
+                // Email gagal, tapi data tetap tersimpan
+                \Illuminate\Support\Facades\Log::error('Email gagal dikirim: ' . $mailError->getMessage());
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Data orang tua berhasil ditambahkan',
+                'message' => 'Data orang tua berhasil ditambahkan. Email notifikasi telah dikirim.',
                 'data' => DB::table('orang_tua')->where('orangtua_id', $id)->first()
             ], 201);
         } catch (\Exception $e) {
@@ -113,7 +130,6 @@ class KelolaOrangTuaController extends Controller
                 ], 404);
             }
 
-            // 1. Update orang tua
             DB::table('orang_tua')
                 ->where('orangtua_id', $id)
                 ->update([
@@ -123,26 +139,20 @@ class KelolaOrangTuaController extends Controller
                     'alamat' => $request->alamat
                 ]);
 
-            // 2. Update users (nama dan email)
-            $userUpdated = false;
             if ($orangTua->user_id) {
-                $affected = DB::table('users')
+                DB::table('users')
                     ->where('user_id', $orangTua->user_id)
                     ->update([
                         'nama' => $request->nama,
                         'email' => $request->email
                     ]);
-                
-                $userUpdated = $affected > 0;
             }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data orang tua berhasil diubah',
-                'user_updated' => $userUpdated,
-                'user_id' => $orangTua->user_id
+                'message' => 'Data orang tua berhasil diubah'
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -172,7 +182,6 @@ class KelolaOrangTuaController extends Controller
                 DB::table('users')->where('user_id', $orangTua->user_id)->delete();
             }
 
-            // Hapus orang tua
             DB::table('orang_tua')->where('orangtua_id', $id)->delete();
 
             DB::commit();
