@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Kader\KelolaAnakController;
 use App\Http\Controllers\Api\Kader\ProfilKaderController;  
 use App\Http\Controllers\Api\Kader\KelolaOrangTuaController;
 use App\Http\Controllers\Api\Kader\KehadiranController;
+use App\Http\Controllers\Api\Kader\LaporanController;
 
 // Health Check
 Route::get('/health', function () {
@@ -111,6 +112,12 @@ Route::put('/kader/profil/{userId}', [ProfilKaderController::class, 'updateProfi
 Route::get('/kader/semua-jadwal', [KehadiranController::class, 'getAllJadwal']);
 Route::get('/kehadiran/jadwal/{jadwalId}', [KehadiranController::class, 'getKehadiranByJadwal']);
 Route::post('/kehadiran/simpan-semua', [KehadiranController::class, 'simpanSemuaKehadiran']);   
+
+// =============================================
+// KADER - LAPORAN
+// =============================================
+Route::get('/kader/semua-pertumbuhan', [LaporanController::class, 'getAllPertumbuhan']);
+
 // =============================================
 // LOGOUT
 // =============================================
