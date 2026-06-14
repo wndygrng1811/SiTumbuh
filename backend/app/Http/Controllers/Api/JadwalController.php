@@ -36,13 +36,43 @@ class JadwalController extends Controller
             'waktu' => $request->waktu,
             'alamat' => $request->alamat,
             'template' => $request->template,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        // 🔥 KIRIM NOTIFIKASI OTOMATIS KE ORANG TUA
+        $this->sendNotifikasiJadwal($jadwalId, $request->nama_posyandu, $request->tanggal);
 
         return response()->json([
             'success' => true,
             'message' => 'Jadwal berhasil dibuat',
             'data' => ['jadwal_id' => $jadwalId]
         ]);
+    }
+
+    private function sendNotifikasiJadwal($jadwalId, $namaPosyandu, $tanggal)
+    {
+        // Ambil semua user dengan role orang_tua
+        $users = DB::table('users')->where('role', 'orang_tua')->get();
+
+        $notifikasiId = DB::table('notifikasi')->insertGetId([
+            'judul' => "Jadwal Posyandu Baru 📅",
+            'isi' => "Jadwal posyandu \"$namaPosyandu\" akan dilaksanakan pada tanggal $tanggal. Jangan lupa datang ya!",
+            'jenis' => 'jadwal',
+            'link' => "/jadwal/$jadwalId",
+            'target_role' => 'orang_tua',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($users as $user) {
+            DB::table('notifikasi_user')->insert([
+                'notifikasi_id' => $notifikasiId,
+                'user_id' => $user->user_id,
+                'is_read' => 0,
+                'created_at' => now(),
+            ]);
+        }
     }
 
     public function update(Request $request, $id)
@@ -63,6 +93,7 @@ class JadwalController extends Controller
                 'waktu' => $request->waktu,
                 'alamat' => $request->alamat,
                 'template' => $request->template,
+                'updated_at' => now(),
             ]);
 
         return response()->json([

@@ -192,12 +192,10 @@ class _RiwayatKunjunganPageState extends State<RiwayatKunjunganPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6EFF1),
       appBar: CustomAppBar(
-        title: 'Riwayat Kunjungan',
         backgroundColor: const Color(0xFFD86487),
-        titleColor: Colors.white,
         iconColor: Colors.white,
         showBackButton: true,
-        showDrawerIcon: false,
+        showDrawerIcon: true,
         showNotificationIcon: false,
       ),
       body: _isLoading

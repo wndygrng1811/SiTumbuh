@@ -1,4 +1,5 @@
 import 'package:si_tumbuh/services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'Orangtua/halaman_utama.dart';
 import 'kader/halaman_utama_kader.dart';
@@ -14,13 +15,31 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool isHidden = true;
 
-  // 🔥 TAMBAHAN
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _clearSession();
+  }
+
+  Future<void> _clearSession() async {
+    // Hapus semua data session saat halaman login dimuat
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
 
   Future<void> handleLoginFixed() async {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan password harus diisi')),
+      );
+      return;
+    }
 
     print('Mencoba login dengan: $email / $password');
 
@@ -51,7 +70,6 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF5F7),
-
       body: SafeArea(
         child: SingleChildScrollView(
           child: ConstrainedBox(
@@ -86,7 +104,6 @@ class _LoginPageState extends State<LoginPage> {
 
                 const SizedBox(height: 40),
 
-                //  FORM
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -98,7 +115,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Column(
                     children: [
-                      // EMAIL
                       TextField(
                         controller: emailController,
                         decoration: InputDecoration(
@@ -128,7 +144,6 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 16),
 
-                      // PASSWORD
                       TextField(
                         controller: passwordController,
                         obscureText: isHidden,
@@ -171,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 24),
 
-                      // BUTTON LOGIN
                       SizedBox(
                         width: double.infinity,
                         height: 55,
@@ -197,7 +211,6 @@ class _LoginPageState extends State<LoginPage> {
 
                       const SizedBox(height: 16),
 
-                      // REGISTER
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

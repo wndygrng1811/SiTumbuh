@@ -163,6 +163,13 @@ class _HalamanUtamaState extends State<HalamanUtama> {
     return Scaffold(
       drawer: const SidebarMenu(),
       backgroundColor: const Color(0xFFFFF5F7),
+      appBar: CustomAppBar(
+        backgroundColor: const Color(0xFFE85D75),
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
+      ),
       body: IndexedStack(index: _selectedIndex, children: _pages),
       bottomNavigationBar: BottomNav(currentIndex: _selectedIndex),
     );
@@ -311,10 +318,8 @@ class _DashboardContentState extends State<DashboardContent> {
             data['data'].isNotEmpty) {
           List<dynamic> dataList = data['data'];
 
-          // 🔥 URUTKAN BERDASARKAN TANGGAL (TERBARU DI ATAS)
           dataList.sort((a, b) => b['tanggal'].compareTo(a['tanggal']));
 
-          // Ambil data terbaru (index 0 setelah diurutkan)
           var terbaru = dataList[0];
 
           setState(() {
@@ -546,40 +551,30 @@ class _DashboardContentState extends State<DashboardContent> {
         ? widget.namaAnak
         : "Anak";
 
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: () async {
-          await _loadDataAnak();
-          await _loadDataFromDatabase();
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const CustomAppBar(
-                showDrawerIcon: true,
-                showNotificationIcon: true,
-                backgroundColor: Colors.transparent,
-                titleColor: Color(0xFF8B1E3F),
-                elevation: 0,
-              ),
-              const SizedBox(height: 8),
-              _buildBannerCarousel(),
-              const SizedBox(height: 20),
-              _buildGreetingSection(),
-              const SizedBox(height: 16),
-              _buildAnakDataCard(displayNama),
-              const SizedBox(height: 20),
-              _buildGrowthChartSection(),
-              const SizedBox(height: 20),
-              _buildJadwalCard(),
-              const SizedBox(height: 20),
-              _buildEdukasiSection(),
-              const SizedBox(height: 10),
-            ],
-          ),
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _loadDataAnak();
+        await _loadDataFromDatabase();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildBannerCarousel(),
+            const SizedBox(height: 20),
+            _buildGreetingSection(),
+            const SizedBox(height: 16),
+            _buildAnakDataCard(displayNama),
+            const SizedBox(height: 20),
+            _buildGrowthChartSection(),
+            const SizedBox(height: 20),
+            _buildJadwalCard(),
+            const SizedBox(height: 20),
+            _buildEdukasiSection(),
+            const SizedBox(height: 10),
+          ],
         ),
       ),
     );

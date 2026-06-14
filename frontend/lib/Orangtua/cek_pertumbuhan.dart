@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../widgets/custom_app_bar.dart';
+import '../widgets/bottom_nav.dart';
 
 class CekPertumbuhanPage extends StatefulWidget {
   const CekPertumbuhanPage({super.key});
@@ -34,20 +36,14 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     double meter = tinggi / 100;
     double imt = berat / pow(meter, 2);
 
-    /// =============================
     /// TINGGI BADAN / USIA
-    /// =============================
-
     if (tinggi < 85 && usiaAnak > 24) {
       statusTB = "Pendek";
     } else {
       statusTB = "Tinggi";
     }
 
-    /// =============================
     /// BERAT BADAN / USIA
-    /// =============================
-
     if (berat < 10) {
       statusBB = "Kurus";
     } else if (berat < 15) {
@@ -56,10 +52,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       statusBB = "Obesitas";
     }
 
-    /// =============================
     /// IMT
-    /// =============================
-
     if (imt < 14) {
       statusIMT = "Kurus";
     } else if (imt < 18) {
@@ -68,10 +61,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       statusIMT = "Obesitas";
     }
 
-    /// =============================
     /// LINGKAR KEPALA
-    /// =============================
-
     if (kepala < 45) {
       statusLK = "Kecil";
     } else if (kepala <= 52) {
@@ -80,42 +70,31 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       statusLK = "Makrosefali";
     }
 
-    /// =============================
     /// STATUS UTAMA
-    /// =============================
-
     if (statusBB == "Obesitas") {
       statusUtama = "Gizi lebih - Perlu diperhatikan";
-
       deskripsi =
           "Anak menunjukkan kelebihan gizi. Perhatikan pola makan dan konsultasikan ke ahli gizi.";
-
       warnaUtama = Colors.red;
     } else if (statusTB == "Pendek") {
       statusUtama = "Risiko Stunting";
-
       deskripsi = "Tinggi badan anak berada di bawah standar untuk usianya.";
-
       warnaUtama = Colors.orange;
     } else {
       statusUtama = "Pertumbuhan Normal";
-
       deskripsi = "Pertumbuhan anak berada dalam rentang normal.";
-
       warnaUtama = Colors.green;
     }
 
     setState(() {});
   }
 
-  /// INPUT FIELD
   Widget inputField(String label, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
-
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -124,16 +103,13 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     );
   }
 
-  /// BADGE STATUS
   Widget badge(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(20),
       ),
-
       child: Text(
         text,
         style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -141,17 +117,14 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     );
   }
 
-  /// ROW DETAIL
   Widget detailRow(String title, String status, Color color) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(12),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
-
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [Text(title), badge(status, color)],
@@ -163,130 +136,151 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text("SiTumbuh", style: TextStyle(color: Colors.pink)),
-        iconTheme: const IconThemeData(color: Colors.black),
+      appBar: CustomAppBar(
+        backgroundColor: const Color(0xFFE85D75),
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
       ),
-
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-
+      body: Column(
         children: [
-          const Text(
-            "Hallo, Bunda!",
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-
-          const Text(
-            "Pantau tumbuh kembang anak anda hari ini.",
-            style: TextStyle(color: Colors.grey),
-          ),
-
-          const SizedBox(height: 20),
-
-          /// =============================
-          /// CARD HASIL UTAMA
-          /// =============================
-          if (statusUtama != "")
-            Container(
-              padding: const EdgeInsets.all(20),
-
-              decoration: BoxDecoration(
-                color: Colors.pink[200],
-                borderRadius: BorderRadius.circular(16),
+          // ========== HEADER HALAMAN (TANPA BACKGROUND, FONT HITAM) ==========
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: const Text(
+              "Cek Pertumbuhan",
+              style: TextStyle(
+                color: Color(0xFF5A2A2A),
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
+            ),
+          ),
+          const Divider(
+            color: Color(0xFFE85D75),
+            thickness: 2,
+            indent: 20,
+            endIndent: 20,
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                const Text(
+                  "Hallo, Bunda!",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const Text(
+                  "Pantau tumbuh kembang anak anda hari ini.",
+                  style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
 
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.health_and_safety,
-                    size: 50,
-                    color: Colors.white,
-                  ),
-
-                  const SizedBox(width: 15),
-
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                if (statusUtama != "")
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: warnaUtama,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          statusUtama,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        const Icon(
+                          Icons.health_and_safety,
+                          size: 50,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                statusUtama,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                deskripsi,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ],
                           ),
                         ),
-
-                        const SizedBox(height: 6),
-
-                        Text(deskripsi),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
 
-          const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-          /// =============================
-          /// FORM INPUT
-          /// =============================
-          inputField("Usia Anak (bulan)", usia),
-          inputField("Berat Badan (kg)", bb),
-          inputField("Tinggi Badan (cm)", tb),
-          inputField("Lingkar Kepala (cm)", lk),
+                inputField("Usia Anak (bulan)", usia),
+                inputField("Berat Badan (kg)", bb),
+                inputField("Tinggi Badan (cm)", tb),
+                inputField("Lingkar Kepala (cm)", lk),
 
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.pink,
-              padding: const EdgeInsets.all(14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: cekPertumbuhan,
-            child: const Text("Cek Pertumbuhan"),
-          ),
-
-          const SizedBox(height: 20),
-
-          /// =============================
-          /// DETAIL PEMERIKSAAN
-          /// =============================
-          if (statusTB != "-")
-            Container(
-              padding: const EdgeInsets.all(16),
-
-              decoration: BoxDecoration(
-                color: Colors.pink[200],
-                borderRadius: BorderRadius.circular(16),
-              ),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Detail Hasil Pemeriksaan",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE85D75),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
+                  onPressed: cekPertumbuhan,
+                  child: const Text("Cek Pertumbuhan"),
+                ),
 
-                  const SizedBox(height: 10),
+                const SizedBox(height: 20),
 
-                  detailRow("Tinggi badan / Usia", statusTB, Colors.orange),
-                  detailRow("Berat badan / Usia", statusBB, Colors.red),
-                  detailRow("IMT / Usia", statusIMT, Colors.pink),
-                  detailRow("Lingkar kepala / Usia", statusLK, Colors.purple),
-                ],
-              ),
+                if (statusTB != "-")
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFDE2E7),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Detail Hasil Pemeriksaan",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        detailRow(
+                          "Tinggi badan / Usia",
+                          statusTB,
+                          Colors.orange,
+                        ),
+                        detailRow("Berat badan / Usia", statusBB, Colors.red),
+                        detailRow(
+                          "IMT / Usia",
+                          statusIMT,
+                          const Color(0xFFE85D75),
+                        ),
+                        detailRow(
+                          "Lingkar kepala / Usia",
+                          statusLK,
+                          Colors.purple,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
+          ),
         ],
       ),
+      bottomNavigationBar: const BottomNav(currentIndex: 0),
     );
   }
 }

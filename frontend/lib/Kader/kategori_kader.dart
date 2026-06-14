@@ -1,17 +1,19 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
+import '../services/api_service.dart';
 import 'tambah_kategori_kader.dart';
-import 'edukasi_kader.dart'; // import KategoriModel
+import 'edukasi_kader.dart';
 
 class KategoriKaderPage extends StatefulWidget {
   final List<KategoriModel> kategoriList;
-  final void Function(List<KategoriModel>)? onKategoriChanged;
+  final Function(List<KategoriModel>) onKategoriChanged;
 
   const KategoriKaderPage({
     super.key,
     required this.kategoriList,
-    this.onKategoriChanged,
+    required this.onKategoriChanged,
   });
 
   @override
@@ -20,83 +22,115 @@ class KategoriKaderPage extends StatefulWidget {
 
 class _KategoriKaderPageState extends State<KategoriKaderPage>
     with SingleTickerProviderStateMixin {
-  late List<KategoriModel> _list;
+  late List<KategoriModel> _kategoriList;
+  String _searchQuery = '';
+  bool _isLoading = false;
+  final _searchCtrl = TextEditingController();
+
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
-    _list = List.from(widget.kategoriList);
+    _kategoriList = List.from(widget.kategoriList);
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 400),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _searchCtrl.addListener(() {
+      setState(() => _searchQuery = _searchCtrl.text);
+    });
   }
 
   @override
   void dispose() {
     _fadeCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
-  void _notifyParent() {
-    widget.onKategoriChanged?.call(_list);
+  List<KategoriModel> get _filtered {
+    if (_searchQuery.isEmpty) return _kategoriList;
+    return _kategoriList.where((k) {
+      return k.nama.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
   }
 
-  Future<void> _bukaForm({KategoriModel? edit}) async {
-    final result = await Navigator.push<KategoriModel>(
+  Future<void> _loadKategori() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await ApiService.get('/kategori');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
+          _kategoriList = list
+              .map((item) => KategoriModel.fromJson(item))
+              .toList();
+          widget.onKategoriChanged(_kategoriList);
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      print('Error load kategori: $e');
+      _showSnackbar('Gagal memuat kategori', Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _tambahKategori() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const TambahKategoriKaderPage()),
+    );
+    if (result == true) {
+      await _loadKategori();
+      _showSnackbar('Kategori berhasil ditambahkan', Colors.green);
+    }
+  }
+
+  Future<void> _editKategori(KategoriModel k) async {
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TambahKategoriKaderPage(isEdit: edit != null, data: edit),
+        builder: (_) => TambahKategoriKaderPage(isEdit: true, data: k),
       ),
     );
-    if (result == null) return;
-
-    setState(() {
-      if (edit == null) {
-        _list.add(result);
-        _showSnackbar('Kategori berhasil ditambahkan ✓', Colors.green);
-      } else {
-        final idx = _list.indexWhere((k) => k.id == result.id);
-        if (idx != -1) _list[idx] = result;
-        _showSnackbar('Kategori berhasil diperbarui ✓', Colors.blue);
-      }
-    });
-    _notifyParent();
+    if (result == true) {
+      await _loadKategori();
+      _showSnackbar('Kategori berhasil diupdate', Colors.blue);
+    }
   }
 
-  void _hapus(KategoriModel k) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Kategori?'),
-        content: Text('Yakin ingin menghapus kategori "${k.nama}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              setState(() {
-                _list.removeWhere((x) => x.id == k.id);
-                _showSnackbar('Kategori dihapus', Colors.red);
-              });
-              _notifyParent();
-            },
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _hapusKategori(KategoriModel k) async {
+    // Cek apakah kategori sedang digunakan
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await ApiService.delete('/kategori/${k.id}');
+      final data = json.decode(response.body);
+
+      if (data['success'] == true) {
+        await _loadKategori();
+        _showSnackbar(
+          data['message'] ?? 'Kategori berhasil dihapus',
+          Colors.green,
+        );
+      } else {
+        _showSnackbar(
+          data['message'] ?? 'Gagal menghapus kategori',
+          Colors.red,
+        );
+      }
+    } catch (e) {
+      print('Error hapus kategori: $e');
+      _showSnackbar('Terjadi kesalahan', Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _showSnackbar(String msg, Color color) {
@@ -112,327 +146,380 @@ class _KategoriKaderPageState extends State<KategoriKaderPage>
     );
   }
 
+  void _confirmHapus(KategoriModel k) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Kategori?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Yakin ingin menghapus kategori "${k.nama}"?'),
+            const SizedBox(height: 8),
+            const Text(
+              'Perhatian: Kategori yang memiliki edukasi tidak dapat dihapus!',
+              style: TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              _hapusKategori(k);
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dipub = _list.where((k) => k.status == 'Dipublikasikan').length;
-    final draft = _list.where((k) => k.status == 'Draft').length;
+    final total = _kategoriList.length;
+    final dipub = _kategoriList
+        .where((k) => k.status == 'Dipublikasikan')
+        .length;
+    final draft = _kategoriList.where((k) => k.status == 'Draft').length;
 
-    return WillPopScope(
-      onWillPop: () async {
-        Navigator.pop(context, _list);
-        return false;
-      },
-      child: Scaffold(
-        drawer: const SidebarKader(),
-        bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
-        backgroundColor: const Color(0xFFF7EEF1),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFFD85F87),
-          elevation: 0,
-          title: const Text(
-            'SiTumbuh',
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-          ),
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-          ),
-          actions: const [
-            Padding(
-              padding: EdgeInsets.only(right: 15),
-              child: Icon(Icons.notifications_none),
-            ),
-          ],
+    return Scaffold(
+      drawer: const SidebarKader(),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD05A7E),
+        title: const Text(
+          'SiTumbuh',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
-        body: FadeTransition(
-          opacity: _fadeAnim,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // ── Header ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Kategori',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF7A1635),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Kelola kategori edukasi untuk orang tua',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD85F87),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                      ),
-                      onPressed: () => _bukaForm(),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text(
-                        'Tambah',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-
-                // ── Mini Stat ──
-                Row(
-                  children: [
-                    _miniStat(
-                      'Total',
-                      '${_list.length}',
-                      const Color(0xFF7B61FF),
-                    ),
-                    const SizedBox(width: 10),
-                    _miniStat('Dipublikasikan', '$dipub', Colors.green),
-                    const SizedBox(width: 10),
-                    _miniStat('Draft', '$draft', Colors.orange),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // ── List ──
-                Expanded(
-                  child: _list.isEmpty
-                      ? _emptyState()
-                      : ListView.builder(
-                          itemCount: _list.length,
-                          itemBuilder: (_, i) => _itemKategori(_list[i]),
-                        ),
-                ),
-              ],
-            ),
-          ),
+        centerTitle: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        automaticallyImplyLeading: false,
       ),
-    );
-  }
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : FadeTransition(
+              opacity: _fadeAnim,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'Kelola Kategori',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF7A1635),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Atur kategori konten edukasi',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(
+                          height: 36,
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD05A7E),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 0,
+                              ),
+                              minimumSize: const Size(0, 36),
+                            ),
+                            onPressed: _tambahKategori,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text(
+                              'Tambah',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
 
-  Widget _miniStat(String label, String val, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.1),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Text(
-              val,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
+                    const SizedBox(height: 16),
+
+                    // Stat Cards
+                    Row(
+                      children: [
+                        _statCard(
+                          'Total',
+                          '$total',
+                          const Color(0xFF4CAF50),
+                          Icons.category,
+                        ),
+                        _statCard(
+                          'Publik',
+                          '$dipub',
+                          const Color(0xFF2196F3),
+                          Icons.public,
+                        ),
+                        _statCard(
+                          'Draft',
+                          '$draft',
+                          const Color(0xFFFF9800),
+                          Icons.edit_note,
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Search
+                    TextField(
+                      controller: _searchCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Cari kategori...',
+                        hintStyle: const TextStyle(fontSize: 13),
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () {
+                                  _searchCtrl.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Daftar Kategori
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Daftar Kategori (${_filtered.length})',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _filtered.isEmpty
+                        ? _emptyState()
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: _filtered.length,
+                            itemBuilder: (context, index) {
+                              final k = _filtered[index];
+                              return _kategoriCard(k);
+                            },
+                          ),
+
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _itemKategori(KategoriModel k) {
-    final isPub = k.status == 'Dipublikasikan';
-    final warna = isPub ? Colors.green : Colors.orange;
-
-    return Dismissible(
-      key: Key(k.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        margin: const EdgeInsets.only(bottom: 14),
-        decoration: BoxDecoration(
-          color: Colors.red.shade600,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.delete_outline, color: Colors.white),
-            Text('Hapus', style: TextStyle(color: Colors.white, fontSize: 11)),
-          ],
-        ),
-      ),
-      confirmDismiss: (_) async {
-        _hapus(k);
-        return false;
-      },
+  Widget _statCard(String title, String total, Color color, IconData icon) {
+    return Expanded(
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
+              color: color.withOpacity(0.12),
               blurRadius: 8,
-              color: Colors.grey.withOpacity(0.12),
               offset: const Offset(0, 3),
             ),
           ],
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () => _bukaForm(edit: k),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                // Icon / Gambar
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: warna.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Image.asset(
-                    k.image,
-                    width: 36,
-                    height: 36,
-                    errorBuilder: (_, __, ___) =>
-                        Icon(Icons.category, color: warna, size: 28),
-                  ),
-                ),
-                const SizedBox(width: 14),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              total,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 18,
+              ),
+            ),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        k.nama,
-                        style: TextStyle(
-                          color: warna,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
+  Widget _kategoriCard(KategoriModel k) {
+    final isPub = k.status == 'Dipublikasikan';
+    final warnaStatus = isPub ? Colors.green : Colors.orange;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _editKategori(k),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              // Icon
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD05A7E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.category,
+                  color: const Color(0xFFD05A7E),
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      k.nama,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF222222),
                       ),
-                      const SizedBox(height: 4),
+                    ),
+                    const SizedBox(height: 4),
+                    if (k.deskripsi.isNotEmpty)
                       Text(
                         k.deskripsi,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Badge Status
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: warna.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    k.status,
-                    style: TextStyle(
-                      color: warna,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-
-                // Menu
-                PopupMenuButton<String>(
-                  icon: const Icon(
-                    Icons.more_vert,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onSelected: (v) {
-                    if (v == 'edit') _bukaForm(edit: k);
-                    if (v == 'hapus') _hapus(k);
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.edit_outlined,
-                            size: 18,
-                            color: Colors.blue,
-                          ),
-                          SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
                       ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'hapus',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                          SizedBox(width: 8),
-                          Text('Hapus', style: TextStyle(color: Colors.red)),
-                        ],
+                      decoration: BoxDecoration(
+                        color: warnaStatus.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        k.status,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: warnaStatus,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+
+              // Action buttons
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: Colors.blue,
+                    ),
+                    onPressed: () => _editKategori(k),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: Colors.red,
+                    ),
+                    onPressed: () => _confirmHapus(k),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -441,24 +528,34 @@ class _KategoriKaderPageState extends State<KategoriKaderPage>
 
   Widget _emptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.category_outlined, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(
-            'Belum ada kategori',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD85F87),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          children: [
+            Icon(
+              Icons.category_outlined,
+              size: 60,
+              color: Colors.grey.shade300,
             ),
-            onPressed: () => _bukaForm(),
-            child: const Text('+ Tambah Kategori'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Text(
+              _searchQuery.isNotEmpty
+                  ? 'Tidak ada kategori untuk "$_searchQuery"'
+                  : 'Belum ada kategori',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+            if (_searchQuery.isEmpty) const SizedBox(height: 12),
+            if (_searchQuery.isEmpty)
+              ElevatedButton.icon(
+                onPressed: _tambahKategori,
+                icon: const Icon(Icons.add),
+                label: const Text('Tambah Kategori'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD05A7E),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

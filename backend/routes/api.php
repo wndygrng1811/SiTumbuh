@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Kader\ProfilKaderController;
 use App\Http\Controllers\Api\Kader\KelolaOrangTuaController;
 use App\Http\Controllers\Api\Kader\KehadiranController;
 use App\Http\Controllers\Api\Kader\LaporanController;
+use App\Http\Controllers\Api\KategoriController;
+use App\Http\Controllers\Api\NotifikasiController;
 
 // Health Check
 Route::get('/health', function () {
@@ -67,6 +69,13 @@ Route::put('/jadwal/{id}', [JadwalController::class, 'update']);
 Route::delete('/jadwal/{id}', [JadwalController::class, 'destroy']);
 
 // =============================================
+// NOTIFIKASI
+// =============================================
+Route::get('/notifikasi', [NotifikasiController::class, 'index']);
+Route::put('/notifikasi/{id}/read', [NotifikasiController::class, 'markAsRead']);
+Route::put('/notifikasi/read-all', [NotifikasiController::class, 'markAllAsRead']);
+
+// =============================================
 // KADER - DASHBOARD
 // =============================================
 Route::get('/kader/statistik', [DashboardKaderController::class, 'getStatistik']);
@@ -117,6 +126,19 @@ Route::post('/kehadiran/simpan-semua', [KehadiranController::class, 'simpanSemua
 // KADER - LAPORAN
 // =============================================
 Route::get('/kader/semua-pertumbuhan', [LaporanController::class, 'getAllPertumbuhan']);
+
+// =============================================
+// KADER - EDUKASI
+// =============================================
+Route::get('/edukasi', [EdukasiController::class, 'index']);
+Route::get('/edukasi/{id}', [EdukasiController::class, 'show']);
+Route::post('/edukasi', [EdukasiController::class, 'store']);
+Route::put('/edukasi/{id}', [EdukasiController::class, 'update']);
+Route::delete('/edukasi/{id}', [EdukasiController::class, 'destroy']);
+Route::get('/kategori', [KategoriController::class, 'index']);
+Route::post('/kategori', [KategoriController::class, 'store']);
+Route::put('/kategori/{id}', [KategoriController::class, 'update']);
+Route::delete('/kategori/{id}', [KategoriController::class, 'destroy']);
 
 // =============================================
 // LOGOUT

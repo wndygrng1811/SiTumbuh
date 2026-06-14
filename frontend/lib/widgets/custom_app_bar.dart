@@ -1,68 +1,100 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:si_tumbuh/services/api_service.dart';
+import 'package:si_tumbuh/widgets/notifikasi_page.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final String? title;
+class CustomAppBar extends StatefulWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
-  final Color? titleColor;
   final Color? iconColor;
   final bool showBackButton;
-  final List<Widget>? actions;
-  final double elevation;
   final bool showDrawerIcon;
   final bool showNotificationIcon;
 
   const CustomAppBar({
     super.key,
-    this.title,
     this.backgroundColor,
-    this.titleColor,
     this.iconColor,
     this.showBackButton = false,
-    this.actions,
-    this.elevation = 0,
     this.showDrawerIcon = true,
     this.showNotificationIcon = true,
   });
 
   @override
+  State<CustomAppBar> createState() => _CustomAppBarState();
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
+
+class _CustomAppBarState extends State<CustomAppBar> {
+  int _unreadCount = 0;
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String role = prefs.getString('role') ?? '';
+    setState(() {
+      _userRole = role;
+    });
+
+    // Load notifikasi untuk semua role (tapi kader akan dapat 0)
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    try {
+      final data = await ApiService.getNotifikasi();
+      final count = data.where((n) => n['is_read'] == 0).length;
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    } catch (e) {
+      print('Error load unread count: $e');
+    }
+  }
+
+  Future<void> _refreshUnreadCount() async {
+    await _loadUnreadCount();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AppBar(
-      title: Text(
-        title ?? 'SiTumbuh',
+      title: const Text(
+        'SiTumbuh',
         style: TextStyle(
-          color: titleColor ?? const Color(0xFF76172D),
+          color: Colors.white,
           fontWeight: FontWeight.w600,
           fontSize: 18,
         ),
       ),
       centerTitle: true,
-      backgroundColor: backgroundColor ?? const Color(0xFFFFF5F7),
-      elevation: elevation,
+      backgroundColor: widget.backgroundColor ?? const Color(0xFFE85D75),
+      elevation: 0,
       leading: _buildLeading(context),
-      actions: _buildActions(),
-      automaticallyImplyLeading:
-          false, // 🔥 Tambahkan ini untuk mencegah double leading
+      actions: _buildActions(context),
+      automaticallyImplyLeading: false,
     );
   }
 
   Widget? _buildLeading(BuildContext context) {
-    if (showBackButton) {
+    if (widget.showBackButton) {
       return IconButton(
-        icon: Icon(
-          Icons.arrow_back_ios,
-          color: iconColor ?? const Color(0xFF76172D),
-          size: 20,
-        ),
+        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
         onPressed: () => Navigator.pop(context),
       );
-    } else if (showDrawerIcon) {
+    } else if (widget.showDrawerIcon) {
       return Builder(
         builder: (context) => IconButton(
-          icon: Icon(
-            Icons.menu,
-            color: iconColor ?? const Color(0xFF76172D),
-            size: 24,
-          ),
+          icon: const Icon(Icons.menu, color: Colors.white, size: 24),
           onPressed: () {
             Scaffold.of(context).openDrawer();
           },
@@ -72,27 +104,59 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     return null;
   }
 
-  List<Widget>? _buildActions() {
-    if (actions != null) return actions;
-
-    if (showNotificationIcon) {
+  List<Widget>? _buildActions(BuildContext context) {
+    if (widget.showNotificationIcon) {
       return [
-        IconButton(
-          icon: Icon(
-            Icons.notifications_none,
-            color: iconColor ?? const Color(0xFF76172D),
-            size: 24,
-          ),
-          onPressed: () {
-            // TODO: Navigasi ke halaman notifikasi
-          },
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_none,
+                color: Colors.white,
+                size: 24,
+              ),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotifikasiPage(),
+                  ),
+                );
+                if (result == true) {
+                  _refreshUnreadCount();
+                }
+              },
+            ),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    _unreadCount > 9 ? '9+' : '$_unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(width: 8),
       ];
     }
     return null;
   }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 }

@@ -246,12 +246,15 @@ class _BuatJadwalPageState extends State<BuatJadwalPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const SidebarKader(),
+      drawer: const SidebarKader(), // ✅ SUDAH TERHUBUNG
       bottomNavigationBar: const BottomNavbarKader(selectedIndex: 2),
       backgroundColor: const Color(0xFFF6F6F6),
       body: Column(
         children: [
-          const CustomAppBar(),
+          const CustomAppBar(
+            showDrawerIcon: true,   // ✅ IKON MENU MUNCUL
+            showNotificationIcon: true,
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -311,7 +314,9 @@ class _BuatJadwalPageState extends State<BuatJadwalPage> {
                             style: TextStyle(color: Colors.white),
                           ),
                           TextSpan(
-                            text: "Kuning",
+                            text: widget.template.contains('kuning')
+                                ? "Kuning"
+                                : "Biru",
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

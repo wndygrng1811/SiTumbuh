@@ -1,17 +1,14 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:excel/excel.dart' hide Border;
+import 'package:excel/excel.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
-
-// Untuk web
-import 'dart:html' as html;
+import '../widgets/custom_app_bar.dart';
 
 class LaporanPage extends StatefulWidget {
   const LaporanPage({super.key});
@@ -100,9 +97,6 @@ class _LaporanPageState extends State<LaporanPage> {
         '/kader/semua-pertumbuhan?bulan=$bulanAngka&tahun=$_selectedTahun',
       );
 
-      print('📡 Response status: ${response.statusCode}');
-      print('📡 Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -124,7 +118,6 @@ class _LaporanPageState extends State<LaporanPage> {
             _filteredData = List.from(_dataPertumbuhan);
             _isLoading = false;
           });
-          print('✅ Loaded ${_dataPertumbuhan.length} data');
         } else {
           setState(() {
             _errorMessage = data['message'] ?? 'Gagal memuat data';
@@ -138,7 +131,6 @@ class _LaporanPageState extends State<LaporanPage> {
         });
       }
     } catch (e) {
-      print('❌ Error load data: $e');
       setState(() {
         _errorMessage = 'Error: $e';
         _isLoading = false;
@@ -166,107 +158,81 @@ class _LaporanPageState extends State<LaporanPage> {
     return Scaffold(
       backgroundColor: _bg,
       drawer: const SidebarKader(),
-      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 1),
-      appBar: AppBar(
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
+      appBar: CustomAppBar(
         backgroundColor: _pink,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'SiTumbuh',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_rounded, size: 24),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.amber,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _pink, width: 1),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {},
-          ),
-          const SizedBox(width: 4),
-        ],
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(_errorMessage),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadData,
-                    style: ElevatedButton.styleFrom(backgroundColor: _pink),
-                    child: const Text('Coba Lagi'),
-                  ),
-                ],
-              ),
-            )
-          : Column(
+          ? _buildErrorWidget()
+          : _buildMainContent(),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+          const SizedBox(height: 16),
+          Text(_errorMessage),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            style: ElevatedButton.styleFrom(backgroundColor: _pink),
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        _buildStatCards(),
-                        const SizedBox(height: 20),
-                        _buildFilterSection(),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Data Pertumbuhan Anak',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15,
-                              ),
-                            ),
-                            Text(
-                              '${_filteredData.length} data',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        _buildDataTable(),
-                        const SizedBox(height: 20),
-                        _buildCetakButton(),
-                      ],
+                const SizedBox(height: 16),
+                _buildStatCards(),
+                const SizedBox(height: 20),
+                _buildFilterSection(),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Data Pertumbuhan Anak',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
-                  ),
+                    Text(
+                      '${_filteredData.length} data',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 10),
+                _buildDataTable(),
+                const SizedBox(height: 20),
+                _buildCetakButton(),
               ],
             ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -274,13 +240,9 @@ class _LaporanPageState extends State<LaporanPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFE85D75), Color(0xFFF06292)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: _pink,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,20 +429,18 @@ class _LaporanPageState extends State<LaporanPage> {
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
-          items: items
-              .map(
-                (item) => DropdownMenuItem(
-                  value: item,
-                  child: Row(
-                    children: [
-                      Icon(icon, size: 15, color: _pink),
-                      const SizedBox(width: 6),
-                      Text(item),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
+          items: items.map((item) {
+            return DropdownMenuItem(
+              value: item,
+              child: Row(
+                children: [
+                  Icon(icon, size: 15, color: _pink),
+                  const SizedBox(width: 6),
+                  Text(item),
+                ],
+              ),
+            );
+          }).toList(),
           onChanged: onChanged,
         ),
       ),
@@ -721,7 +681,7 @@ class _LaporanPageState extends State<LaporanPage> {
                   DataCell(
                     Text(
                       item['nama_ortu'],
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -772,42 +732,36 @@ class _LaporanPageState extends State<LaporanPage> {
     setState(() => _isExporting = true);
 
     try {
-      print('📊 Data yang akan diexport: ${_filteredData.length} baris');
-
       var excel = Excel.createExcel();
       Sheet sheet = excel['Laporan Posyandu'];
 
-      // Header
       sheet.appendRow([
-        'No',
-        'Nama Anak',
-        'JK',
-        'TB (cm)',
-        'BB (kg)',
-        'LK (cm)',
-        'Status Gizi',
-        'Orang Tua',
+        TextCellValue('No'),
+        TextCellValue('Nama Anak'),
+        TextCellValue('Jenis Kelamin'),
+        TextCellValue('Tinggi Badan (cm)'),
+        TextCellValue('Berat Badan (kg)'),
+        TextCellValue('Lingkar Kepala (cm)'),
+        TextCellValue('Status Gizi'),
+        TextCellValue('Orang Tua'),
       ]);
 
-      // Data
       if (_filteredData.isEmpty) {
-        print('⚠️ Data kosong, tidak ada yang diexport');
-        sheet.appendRow(['Tidak ada data', '', '', '', '', '', '', '']);
+        sheet.appendRow([TextCellValue('Tidak ada data')]);
       } else {
         for (int i = 0; i < _filteredData.length; i++) {
           final item = _filteredData[i];
-          print(
-            '📝 Export baris ${i + 1}: ${item['nama_anak']} - ${item['status_gizi']}',
-          );
           sheet.appendRow([
-            i + 1,
-            item['nama_anak'] ?? '-',
-            item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
-            item['tinggi_badan'] ?? 0,
-            item['berat_badan'] ?? 0,
-            item['lingkar_kepala'] ?? 0,
-            item['status_gizi'] ?? 'Normal',
-            item['nama_ortu'] ?? '-',
+            TextCellValue((i + 1).toString()),
+            TextCellValue(item['nama_anak'] ?? '-'),
+            TextCellValue(
+              item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
+            ),
+            TextCellValue((item['tinggi_badan'] ?? 0).toString()),
+            TextCellValue((item['berat_badan'] ?? 0).toString()),
+            TextCellValue((item['lingkar_kepala'] ?? 0).toString()),
+            TextCellValue(item['status_gizi'] ?? 'Normal'),
+            TextCellValue(item['nama_ortu'] ?? '-'),
           ]);
         }
       }
@@ -815,68 +769,56 @@ class _LaporanPageState extends State<LaporanPage> {
       final bytes = excel.encode();
       if (bytes == null) throw Exception('Gagal membuat file Excel');
 
-      if (kIsWeb) {
-        // Untuk Web
-        final blob = html.Blob([bytes]);
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..setAttribute(
-            'download',
-            'laporan_posyandu_${_selectedBulan}_$_selectedTahun.xlsx',
-          )
-          ..click();
-        html.Url.revokeObjectUrl(url);
+      String fileName =
+          'laporan_posyandu_${_selectedBulan}_$_selectedTahun.xlsx';
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Laporan berhasil didownload'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        // Untuk Mobile
-        var status = await Permission.storage.request();
+      if (Platform.isAndroid) {
+        PermissionStatus status = await Permission.storage.request();
         if (!status.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Izin penyimpanan ditolak')),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Izin penyimpanan diperlukan untuk menyimpan file',
+                ),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          setState(() => _isExporting = false);
           return;
         }
+      }
 
-        final Directory dir = await getApplicationDocumentsDirectory();
-        final String path =
-            '${dir.path}/laporan_posyandu_${_selectedBulan}_$_selectedTahun.xlsx';
-        File(path).createSync(recursive: true);
-        File(path).writeAsBytesSync(bytes);
+      final Directory directory = await getApplicationDocumentsDirectory();
+      final String filePath = '${directory.path}/$fileName';
+      final File file = File(filePath);
+      await file.writeAsBytes(bytes);
 
+      await Share.shareXFiles([
+        XFile(filePath),
+      ], text: 'Laporan Posyandu $_selectedBulan $_selectedTahun');
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            content: Text('✓ Laporan berhasil dibuat: $fileName'),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 10),
-                Expanded(child: Text('Laporan tersimpan di: $path')),
-              ],
-            ),
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
-      print('❌ Error export: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal membuat file: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error export: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal membuat laporan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isExporting = false);
     }

@@ -1,6 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
+import '../widgets/custom_app_bar.dart'; // ← IMPORT CUSTOM APP BAR
+import '../services/api_service.dart';
 import 'tambah_edukasi_kader.dart';
 import 'kategori_kader.dart';
 
@@ -19,111 +24,67 @@ class KategoriModel {
     required this.status,
   });
 
-  KategoriModel copyWith({
-    String? nama,
-    String? deskripsi,
-    String? image,
-    String? status,
-  }) => KategoriModel(
-    id: id,
-    nama: nama ?? this.nama,
-    deskripsi: deskripsi ?? this.deskripsi,
-    image: image ?? this.image,
-    status: status ?? this.status,
-  );
+  factory KategoriModel.fromJson(Map<String, dynamic> json) {
+    return KategoriModel(
+      id: json['id'].toString(),
+      nama: json['nama'] ?? '',
+      deskripsi: json['deskripsi'] ?? '',
+      image: json['image'] ?? '',
+      status: json['status'] ?? 'Draft',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'nama': nama,
+      'deskripsi': deskripsi,
+      'image': image,
+      'status': status,
+    };
+  }
 }
 
 class EdukasiModel {
-  String id, title, kategoriId, desc, image, status;
+  String id, title, kategoriId, desc, status, youtubeUrl, jenisKonten;
+  String? image;
 
   EdukasiModel({
     required this.id,
     required this.title,
     required this.kategoriId,
     required this.desc,
-    required this.image,
     required this.status,
+    this.youtubeUrl = '',
+    this.jenisKonten = 'artikel',
+    this.image,
   });
 
-  EdukasiModel copyWith({
-    String? title,
-    String? kategoriId,
-    String? desc,
-    String? image,
-    String? status,
-  }) => EdukasiModel(
-    id: id,
-    title: title ?? this.title,
-    kategoriId: kategoriId ?? this.kategoriId,
-    desc: desc ?? this.desc,
-    image: image ?? this.image,
-    status: status ?? this.status,
-  );
+  factory EdukasiModel.fromJson(Map<String, dynamic> json) {
+    return EdukasiModel(
+      id: json['id'].toString(),
+      title: json['title'] ?? '',
+      kategoriId: json['kategori_id'].toString(),
+      desc: json['desc'] ?? '',
+      status: json['status'] ?? 'Draft',
+      youtubeUrl: json['youtube_url'] ?? '',
+      jenisKonten: json['jenis_konten'] ?? 'artikel',
+      image: json['image'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'kategori_id': kategoriId,
+      'desc': desc,
+      'status': status,
+      'youtube_url': youtubeUrl,
+      'jenis_konten': jenisKonten,
+    };
+  }
 }
-
-// ─────────────────────────────────────────────
-// DUMMY DATA
-// ─────────────────────────────────────────────
-
-List<KategoriModel> _dummyKategori = [
-  KategoriModel(
-    id: 'k1',
-    nama: 'Gizi',
-    deskripsi: 'Edukasi tentang gizi seimbang yang diperlukan anak',
-    image: 'assets/images/ikon_edu1.jpg',
-    status: 'Dipublikasikan',
-  ),
-  KategoriModel(
-    id: 'k2',
-    nama: 'Kesehatan',
-    deskripsi: 'Edukasi tentang status pertumbuhan dan kesehatan anak',
-    image: 'assets/images/ikon_edu2.jpg',
-    status: 'Dipublikasikan',
-  ),
-  KategoriModel(
-    id: 'k3',
-    nama: 'Tumbuh Kembang',
-    deskripsi: 'Edukasi tentang ciri dan tahapan perkembangan anak',
-    image: 'assets/images/ikon_edu3.jpg',
-    status: 'Draft',
-  ),
-  KategoriModel(
-    id: 'k4',
-    nama: 'Pengasuhan',
-    deskripsi: 'Edukasi tentang cara mengasuh anak dengan baik',
-    image: 'assets/images/ikon_edu4.jpg',
-    status: 'Draft',
-  ),
-];
-
-List<EdukasiModel> _dummyEdukasi = [
-  EdukasiModel(
-    id: 'e1',
-    title: 'Pentingnya Gizi Seimbang',
-    kategoriId: 'k1',
-    desc:
-        'Pelajari bagaimana gizi seimbang membantu anak tumbuh sehat dan cerdas.',
-    image: 'assets/edu1.jpg',
-    status: 'Dipublikasikan',
-  ),
-  EdukasiModel(
-    id: 'e2',
-    title: 'Jadwal Imunisasi Anak',
-    kategoriId: 'k2',
-    desc:
-        'Ketahui jadwal imunisasi penting untuk melindungi anak dari penyakit.',
-    image: 'assets/edu2.jpg',
-    status: 'Dipublikasikan',
-  ),
-  EdukasiModel(
-    id: 'e3',
-    title: 'Cara Mengukur Tinggi Badan',
-    kategoriId: 'k3',
-    desc: 'Panduan lengkap mengukur tinggi badan anak dengan benar di rumah.',
-    image: 'assets/edu3.jpg',
-    status: 'Draft',
-  ),
-];
 
 // ─────────────────────────────────────────────
 // EDUKASI KADER PAGE
@@ -138,11 +99,15 @@ class EdukasiKaderPage extends StatefulWidget {
 
 class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     with SingleTickerProviderStateMixin {
-  // ── State ──
-  List<KategoriModel> _kategoriList = List.from(_dummyKategori);
-  final List<EdukasiModel> _edukasiList = List.from(_dummyEdukasi);
+  List<KategoriModel> _kategoriList = [];
+  List<EdukasiModel> _edukasiList = [];
+  Map<String, String> _imageCache = {};
   String _filterKategoriId = 'semua';
   String _searchQuery = '';
+  bool _isLoading = true;
+  bool _isGeneratingImages = false;
+  String _errorMessage = '';
+
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
   final _searchCtrl = TextEditingController();
@@ -155,6 +120,10 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       duration: const Duration(milliseconds: 400),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _loadData();
+    _searchCtrl.addListener(() {
+      setState(() => _searchQuery = _searchCtrl.text);
+    });
   }
 
   @override
@@ -164,7 +133,187 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     super.dispose();
   }
 
-  // ── Computed ──
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      await Future.wait([_loadKategori(), _loadEdukasi()]);
+    } catch (e) {
+      setState(() => _errorMessage = 'Gagal memuat data: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadKategori() async {
+    try {
+      final response = await ApiService.get('/kategori');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
+          setState(() {
+            _kategoriList = list
+                .map((item) => KategoriModel.fromJson(item))
+                .toList();
+          });
+        }
+      }
+    } catch (e) {
+      print('Error load kategori: $e');
+    }
+  }
+
+  String _getYoutubeThumbnail(String url) {
+    if (url.isEmpty) return '';
+
+    String videoId = '';
+    if (url.contains('watch?v=')) {
+      videoId = url.split('watch?v=')[1].split('&')[0];
+    } else if (url.contains('youtu.be/')) {
+      videoId = url.split('youtu.be/')[1].split('?')[0];
+    } else if (url.contains('embed/')) {
+      videoId = url.split('embed/')[1].split('?')[0];
+    } else {
+      videoId = url;
+    }
+
+    return 'https://img.youtube.com/vi/$videoId/0.jpg';
+  }
+
+  Future<String?> _extractImageFromUrl(String articleUrl) async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String cacheKey = 'img_${articleUrl.hashCode}';
+      String? cachedImage = prefs.getString(cacheKey);
+
+      if (cachedImage != null && cachedImage.isNotEmpty) {
+        return cachedImage;
+      }
+
+      final response = await http
+          .get(Uri.parse(articleUrl))
+          .timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        String html = response.body;
+
+        RegExp ogImageRegex = RegExp(
+          r'<meta\s+property="og:image"\s+content="([^"]+)"',
+        );
+        RegExpMatch? ogMatch = ogImageRegex.firstMatch(html);
+
+        if (ogMatch != null) {
+          String imageUrl = ogMatch.group(1)!;
+          if (imageUrl.isNotEmpty) {
+            await prefs.setString(cacheKey, imageUrl);
+            return imageUrl;
+          }
+        }
+
+        RegExp imgRegex = RegExp(
+          r'<img[^>]+src="([^">]+)"',
+          caseSensitive: false,
+        );
+        RegExpMatch? imgMatch = imgRegex.firstMatch(html);
+
+        if (imgMatch != null) {
+          String imageUrl = imgMatch.group(1)!;
+          if (imageUrl.startsWith('/')) {
+            Uri baseUri = Uri.parse(articleUrl);
+            imageUrl = '${baseUri.scheme}://${baseUri.host}$imageUrl';
+          }
+          if (imageUrl.isNotEmpty) {
+            await prefs.setString(cacheKey, imageUrl);
+            return imageUrl;
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error extracting image: $e');
+      return null;
+    }
+  }
+
+  Future<void> _loadEdukasi() async {
+    try {
+      final response = await ApiService.get('/edukasi');
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          final List<dynamic> list = data['data'] ?? [];
+
+          List<EdukasiModel> edukasiList = [];
+
+          for (var item in list) {
+            EdukasiModel edu = EdukasiModel.fromJson(item);
+
+            if (edu.youtubeUrl.isNotEmpty) {
+              edu.jenisKonten = 'video';
+              edu.image = _getYoutubeThumbnail(edu.youtubeUrl);
+            } else {
+              edu.jenisKonten = 'artikel';
+              if (edu.desc.isNotEmpty && edu.desc.startsWith('http')) {
+                String cacheKey = 'img_${edu.desc.hashCode}';
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                String? cachedImage = prefs.getString(cacheKey);
+                if (cachedImage != null && cachedImage.isNotEmpty) {
+                  edu.image = cachedImage;
+                }
+              }
+            }
+            edukasiList.add(edu);
+          }
+
+          setState(() {
+            _edukasiList = edukasiList;
+          });
+
+          await _generateMissingImages();
+        }
+      }
+    } catch (e) {
+      print('Error load edukasi: $e');
+    }
+  }
+
+  Future<void> _generateMissingImages() async {
+    List<EdukasiModel> needImages = _edukasiList
+        .where(
+          (e) =>
+              e.jenisKonten == 'artikel' &&
+              e.image == null &&
+              e.desc.isNotEmpty &&
+              e.desc.startsWith('http'),
+        )
+        .toList();
+
+    if (needImages.isEmpty) return;
+
+    setState(() => _isGeneratingImages = true);
+
+    for (var edu in needImages) {
+      String? imageUrl = await _extractImageFromUrl(edu.desc);
+      if (imageUrl != null && mounted) {
+        setState(() {
+          int index = _edukasiList.indexWhere((e) => e.id == edu.id);
+          if (index != -1) {
+            _edukasiList[index].image = imageUrl;
+          }
+        });
+      }
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    if (mounted) {
+      setState(() => _isGeneratingImages = false);
+    }
+  }
+
   List<EdukasiModel> get _filtered {
     return _edukasiList.where((e) {
       final matchKat =
@@ -185,9 +334,8 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     }
   }
 
-  // ── CRUD Edukasi ──
   Future<void> _bukaFormEdukasi({EdukasiModel? edit}) async {
-    final result = await Navigator.push<EdukasiModel>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => TambahEdukasiPage(
@@ -198,21 +346,18 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       ),
     );
 
-    if (result == null) return;
-
-    setState(() {
-      if (edit == null) {
-        _edukasiList.add(result);
-        _showSnackbar('Edukasi berhasil ditambahkan ✓', Colors.green);
-      } else {
-        final idx = _edukasiList.indexWhere((e) => e.id == result.id);
-        if (idx != -1) _edukasiList[idx] = result;
-        _showSnackbar('Edukasi berhasil diperbarui ✓', Colors.blue);
-      }
-    });
+    if (result == true) {
+      await _loadEdukasi();
+      _showSnackbar(
+        edit == null
+            ? 'Edukasi berhasil ditambahkan ✓'
+            : 'Edukasi berhasil diperbarui ✓',
+        Colors.green,
+      );
+    }
   }
 
-  void _hapusEdukasi(EdukasiModel e) {
+  Future<void> _hapusEdukasi(EdukasiModel e) async {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -228,12 +373,19 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red.shade600,
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              setState(() {
-                _edukasiList.removeWhere((x) => x.id == e.id);
-                _showSnackbar('Edukasi dihapus', Colors.red);
-              });
+              try {
+                final response = await ApiService.delete('/edukasi/${e.id}');
+                if (response.statusCode == 200) {
+                  await _loadEdukasi();
+                  _showSnackbar('Edukasi dihapus', Colors.red);
+                } else {
+                  _showSnackbar('Gagal menghapus', Colors.red);
+                }
+              } catch (error) {
+                _showSnackbar('Error: $error', Colors.red);
+              }
             },
             child: const Text('Hapus'),
           ),
@@ -242,18 +394,37 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     );
   }
 
-  // ── Navigasi Kategori ──
+  Future<void> _updateStatus(EdukasiModel e, String newStatus) async {
+    try {
+      final response = await ApiService.put('/edukasi/${e.id}', {
+        'status': newStatus,
+      });
+      if (response.statusCode == 200) {
+        await _loadEdukasi();
+        _showSnackbar('Status berhasil diubah', Colors.blue);
+      }
+    } catch (error) {
+      _showSnackbar('Gagal mengubah status', Colors.red);
+    }
+  }
+
   Future<void> _bukaKategori() async {
-    final result = await Navigator.push<List<KategoriModel>>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => KategoriKaderPage(
           kategoriList: _kategoriList,
-          onKategoriChanged: (list) => setState(() => _kategoriList = list),
+          onKategoriChanged: (list) async {
+            await _loadKategori();
+            await _loadEdukasi();
+          },
         ),
       ),
     );
-    if (result != null) setState(() => _kategoriList = result);
+    if (result == true) {
+      await _loadKategori();
+      await _loadEdukasi();
+    }
   }
 
   void _showSnackbar(String msg, Color color) {
@@ -269,7 +440,6 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     );
   }
 
-  // ── Build ──
   @override
   Widget build(BuildContext context) {
     final total = _edukasiList.length;
@@ -283,219 +453,265 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       drawer: const SidebarKader(),
       bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFD05A7E),
-        title: const Text(
-          'SiTumbuh',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-        ),
-        centerTitle: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.notifications_none),
-          ),
-        ],
+      // ========== MENGGUNAKAN CUSTOM APP BAR ==========
+      appBar: CustomAppBar(
+        backgroundColor: const Color(0xFFD86487),
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
       ),
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Edukasi',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF7A1635),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? _buildErrorWidget()
+          : Stack(
+              children: [
+                FadeTransition(
+                  opacity: _fadeAnim,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _statCard(
+                              'Total',
+                              '$total',
+                              const Color(0xFF4CAF50),
+                              Icons.book,
+                            ),
+                            _statCard(
+                              'Publik',
+                              '$dipub',
+                              const Color(0xFF2196F3),
+                              Icons.public,
+                            ),
+                            _statCard(
+                              'Draft',
+                              '$draft',
+                              const Color(0xFFFF9800),
+                              Icons.edit_note,
+                            ),
+                            _statCard(
+                              'Kategori',
+                              '$totalKat',
+                              const Color(0xFF7B61FF),
+                              Icons.category,
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        'Kelola konten edukasi untuk orang tua',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD05A7E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                    ),
-                    onPressed: () => _bukaFormEdukasi(),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text(
-                      'Tambah',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Stat Cards ──
-              Row(
-                children: [
-                  _statCard(
-                    'Total',
-                    '$total',
-                    const Color(0xFF4CAF50),
-                    Icons.book,
-                  ),
-                  _statCard(
-                    'Publik',
-                    '$dipub',
-                    const Color(0xFF2196F3),
-                    Icons.public,
-                  ),
-                  _statCard(
-                    'Draft',
-                    '$draft',
-                    const Color(0xFFFF9800),
-                    Icons.edit_note,
-                  ),
-                  _statCard(
-                    'Kategori',
-                    '$totalKat',
-                    const Color(0xFF7B61FF),
-                    Icons.category,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Search ──
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      onChanged: (v) => setState(() => _searchQuery = v),
-                      decoration: InputDecoration(
-                        hintText: 'Cari judul edukasi...',
-                        hintStyle: const TextStyle(fontSize: 13),
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.close, size: 18),
-                                onPressed: () {
-                                  _searchCtrl.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _searchCtrl,
+                          decoration: InputDecoration(
+                            hintText: 'Cari judul edukasi...',
+                            hintStyle: const TextStyle(fontSize: 13),
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () {
+                                      _searchCtrl.clear();
+                                      setState(() => _searchQuery = '');
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 0,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade200,
+                              ),
+                            ),
+                          ),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Kategori',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF333333),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _bukaKategori,
+                              child: const Text(
+                                'Kelola Kategori →',
+                                style: TextStyle(
+                                  color: Color(0xFFD05A7E),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _kategoriChip('semua', 'Semua', Icons.grid_view),
+                              ..._kategoriList.map(
+                                (k) => _kategoriChip(
+                                  k.id,
+                                  k.nama,
+                                  Icons.label_outline,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Daftar Edukasi (${_filtered.length})',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF333333),
+                              ),
+                            ),
+                            if (_isGeneratingImages)
+                              const Row(
+                                children: [
+                                  SizedBox(
+                                    height: 16,
+                                    width: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Mengambil gambar...',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _buildEdukasiList(),
+                        const SizedBox(height: 20),
+                      ],
                     ),
                   ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-
-              // ── Kategori Filter ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Kategori',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _bukaKategori,
-                    child: const Text(
-                      'Kelola Kategori →',
-                      style: TextStyle(
-                        color: Color(0xFFD05A7E),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _kategoriChip('semua', 'Semua', Icons.grid_view),
-                    ..._kategoriList.map(
-                      (k) => _kategoriChip(k.id, k.nama, Icons.label_outline),
-                    ),
-                  ],
                 ),
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Daftar Edukasi ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Daftar Edukasi (${_filtered.length})',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              if (_filtered.isEmpty)
-                _emptyState()
-              else
-                ..._filtered.map((e) => _edukasiCard(e)),
-
-              const SizedBox(height: 20),
-            ],
-          ),
-        ),
-      ),
+              ],
+            ),
     );
   }
 
-  // ── Widgets Helper ──
+  Widget _buildHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Edukasi',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF7A1635),
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Kelola konten edukasi',
+                style: TextStyle(fontSize: 10, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 32,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD05A7E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+              minimumSize: const Size(0, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () => _bukaFormEdukasi(),
+            icon: const Icon(Icons.add, size: 14),
+            label: const Text(
+              'Tambah',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEdukasiList() {
+    if (_filtered.isEmpty) {
+      return _emptyState();
+    }
+
+    return Column(
+      children: _filtered.asMap().entries.map((entry) {
+        final index = entry.key;
+        final e = entry.value;
+        return Container(
+          key: ValueKey('${e.id}_$index'),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: _edukasiCard(e),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+          const SizedBox(height: 16),
+          Text(_errorMessage),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loadData,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD05A7E),
+            ),
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _statCard(String title, String total, Color color, IconData icon) {
     return Expanded(
@@ -582,6 +798,16 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     final isPub = e.status == 'Dipublikasikan';
     final namaKat = _namaKategori(e.kategoriId);
     final warnaStatus = isPub ? Colors.green : Colors.orange;
+    final hasVideo = e.youtubeUrl.isNotEmpty;
+
+    String imageUrl;
+    if (hasVideo) {
+      imageUrl = _getYoutubeThumbnail(e.youtubeUrl);
+    } else if (e.image != null && e.image!.isNotEmpty) {
+      imageUrl = e.image!;
+    } else {
+      imageUrl = 'assets/images/stunting.jpg';
+    }
 
     return Dismissible(
       key: Key(e.id),
@@ -604,7 +830,7 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       ),
       confirmDismiss: (_) async {
         _hapusEdukasi(e);
-        return false; // biar dialog yang handle
+        return false;
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -626,24 +852,27 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                // Gambar
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    e.image,
-                    width: 70,
-                    height: 70,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      width: 70,
-                      height: 70,
-                      color: Colors.grey.shade200,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
+                  child: imageUrl.startsWith('http')
+                      ? Image.network(
+                          imageUrl,
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                          loadingBuilder: (_, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return _imagePlaceholder(loading: true);
+                          },
+                        )
+                      : Image.asset(
+                          imageUrl,
+                          width: 70,
+                          height: 70,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
+                        ),
                 ),
                 const SizedBox(width: 12),
 
@@ -670,26 +899,28 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
                           _badge(
                             namaKat,
                             Colors.grey.shade700,
                             Colors.grey.shade100,
                           ),
-                          const SizedBox(width: 6),
                           _badge(
                             e.status,
                             warnaStatus,
                             warnaStatus.withOpacity(0.12),
                           ),
+                          if (hasVideo)
+                            _badge('Video', Colors.red, Colors.red.shade50),
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // Action menu
                 PopupMenuButton<String>(
                   icon: const Icon(
                     Icons.more_vert,
@@ -702,6 +933,12 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
                   onSelected: (v) {
                     if (v == 'edit') _bukaFormEdukasi(edit: e);
                     if (v == 'hapus') _hapusEdukasi(e);
+                    if (v == 'publish' && e.status != 'Dipublikasikan') {
+                      _updateStatus(e, 'Dipublikasikan');
+                    }
+                    if (v == 'draft' && e.status != 'Draft') {
+                      _updateStatus(e, 'Draft');
+                    }
                   },
                   itemBuilder: (_) => [
                     const PopupMenuItem(
@@ -718,6 +955,32 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
                         ],
                       ),
                     ),
+                    if (e.status != 'Dipublikasikan')
+                      const PopupMenuItem(
+                        value: 'publish',
+                        child: Row(
+                          children: [
+                            Icon(Icons.publish, size: 18, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text('Publikasikan'),
+                          ],
+                        ),
+                      ),
+                    if (e.status != 'Draft')
+                      const PopupMenuItem(
+                        value: 'draft',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.edit_note,
+                              size: 18,
+                              color: Colors.orange,
+                            ),
+                            SizedBox(width: 8),
+                            Text('Simpan ke Draft'),
+                          ],
+                        ),
+                      ),
                     const PopupMenuItem(
                       value: 'hapus',
                       child: Row(
@@ -739,6 +1002,23 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _imagePlaceholder({bool loading = false}) {
+    return Container(
+      width: 70,
+      height: 70,
+      color: Colors.grey.shade200,
+      child: loading
+          ? const Center(
+              child: SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : const Icon(Icons.image_not_supported, color: Colors.grey),
     );
   }
 

@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
-import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +14,7 @@ import '../widgets/sidebar_kader.dart';
 import 'buat_jadwal.dart';
 import '../widgets/bottom_navbar_kader.dart';
 import '../services/api_service.dart';
+import '../widgets/custom_app_bar.dart';
 
 class Jadwal extends StatefulWidget {
   const Jadwal({super.key});
@@ -522,127 +522,171 @@ class _JadwalState extends State<Jadwal> {
     int jumlahSelesai = _getJadwalSelesai().length;
 
     return Scaffold(
-      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 1),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 2),
       drawer: const SidebarKader(),
       backgroundColor: const Color(0xFFF6F6F6),
+      appBar: CustomAppBar(
+        backgroundColor: const Color(0xFFE85D75),
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
+      ),
       body: Column(
         children: [
+          // ========== HEADER DENGAN WARNA SAMA KAYAK APP BAR ==========
           Container(
-            padding: const EdgeInsets.only(
-              top: 50,
-              left: 20,
-              right: 20,
-              bottom: 20,
-            ),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             decoration: const BoxDecoration(
-              color: Color(0xFFE85D75),
+              color: Color(0xFFE85D75), // SAMA KAYAK APP BAR
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(25),
-                bottomRight: Radius.circular(25),
+                bottomLeft: Radius.circular(16),
+                bottomRight: Radius.circular(16),
               ),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Builder(
-                      builder: (context) => IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.white),
-                        onPressed: () => Scaffold.of(context).openDrawer(),
-                      ),
-                    ),
-                    const Text(
-                      "SiTumbuh",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const Icon(Icons.notifications_none, color: Colors.white),
-                  ],
-                ),
-                const SizedBox(height: 15),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Jadwal Posyandu",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                const Text(
+                  "Jadwal Posyandu",
+                  style: TextStyle(
+                    color: Colors.white, // TEKS PUTIH
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Kader dapat membuat dan membagikan jadwal posyandu\nmenggunakan poster melalui WhatsApp",
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                const SizedBox(height: 4),
+                const Text(
+                  "Kader dapat membuat dan membagikan jadwal posyandu\nmenggunakan poster melalui WhatsApp",
+                  style: TextStyle(
+                    color: Colors.white70, // TEKS PUTIH 70%
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 16),
+          _buildTemplateSection(),
+          const SizedBox(height: 16),
+          _buildTabFilter(jumlahAkanDatang, jumlahSelesai),
+          const SizedBox(height: 16),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        "Template Poster Posyandu",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text("Lihat semua", style: TextStyle(color: Colors.pink)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      templateCard("Tema Kuning", "assets/templatekuning.jpg"),
-                      const SizedBox(width: 10),
-                      templateCard("Tema Biru", "assets/templatebiru.jpg"),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(20),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredJadwal.isEmpty
+                ? const Center(
+                    child: Text(
+                      "Tidak ada jadwal",
+                      style: TextStyle(color: Colors.grey),
                     ),
-                    child: Row(
-                      children: [
-                        _buildTabItem("Akan datang ($jumlahAkanDatang)", 0),
-                        _buildTabItem("Selesai ($jumlahSelesai)", 1),
-                      ],
-                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredJadwal.length,
+                    itemBuilder: (context, index) {
+                      return _buildJadwalCard(filteredJadwal[index]);
+                    },
                   ),
-                  const SizedBox(height: 15),
-                  _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : filteredJadwal.isEmpty
-                      ? const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: Text(
-                              "Tidak ada jadwal",
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                        )
-                      : Column(
-                          children: filteredJadwal
-                              .map((jadwal) => _buildJadwalCard(jadwal))
-                              .toList(),
-                        ),
-                ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTemplateSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Template Poster Posyandu",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
+              Text(
+                "Lihat semua",
+                style: TextStyle(color: Color(0xFFE85D75), fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _templateCard(
+                  "Tema Kuning",
+                  "assets/templatekuning.jpg",
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _templateCard("Tema Biru", "assets/templatebiru.jpg"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _templateCard(String title, String imagePath) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.asset(
+              imagePath,
+              height: 90,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BuatJadwalPage(template: imagePath),
+                ),
+              ).then((_) {
+                if (mounted) _loadJadwal();
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE85D75),
+              foregroundColor: Colors.white,
+              minimumSize: const Size(double.infinity, 32),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: const Text(
+              "Pilih",
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -650,70 +694,71 @@ class _JadwalState extends State<Jadwal> {
     );
   }
 
-  Widget _buildTabItem(String text, int index) {
-    bool active = selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          if (mounted) {
-            setState(() {
-              selectedTab = index;
-            });
-          }
-        },
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: active ? const Color(0xFFE85D75) : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: active ? Colors.white : Colors.black,
-                fontWeight: active ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget templateCard(String title, String imagePath) {
-    return Expanded(
+  Widget _buildTabFilter(int akanDatang, int selesai) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Container(
-        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(30),
         ),
-        child: Column(
+        child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.asset(imagePath, height: 100, fit: BoxFit.cover),
-            ),
-            const SizedBox(height: 10),
-            Text(title),
-            const SizedBox(height: 5),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BuatJadwalPage(template: imagePath),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => selectedTab = 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selectedTab == 0
+                        ? const Color(0xFFE85D75)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
                   ),
-                ).then((_) {
-                  if (mounted) _loadJadwal();
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE85D75),
-                minimumSize: const Size(double.infinity, 30),
+                  child: Center(
+                    child: Text(
+                      "Akan datang ($akanDatang)",
+                      style: TextStyle(
+                        color: selectedTab == 0
+                            ? Colors.white
+                            : Colors.grey.shade700,
+                        fontWeight: selectedTab == 0
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-              child: const Text("Pilih"),
+            ),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => selectedTab = 1),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selectedTab == 1
+                        ? const Color(0xFFE85D75)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Selesai ($selesai)",
+                      style: TextStyle(
+                        color: selectedTab == 1
+                            ? Colors.white
+                            : Colors.grey.shade700,
+                        fontWeight: selectedTab == 1
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -731,142 +776,150 @@ class _JadwalState extends State<Jadwal> {
     } catch (e) {}
 
     String templatePath = _getTemplateImage(jadwal['template']);
+    String formattedDate = _formatTanggal(jadwal['tanggal']);
 
-    return Container(
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              templatePath,
-              width: 70,
-              height: 90,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                templatePath,
                 width: 70,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE85D75).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  jadwal['nama_posyandu'] ?? 'Posyandu',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                height: 80,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 70,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE85D75).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today,
-                      size: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTanggal(jadwal['tanggal']),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      jadwal['waktu'] ?? '-',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        jadwal['alamat'] ?? '-',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
-          ),
-          if (!isSelesai)
-            ElevatedButton(
-              onPressed: () => _showShareOptions(jadwal),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                minimumSize: const Size(70, 32),
-                shape: RoundedRectangleBorder(
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    jadwal['nama_posyandu'] ?? 'Posyandu',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          formattedDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        jadwal['waktu'] ?? '-',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 14,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          jadwal['alamat'] ?? '-',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (!isSelesai)
+              Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: ElevatedButton(
+                  onPressed: () => _showShareOptions(jadwal),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(65, 32),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    "Bagikan",
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
                   borderRadius: BorderRadius.circular(20),
                 ),
+                child: const Text(
+                  "Selesai",
+                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                ),
               ),
-              child: const Text("Bagikan", style: TextStyle(fontSize: 12)),
-            )
-          else
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Text(
-                "Selesai",
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

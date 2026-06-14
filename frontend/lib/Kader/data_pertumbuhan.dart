@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
+import '../widgets/custom_app_bar.dart';
 
 class DataPengukuran {
   final DateTime tanggal;
@@ -574,7 +575,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F8),
       drawer: const SidebarKader(),
-      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 1),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _pink))
           : CustomScrollView(
@@ -903,8 +904,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Wajib diisi';
                       final n = int.tryParse(v);
-                      if (n == null || n < 0 || n > 60)
+                      if (n == null || n < 0 || n > 60) {
                         return 'Usia 0 sampai 60';
+                      }
                       return null;
                     },
                   ),
@@ -1234,11 +1236,17 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                           flex: 3,
                         ),
                         _tdCell('${item.usiaBulan}', flex: 2),
-                        _tdCell('${item.beratBadan}', flex: 2),
-                        _tdCell('${item.tinggiBadan}', flex: 2),
+                        _tdCell(
+                          '${item.beratBadan.toStringAsFixed(1)}',
+                          flex: 2,
+                        ),
+                        _tdCell(
+                          '${item.tinggiBadan.toStringAsFixed(1)}',
+                          flex: 2,
+                        ),
                         _tdCell(
                           item.lingkarKepala != null
-                              ? '${item.lingkarKepala}'
+                              ? '${item.lingkarKepala!.toStringAsFixed(1)}'
                               : '-',
                           flex: 2,
                         ),

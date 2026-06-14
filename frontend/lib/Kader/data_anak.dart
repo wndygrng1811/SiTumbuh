@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
+import '../widgets/custom_app_bar.dart';
 
 class DataAnakPage extends StatefulWidget {
   const DataAnakPage({super.key});
@@ -511,10 +512,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  void _openDrawer() {
-    Scaffold.of(context).openDrawer();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -552,75 +549,51 @@ class _DataAnakPageState extends State<DataAnakPage> {
             )
           : Column(
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.only(
-                    top: 50,
-                    left: 20,
-                    right: 20,
-                    bottom: 25,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE85D75),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(40),
-                      bottomRight: Radius.circular(40),
+                // HEADER MENGGUNAKAN CUSTOM APP BAR
+                CustomAppBar(
+                  backgroundColor: const Color(0xFFE85D75),
+                  iconColor: Colors.white,
+                  showBackButton: false,
+                  showDrawerIcon: true,
+                  showNotificationIcon: true,
+                ),
+
+                // SEARCH BAR
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Cari berdasarkan nama anak...',
+                      hintStyle: TextStyle(color: Colors.grey.shade500),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey.shade500,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: const BorderSide(color: Color(0xFFE85D75)),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                     ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.menu, color: Colors.white),
-                            onPressed: _openDrawer,
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            "Data Anak",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        "Kelola data anak yang terdaftar",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 15),
-                      TextField(
-                        controller: _searchController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Cari berdasarkan nama anak...',
-                          hintStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
-                          ),
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Colors.white.withOpacity(0.7),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white.withOpacity(0.2),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-                const SizedBox(height: 16),
+
+                // LIST VIEW
                 Expanded(
                   child: filteredAnak.isEmpty
                       ? Center(
@@ -789,6 +762,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           ),
                         ),
                 ),
+
+                // TOMBOL TAMBAH BAWAH
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: ElevatedButton.icon(

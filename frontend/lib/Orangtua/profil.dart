@@ -34,19 +34,16 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isRefreshing = false;
   String _errorMessage = '';
 
-  // Data Orang Tua
   String namaOrangTua = '';
   String email = '';
   String noHp = '';
   String alamat = '';
 
-  // Daftar Anak
   List<Map<String, dynamic>> _listAnak = [];
   int _selectedAnakId = 0;
   String _selectedNamaAnak = '';
   String _selectedJenisKelamin = '';
 
-  // Data Anak yang ditampilkan (dari tabel ANAK)
   String tanggalLahir = '';
   String namaLengkapAnak = '';
   String jk = '';
@@ -68,27 +65,20 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      // Load data orang tua
       await _loadUserData();
-
-      // Load daftar anak
       await _loadListAnak();
 
-      // Setelah daftar anak loaded, pastikan selected anakId dari widget (yang dikirim dari HalamanUtama)
       if (mounted) {
         setState(() {
-          // PRIORITASKAN data dari widget (yang sudah tersimpan di SharedPreferences)
           if (widget.anakId != 0) {
             _selectedAnakId = widget.anakId;
             _selectedNamaAnak = widget.namaAnak;
             _selectedJenisKelamin = widget.jenisKelamin;
           } else {
-            // Jika widget tidak ada, coba dari SharedPreferences
             _loadSelectedFromPrefs();
           }
         });
 
-        // Load data anak yang dipilih
         if (_selectedAnakId != 0) {
           await _loadDataAnakFromTableAnak(_selectedAnakId);
         }
@@ -116,7 +106,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _selectedNamaAnak = savedNamaAnak;
       _selectedJenisKelamin = savedJenisKelamin;
     } else if (_listAnak.isNotEmpty) {
-      // Fallback ke anak pertama jika tidak ada yang tersimpan
       _selectedAnakId = _listAnak[0]['anak_id'];
       _selectedNamaAnak = _listAnak[0]['nama'];
       _selectedJenisKelamin = _listAnak[0]['jenis_kelamin'];
@@ -165,7 +154,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Fungsi untuk mengambil data dari TABEL ANAK
   Future<void> _loadDataAnakFromTableAnak(int anakId) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -191,8 +179,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   _selectedNamaAnak;
               jk = anakData['jenis_kelamin'] ?? _selectedJenisKelamin;
               tanggalLahir = anakData['tanggal_lahir'] ?? '-';
-
-              // Ambil data BB, TB, LK LAHIR dari tabel anak
               beratLahir =
                   anakData['berat_badan'] != null &&
                       anakData['berat_badan'].toString() != 'null'
@@ -232,18 +218,15 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       }
 
-      // UPDATE KE SHARED PREFERENCES
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setInt('anak_id', _selectedAnakId);
       await prefs.setString('nama_anak', _selectedNamaAnak);
       await prefs.setString('jenis_kelamin', _selectedJenisKelamin);
 
-      // PANGGIL CALLBACK UNTUK UPDATE HALAMAN LAIN
       if (widget.onChildChanged != null) {
         widget.onChildChanged!();
       }
 
-      // Load data dari tabel anak
       await _loadDataAnakFromTableAnak(_selectedAnakId);
 
       if (mounted) {
@@ -261,10 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
 
-    // Refresh daftar anak
     await _loadListAnak();
-
-    // Refresh data anak yang sedang dipilih
     if (_selectedAnakId != 0) {
       await _loadDataAnakFromTableAnak(_selectedAnakId);
     }
@@ -338,18 +318,11 @@ class _ProfilePageState extends State<ProfilePage> {
   void _updateProfileFromLengkap(Map<String, dynamic> dataBaru) {
     if (mounted) {
       setState(() {
-        if (dataBaru.containsKey('nama_lengkap')) {
+        if (dataBaru.containsKey('nama_lengkap'))
           namaOrangTua = dataBaru['nama_lengkap'];
-        }
-        if (dataBaru.containsKey('email')) {
-          email = dataBaru['email'];
-        }
-        if (dataBaru.containsKey('no_hp')) {
-          noHp = dataBaru['no_hp'];
-        }
-        if (dataBaru.containsKey('alamat')) {
-          alamat = dataBaru['alamat'];
-        }
+        if (dataBaru.containsKey('email')) email = dataBaru['email'];
+        if (dataBaru.containsKey('no_hp')) noHp = dataBaru['no_hp'];
+        if (dataBaru.containsKey('alamat')) alamat = dataBaru['alamat'];
       });
     }
   }
@@ -360,11 +333,10 @@ class _ProfilePageState extends State<ProfilePage> {
       drawer: const SidebarMenu(),
       backgroundColor: const Color(0xFFFFF5F7),
       appBar: CustomAppBar(
-        title: 'Profil',
-        backgroundColor: const Color(0xFFD86487),
-        titleColor: Colors.white,
+        backgroundColor: const Color(0xFFE85D75),
         iconColor: Colors.white,
         showBackButton: false,
+        showDrawerIcon: true,
         showNotificationIcon: true,
       ),
       body: _isLoading
@@ -768,69 +740,73 @@ class _ProfilePageState extends State<ProfilePage> {
     return ElevatedButton(
       onPressed: () => _showLogoutDialog(context),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF5A1E28),
+        backgroundColor: const Color(0xFFE85D75),
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         minimumSize: const Size(200, 48),
       ),
       child: const Text(
         "Keluar",
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
-        ),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
     );
   }
 
+  // ========== LOGOUT YANG BENAR-BENAR KELUAR ==========
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
           ),
-          title: const Row(
-            children: [
-              Icon(Icons.logout, color: Colors.red, size: 28),
-              SizedBox(width: 10),
-              Text("Konfirmasi Keluar"),
-            ],
+          title: const Text(
+            "Konfirmasi Keluar",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF5A2A2A),
+            ),
           ),
           content: const Text(
             "Apakah Anda yakin ingin keluar dari aplikasi?",
-            style: TextStyle(fontSize: 14),
+            style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.pop(context),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.grey.shade600,
+                foregroundColor: const Color(0xFFE85D75),
               ),
               child: const Text("Batal"),
             ),
             ElevatedButton(
               onPressed: () async {
+                // Hapus SEMUA data SharedPreferences
                 SharedPreferences prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
+
                 if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
+                  Navigator.pop(context); // Tutup dialog
+
+                  // Hapus semua halaman dalam stack dan arahkan ke login
+                  Navigator.pushAndRemoveUntil(
+                    context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),
-                    (Route<dynamic> route) => false,
+                    (route) => false,
                   );
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: const Color(0xFFE85D75),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                "Keluar",
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text("Keluar"),
             ),
           ],
         );

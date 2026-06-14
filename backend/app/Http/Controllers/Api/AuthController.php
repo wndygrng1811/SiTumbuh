@@ -11,18 +11,15 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        // Validasi input 
         $request->validate([
             'email' => 'required|email',
             'password' => 'required'
         ]);
 
-        // Cari user berdasarkan email
         $user = DB::table('users')
             ->where('email', $request->email)
             ->first();
 
-        // Cek apakah user ada 
         if (!$user) {
             return response()->json([
                 'success' => false,
@@ -30,7 +27,6 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Cek password dengan bcrypt 
         if (!Hash::check($request->password, $user->password)) {
             return response()->json([
                 'success' => false,
@@ -38,18 +34,16 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Handle role orang_tua untuk ambil data anak
         $responseData = [
             'success' => true,
             'message' => 'Login berhasil',
             'user_id' => $user->user_id,
             'nama' => $user->nama,
-            'email' => $user->email,
+            'email' => $user->email,  // ← PASTIKAN INI ADA
             'role' => $user->role,
             'token' => 'login-token-' . $user->user_id
         ];
 
-        // Jika role orang_tua, ambil data anak dan orang_tua 
         if ($user->role == 'orang_tua') {
             $orangTua = DB::table('orang_tua')
                 ->where('user_id', $user->user_id)
@@ -75,7 +69,6 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            // TAMBAHKAN VALIDASI LENGKAP
             $validated = $request->validate([
                 'nama_orangtua' => 'required|string|max:255',
                 'email' => 'required|email|unique:users,email',
@@ -89,7 +82,6 @@ class AuthController extends Controller
 
             DB::beginTransaction();
 
-            // Konversi jenis kelamin
             $jk = $request->jenis_kelamin;
             if ($jk == 'Laki-laki' || $jk == 'L') {
                 $jk = 'L';
@@ -97,7 +89,6 @@ class AuthController extends Controller
                 $jk = 'P';
             }
 
-            // Insert ke tabel users
             $userId = DB::table('users')->insertGetId([
                 'nama' => $request->nama_orangtua,
                 'email' => $request->email,
@@ -106,7 +97,6 @@ class AuthController extends Controller
                 'created_at' => now()
             ]);
 
-            // Insert ke tabel orang_tua
             $orangTuaId = DB::table('orang_tua')->insertGetId([
                 'nama' => $request->nama_orangtua,
                 'email' => $request->email,
@@ -116,7 +106,6 @@ class AuthController extends Controller
                 'created_at' => now()
             ]);
 
-            // Insert ke tabel anak
             DB::table('anak')->insert([
                 'orangtua_id' => $orangTuaId,
                 'nama' => $request->nama_anak,

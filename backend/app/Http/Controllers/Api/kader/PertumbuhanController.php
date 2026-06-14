@@ -58,7 +58,6 @@ class PertumbuhanController extends Controller
                 'created_at' => $request->tanggal_pengukuran ?: now()
             ];
 
-            // Hanya tambah jika ada
             if ($request->has('orangtua_id')) {
                 $data['orangtua_id'] = $request->orangtua_id;
             }
@@ -69,6 +68,15 @@ class PertumbuhanController extends Controller
             $tumbuhId = DB::table('pertumbuhan')->insertGetId($data);
 
             if ($tumbuhId) {
+                // 🔥 KIRIM NOTIFIKASI OTOMATIS KE ORANG TUA
+                if ($request->has('orangtua_id')) {
+                    $this->sendNotifikasiPertumbuhan(
+                        $request->anak_id,
+                        $request->orangtua_id,
+                        $request->status_gizi
+                    );
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Data pertumbuhan berhasil disimpan',
@@ -93,6 +101,66 @@ class PertumbuhanController extends Controller
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * KIRIM NOTIFIKASI OTOMATIS KE ORANG TUA
+     */
+    private function sendNotifikasiPertumbuhan($anakId, $orangtuaId, $statusGizi)
+    {
+        try {
+            // Ambil data anak
+            $anak = DB::table('anak')->where('anak_id', $anakId)->first();
+            if (!$anak) return;
+
+            // Ambil data orang tua
+            $orangTua = DB::table('orang_tua')->where('orangtua_id', $orangtuaId)->first();
+            if (!$orangTua) return;
+
+            // Ambil user_id dari orang tua
+            $user = DB::table('users')->where('user_id', $orangTua->user_id)->first();
+            if (!$user) return;
+
+            // Buat pesan notifikasi berdasarkan status gizi
+            if ($statusGizi == 'Normal') {
+                $judul = "Pertumbuhan Normal 🎉";
+                $isi = "Hasil pemeriksaan posyandu: pertumbuhan anak Anda ({$anak->nama}) dalam kondisi normal. Pertahankan ya!";
+            } elseif ($statusGizi == 'Stunting') {
+                $judul = "Perhatian! Risiko Stunting ⚠️";
+                $isi = "Hasil pemeriksaan posyandu menunjukkan anak Anda ({$anak->nama}) berisiko stunting. Segera konsultasikan ke posyandu terdekat.";
+            } elseif ($statusGizi == 'Kurang' || $statusGizi == 'Underweight') {
+                $judul = "Perhatian! Gizi Kurang ⚠️";
+                $isi = "Hasil pemeriksaan posyandu menunjukkan anak Anda ({$anak->nama}) mengalami kekurangan gizi. Perhatikan asupan makanannya.";
+            } elseif ($statusGizi == 'Obese' || $statusGizi == 'Obesitas') {
+                $judul = "Perhatian! Kelebihan Gizi ⚠️";
+                $isi = "Hasil pemeriksaan posyandu menunjukkan anak Anda ({$anak->nama}) mengalami kelebihan gizi. Perhatikan pola makannya.";
+            } else {
+                $judul = "Hasil Pemeriksaan Baru 📋";
+                $isi = "Telah dilakukan pemeriksaan posyandu untuk anak Anda ({$anak->nama}) dengan status: $statusGizi.";
+            }
+
+            // Simpan notifikasi ke database
+            $notifikasiId = DB::table('notifikasi')->insertGetId([
+                'judul' => $judul,
+                'isi' => $isi,
+                'jenis' => 'pemeriksaan',
+                'target_role' => 'orang_tua',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Tandai untuk user orang tua (belum dibaca)
+            DB::table('notifikasi_user')->insert([
+                'notifikasi_id' => $notifikasiId,
+                'user_id' => $user->user_id,
+                'is_read' => 0,
+                'created_at' => now(),
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error tapi jangan gagalkan proses simpan data
+            \Log::error('Gagal kirim notifikasi: ' . $e->getMessage());
         }
     }
 

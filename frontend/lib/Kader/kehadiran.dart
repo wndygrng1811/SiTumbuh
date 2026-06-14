@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
+import '../widgets/bottom_navbar_kader.dart';
+import '../widgets/custom_app_bar.dart';
 
 class Kehadiran extends StatefulWidget {
   const Kehadiran({super.key});
@@ -309,27 +311,16 @@ class _KehadiranState extends State<Kehadiran> {
     return Scaffold(
       drawer: const SidebarKader(),
       backgroundColor: _bg,
-      appBar: AppBar(
+      // ========== CUSTOM APP BAR ==========
+      appBar: CustomAppBar(
         backgroundColor: _primary,
-        elevation: 0,
-        centerTitle: true,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
-        ),
-        title: const Text(
-          "Kehadiran Posyandu",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 14),
-            child: Icon(Icons.notifications_none),
-          ),
-        ],
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
       ),
+      // ========== BOTTOM NAV (INDEX 0 KARENA DARI SIDEBAR) ==========
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty

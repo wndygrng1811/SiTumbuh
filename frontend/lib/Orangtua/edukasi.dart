@@ -32,6 +32,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
     2: 'Nutrisi',
     3: 'Imunisasi',
     4: 'Tumbuh Kembang',
+    5: 'Kesehatan Umum',
   };
 
   @override
@@ -48,7 +49,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
   Future<void> _loadFromCache() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      String? cachedData = prefs.getString('edukasi_cache');
+      String? cachedData = prefs.getString('edukasi_cache_ortu');
 
       if (cachedData != null && mounted) {
         setState(() {
@@ -65,11 +66,11 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   Future<void> _refreshData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.remove('edukasi_cache');
+    await prefs.remove('edukasi_cache_ortu');
     await _fetchDataFromApi();
   }
 
-  // 🔥 FUNGSI UNTUK EKSTRAK GAMBAR DARI URL ARTIKEL
+  // Ekstrak gambar dari URL
   Future<String?> _extractImageFromUrl(String articleUrl) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -87,7 +88,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
       if (response.statusCode == 200) {
         String html = response.body;
 
-        // Cari meta tag og:image
         RegExp ogImageRegex = RegExp(
           r'<meta\s+property="og:image"\s+content="([^"]+)"',
         );
@@ -101,7 +101,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
           }
         }
 
-        // Cari gambar pertama
         RegExp imgRegex = RegExp(
           r'<img[^>]+src="([^">]+)"',
           caseSensitive: false,
@@ -138,9 +137,22 @@ class _EdukasiPageState extends State<EdukasiPage> {
         List<Map<String, dynamic>> artikelBaru = [];
 
         for (var item in data) {
+          // 🔥 HANYA TAMPILKAN YANG STATUS = DIPUBLIKASIKAN
+          if (item['status'] != 'Dipublikasikan') {
+            continue; // Skip yang draft
+          }
+
           int kategoriId = item['kategori_id'] ?? 1;
-          String kategori = _kategoriMapping[kategoriId] ?? 'Stunting';
-          String isi = item['isi'] ?? '';
+          String kategori = _kategoriMapping[kategoriId] ?? 'Lainnya';
+          String isi = item['desc'] ?? item['isi'] ?? '';
+          String youtubeUrl = item['youtube_url'] ?? '';
+          String imageUrl = item['image'] ?? '';
+          String jenisKonten = item['jenis_konten'] ?? 'artikel';
+
+          // Tentukan jenis konten
+          if (youtubeUrl.isNotEmpty) {
+            jenisKonten = 'video';
+          }
 
           // Cek cache gambar
           SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -148,11 +160,16 @@ class _EdukasiPageState extends State<EdukasiPage> {
           String? cachedImage = prefs.getString(cacheKey);
 
           artikelBaru.add({
-            'edukasi_id': item['edukasi_id'] ?? 0,
-            'judul': item['judul'] ?? 'Artikel Edukasi',
+            'edukasi_id': item['id'] ?? 0,
+            'judul': item['title'] ?? item['judul'] ?? 'Konten Edukasi',
             'isi': isi,
+            'youtube_url': youtubeUrl,
             'kategori': kategori,
-            'gambar': cachedImage ?? 'assets/images/stunting.jpg',
+            'kategori_id': kategoriId,
+            'gambar': imageUrl.isNotEmpty
+                ? imageUrl
+                : (cachedImage ?? 'assets/images/stunting.jpg'),
+            'jenis_konten': jenisKonten,
           });
         }
 
@@ -162,9 +179,9 @@ class _EdukasiPageState extends State<EdukasiPage> {
         });
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('edukasi_cache', json.encode(artikelBaru));
+        await prefs.setString('edukasi_cache_ortu', json.encode(artikelBaru));
 
-        // 🔥 AMBIL GAMBAR DI BACKGROUND (TIDAK MENGGANGGU LOADING)
+        // Ambil gambar di background
         _fetchAllImagesInBackground(data);
       } else if (mounted && _artikelList.isEmpty) {
         setState(() {
@@ -181,10 +198,9 @@ class _EdukasiPageState extends State<EdukasiPage> {
     }
   }
 
-  // 🔥 PROSES AMBIL GAMBAR DI BACKGROUND
   Future<void> _fetchAllImagesInBackground(List<dynamic> data) async {
     for (var item in data) {
-      String url = item['isi'] ?? '';
+      String url = item['desc'] ?? item['isi'] ?? '';
       String? imageUrl = await _extractImageFromUrl(url);
 
       if (imageUrl != null && mounted) {
@@ -195,9 +211,8 @@ class _EdukasiPageState extends State<EdukasiPage> {
           }
         });
 
-        // Update cache
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('edukasi_cache', json.encode(_artikelList));
+        await prefs.setString('edukasi_cache_ortu', json.encode(_artikelList));
       }
     }
   }
@@ -269,17 +284,42 @@ class _EdukasiPageState extends State<EdukasiPage> {
     }
   }
 
+  void _openContent(Map<String, dynamic> data) {
+    if (data['jenis_konten'] == 'video' && data['youtube_url'].isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewArtikelPage(
+            title: data['judul'],
+            url: data['youtube_url'],
+            isVideo: true,
+          ),
+        ),
+      );
+    } else if (data['isi'].isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => WebViewArtikelPage(
+            title: data['judul'],
+            url: data['isi'],
+            isVideo: false,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const SidebarMenu(),
       backgroundColor: const Color(0xFFF4EDEE),
       appBar: CustomAppBar(
-        title: 'Edukasi',
         backgroundColor: const Color(0xFFD86487),
-        titleColor: Colors.white,
         iconColor: Colors.white,
         showBackButton: false,
+        showDrawerIcon: true,
         showNotificationIcon: true,
       ),
       body: RefreshIndicator(
@@ -370,7 +410,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
           Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            'Belum ada artikel edukasi',
+            'Belum ada konten edukasi',
             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
@@ -403,11 +443,14 @@ class _EdukasiPageState extends State<EdukasiPage> {
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 0.99,
+        childAspectRatio: 0.95,
       ),
       itemCount: _filteredArtikel.length,
       itemBuilder: (context, index) {
-        return EduCard(data: _filteredArtikel[index]);
+        return EduCard(
+          data: _filteredArtikel[index],
+          onTap: () => _openContent(_filteredArtikel[index]),
+        );
       },
     );
   }
@@ -415,26 +458,18 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
 class EduCard extends StatelessWidget {
   final Map<String, dynamic> data;
+  final VoidCallback onTap;
 
-  const EduCard({super.key, required this.data});
-
-  void _openArticle(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) =>
-            WebViewArtikelPage(title: data['judul'], url: data['isi']),
-      ),
-    );
-  }
+  const EduCard({super.key, required this.data, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     String gambar = data['gambar'] ?? 'assets/images/stunting.jpg';
     bool isNetworkImage = gambar.startsWith('http');
+    bool isVideo = data['jenis_konten'] == 'video';
 
     return GestureDetector(
-      onTap: () => _openArticle(context),
+      onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -451,63 +486,65 @@ class EduCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 🔥 GAMBAR - SUPPORT NETWORK IMAGE (dari artikel) dan ASSET (default)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(10),
-              ),
-              child: isNetworkImage
-                  ? Image.network(
-                      gambar,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 100,
-                        color: const Color(0xFFFDE2E7),
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Color(0xFFD86487),
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(10),
+                  ),
+                  child: isNetworkImage
+                      ? Image.network(
+                          gambar,
                           height: 100,
-                          color: const Color(0xFFFDE2E7),
-                          child: const Center(
-                            child: SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFD86487),
-                              ),
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildImagePlaceholder(),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return _buildImagePlaceholder(loading: true);
+                          },
+                        )
+                      : Image.asset(
+                          gambar,
+                          height: 100,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              _buildImagePlaceholder(),
+                        ),
+                ),
+                if (isVideo)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.play_arrow, size: 10, color: Colors.white),
+                          SizedBox(width: 2),
+                          Text(
+                            'Video',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        );
-                      },
-                    )
-                  : Image.asset(
-                      gambar,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 100,
-                        color: const Color(0xFFFDE2E7),
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Color(0xFFD86487),
-                            size: 32,
-                          ),
-                        ),
+                        ],
                       ),
                     ),
+                  ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
@@ -547,20 +584,20 @@ class EduCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
-                    children: const [
+                    children: [
                       Text(
-                        "Baca",
-                        style: TextStyle(
+                        isVideo ? "Tonton" : "Baca",
+                        style: const TextStyle(
                           color: Color(0xFF8B1E3F),
                           fontSize: 9,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(width: 2),
+                      const SizedBox(width: 2),
                       Icon(
-                        Icons.arrow_forward_ios,
-                        size: 7,
-                        color: Color(0xFF8B1E3F),
+                        isVideo ? Icons.play_arrow : Icons.arrow_forward_ios,
+                        size: 9,
+                        color: const Color(0xFF8B1E3F),
                       ),
                     ],
                   ),
@@ -572,13 +609,44 @@ class EduCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildImagePlaceholder({bool loading = false}) {
+    return Container(
+      height: 100,
+      color: const Color(0xFFFDE2E7),
+      child: loading
+          ? const Center(
+              child: SizedBox(
+                height: 24,
+                width: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Color(0xFFD86487),
+                ),
+              ),
+            )
+          : const Center(
+              child: Icon(
+                Icons.image_not_supported,
+                color: Color(0xFFD86487),
+                size: 32,
+              ),
+            ),
+    );
+  }
 }
 
 class WebViewArtikelPage extends StatefulWidget {
   final String title;
   final String url;
+  final bool isVideo;
 
-  const WebViewArtikelPage({super.key, required this.title, required this.url});
+  const WebViewArtikelPage({
+    super.key,
+    required this.title,
+    required this.url,
+    this.isVideo = false,
+  });
 
   @override
   State<WebViewArtikelPage> createState() => _WebViewArtikelPageState();
@@ -635,15 +703,24 @@ class _WebViewArtikelPageState extends State<WebViewArtikelPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4EDEE),
       appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+        title: Row(
+          children: [
+            if (widget.isVideo)
+              const Icon(Icons.play_circle, size: 20, color: Colors.white),
+            if (widget.isVideo) const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
         centerTitle: true,
         backgroundColor: const Color(0xFFD86487),

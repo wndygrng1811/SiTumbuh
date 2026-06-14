@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.12:8000/api';
+  static const String baseUrl = 'http://192.168.100.29:8000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -18,8 +18,18 @@ class ApiService {
   static Future<http.Response> get(String endpoint) async {
     final headers = await _getHeaders();
     final url = '$baseUrl$endpoint';
-    print('🌐 GET: $url');
-    return await http.get(Uri.parse(url), headers: headers);
+    print('GET: $url');
+
+    try {
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(const Duration(seconds: 30));
+      print('GET Response: ${response.statusCode}');
+      return response;
+    } catch (e) {
+      print('GET Error: $e');
+      rethrow;
+    }
   }
 
   static Future<http.Response> post(
@@ -28,13 +38,20 @@ class ApiService {
   ) async {
     final headers = await _getHeaders();
     final url = '$baseUrl$endpoint';
-    print('📤 POST: $url');
-    print('📦 Body: $body');
-    return await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: json.encode(body),
-    );
+    print('POST: $url');
+    print('Body: $body');
+
+    try {
+      final response = await http
+          .post(Uri.parse(url), headers: headers, body: json.encode(body))
+          .timeout(const Duration(seconds: 30));
+      print('POST Response: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+      return response;
+    } catch (e) {
+      print('POST Error: $e');
+      rethrow;
+    }
   }
 
   static Future<http.Response> put(
@@ -43,20 +60,36 @@ class ApiService {
   ) async {
     final headers = await _getHeaders();
     final url = '$baseUrl$endpoint';
-    print('✏️ PUT: $url');
-    print('📦 Body: $body');
-    return await http.put(
-      Uri.parse(url),
-      headers: headers,
-      body: json.encode(body),
-    );
+    print('PUT: $url');
+    print('Body: $body');
+
+    try {
+      final response = await http
+          .put(Uri.parse(url), headers: headers, body: json.encode(body))
+          .timeout(const Duration(seconds: 30));
+      print('PUT Response: ${response.statusCode}');
+      return response;
+    } catch (e) {
+      print('PUT Error: $e');
+      rethrow;
+    }
   }
 
   static Future<http.Response> delete(String endpoint) async {
     final headers = await _getHeaders();
     final url = '$baseUrl$endpoint';
-    print('🗑️ DELETE: $url');
-    return await http.delete(Uri.parse(url), headers: headers);
+    print('DELETE: $url');
+
+    try {
+      final response = await http
+          .delete(Uri.parse(url), headers: headers)
+          .timeout(const Duration(seconds: 30));
+      print('DELETE Response: ${response.statusCode}');
+      return response;
+    } catch (e) {
+      print('DELETE Error: $e');
+      rethrow;
+    }
   }
 
   // ============ AUTH (LOGIN) ============
@@ -65,16 +98,20 @@ class ApiService {
     String password,
   ) async {
     try {
+      final url = Uri.parse('$baseUrl/login');
+      print('Login URL: $url');
+      print('Email: $email');
+
       final response = await http
           .post(
-            Uri.parse('$baseUrl/login'),
+            url,
             headers: {'Content-Type': 'application/json'},
             body: json.encode({'email': email, 'password': password}),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 30));
 
-      print('📡 Login response status: ${response.statusCode}');
-      print('📦 Login response body: ${response.body}');
+      print('Login response status: ${response.statusCode}');
+      print('Login response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -85,21 +122,37 @@ class ApiService {
           await prefs.setInt('user_id', data['user_id'] ?? 0);
           await prefs.setString('role', data['role'] ?? '');
           await prefs.setString('nama', data['nama'] ?? '');
+          await prefs.setString('email', data['email'] ?? '');
           await prefs.setInt('anak_id', data['anak_id'] ?? 0);
           await prefs.setString('nama_anak', data['nama_anak'] ?? '');
           await prefs.setString('jenis_kelamin', data['jenis_kelamin'] ?? '');
 
+          print('Login berhasil. Role: ${data['role']}');
           return {'success': true, 'role': data['role'] ?? ''};
+        } else {
+          print('Login gagal: ${data['message']}');
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Login gagal',
+          };
         }
+      } else {
+        print('HTTP Error: ${response.statusCode}');
+        return {
+          'success': false,
+          'message': 'Server error: ${response.statusCode}',
+        };
       }
-      return {'success': false, 'message': 'Login gagal'};
     } catch (e) {
-      print('❌ Login error: $e');
-      return {'success': false, 'message': 'Tidak dapat terhubung ke server'};
+      print('Login error: $e');
+      return {
+        'success': false,
+        'message': 'Tidak dapat terhubung ke server: $e',
+      };
     }
   }
 
-  // ============ PROFIL KADER (PUNYA KAMU) ============
+  // ============ PROFIL KADER ============
   static Future<Map<String, dynamic>> getProfilKader() async {
     try {
       final response = await get('/kader/profil');
@@ -153,7 +206,7 @@ class ApiService {
     }
   }
 
-  // ============ STATISTIK KADER (PUNYA KAMU) ============
+  // ============ STATISTIK KADER ============
   static Future<Map<String, dynamic>> getStatistikKader() async {
     try {
       final response = await get('/kader/statistik');
@@ -182,7 +235,7 @@ class ApiService {
     }
   }
 
-  // ============ PERTUMBUHAN (PUNYA TEMAN) ============
+  // ============ PERTUMBUHAN ============
   static Future<List<dynamic>> getRiwayatPertumbuhan(int anakId) async {
     try {
       final response = await get('/pertumbuhan/$anakId');
@@ -225,7 +278,7 @@ class ApiService {
     }
   }
 
-  // ============ PROFIL ORANG TUA (PUNYA TEMAN) ============
+  // ============ PROFIL ORANG TUA ============
   static Future<Map<String, dynamic>> getProfileOrangTua(int userId) async {
     try {
       final response = await get('/orangtua/profile/$userId');
@@ -242,11 +295,12 @@ class ApiService {
     }
   }
 
-  // ============ EDUKASI (PUNYA TEMAN) ============
+  // ============ EDUKASI ============
   static Future<List<dynamic>> getEdukasi() async {
     try {
       final response = await get('/edukasi');
-      print('Edukasi response: ${response.body}');
+      print('Edukasi response status: ${response.statusCode}');
+      print('Edukasi response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -261,7 +315,7 @@ class ApiService {
     }
   }
 
-  // ============ DATA ANAK (PUNYA TEMAN) ============
+  // ============ DATA ANAK ============
   static Future<List<dynamic>> getDataAnak(int orangtuaId) async {
     try {
       final response = await get('/orangtua/$orangtuaId/anak');
@@ -311,7 +365,7 @@ class ApiService {
     }
   }
 
-  // ============ KELOLA ORANG TUA (PUNYA KAMU) ============
+  // ============ KELOLA ORANG TUA (KADER) ============
   static Future<http.Response> getOrangTua() async {
     return await get('/kader/orangtua');
   }
@@ -331,7 +385,7 @@ class ApiService {
     return await delete('/kader/orangtua/$id');
   }
 
-  // ============ KELOLA ANAK (PUNYA KAMU) ============
+  // ============ KELOLA ANAK (KADER) ============
   static Future<http.Response> getAllAnak() async {
     return await get('/kader/semua-anak');
   }
@@ -346,5 +400,45 @@ class ApiService {
 
   static Future<http.Response> getOrangTuaDropdown() async {
     return await get('/kader/orangtua');
+  }
+
+  // ============ NOTIFIKASI ============
+  static Future<List<dynamic>> getNotifikasi() async {
+    try {
+      final response = await get('/notifikasi?user_id=1');
+      print('📡 Notifikasi response status: ${response.statusCode}');
+      print('📡 Notifikasi response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data'] ?? [];
+        }
+      }
+      return [];
+    } catch (e) {
+      print('Error get notifikasi: $e');
+      return [];
+    }
+  }
+
+  static Future<bool> markNotifikasiAsRead(int id) async {
+    try {
+      final response = await put('/notifikasi/$id/read', {});
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error mark notifikasi: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> markAllNotifikasiAsRead() async {
+    try {
+      final response = await put('/notifikasi/read-all', {});
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error mark all notifikasi: $e');
+      return false;
+    }
   }
 }

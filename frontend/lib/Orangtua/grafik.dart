@@ -601,9 +601,7 @@ class _GrafikPageState extends State<GrafikPage> {
       drawer: const SidebarMenu(),
       backgroundColor: const Color(0xFFFFF5F7),
       appBar: CustomAppBar(
-        title: 'Grafik Pertumbuhan',
         backgroundColor: const Color(0xFFD86487),
-        titleColor: Colors.white,
         iconColor: Colors.white,
         showBackButton: false,
         showDrawerIcon: true,
