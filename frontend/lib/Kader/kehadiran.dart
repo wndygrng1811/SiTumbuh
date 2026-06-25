@@ -21,7 +21,7 @@ class _KehadiranState extends State<Kehadiran> {
   final _searchCtrl = TextEditingController();
 
   static const Color _primary = Color(0xFFE85D75);
-  static const Color _bg = Color(0xFFF8F9FC);
+  static const Color _bg = Color(0xFFF5F7FA);
 
   List<Map<String, dynamic>> _listJadwal = [];
   List<Map<String, dynamic>> _kehadiranList = [];
@@ -87,7 +87,6 @@ class _KehadiranState extends State<Kehadiran> {
           if (_listJadwal.isNotEmpty) {
             _selectedJadwalId = _listJadwal.first['jadwal_id'];
             _selectedTanggal = _listJadwal.first['tanggal'] ?? '';
-            print('Loaded ${_listJadwal.length} jadwal');
           }
         }
       }
@@ -108,9 +107,6 @@ class _KehadiranState extends State<Kehadiran> {
               data['data'] ?? [],
             );
           });
-          print(
-            'Loaded ${_kehadiranList.length} kehadiran untuk jadwal ID: $jadwalId',
-          );
         }
       }
     } catch (e) {
@@ -147,9 +143,6 @@ class _KehadiranState extends State<Kehadiran> {
         'jadwal_id': _selectedJadwalId,
         'kehadiran': dataKehadiran,
       });
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -311,7 +304,6 @@ class _KehadiranState extends State<Kehadiran> {
     return Scaffold(
       drawer: const SidebarKader(),
       backgroundColor: _bg,
-      // ========== CUSTOM APP BAR ==========
       appBar: CustomAppBar(
         backgroundColor: _primary,
         iconColor: Colors.white,
@@ -319,151 +311,62 @@ class _KehadiranState extends State<Kehadiran> {
         showDrawerIcon: true,
         showNotificationIcon: true,
       ),
-      // ========== BOTTOM NAV (INDEX 0 KARENA DARI SIDEBAR) ==========
-      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 4),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _primary))
           : _errorMessage.isNotEmpty
-          ? Center(child: Text(_errorMessage))
-          : Column(
-              children: [
-                _buildHeaderCard(),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildJadwalDropdown(),
-                        const SizedBox(height: 16),
-                        _buildSearchRow(),
-                        const SizedBox(height: 12),
-                        _buildTab(),
-                        const SizedBox(height: 12),
-                        if (selectedTab == 0) _buildFilterRow(),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: _filteredData.isEmpty
-                              ? _buildEmpty()
-                              : ListView.builder(
-                                  itemCount: _filteredData.length,
-                                  itemBuilder: (_, i) =>
-                                      _buildItemCard(_filteredData[i]),
-                                ),
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _primary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: _isSaving ? null : _simpanSemuaKehadiran,
-                            child: _isSaving
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Simpan Data Kehadiran',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
-                    ),
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    style: TextStyle(color: Colors.grey[600]),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _buildJadwalDropdown(),
+                  const SizedBox(height: 14),
+                  _buildSearchRow(),
+                  const SizedBox(height: 12),
+                  _buildTab(),
+                  const SizedBox(height: 12),
+                  if (selectedTab == 0) _buildFilterRow(),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _filteredData.isEmpty
+                        ? _buildEmpty()
+                        : ListView.builder(
+                            itemCount: _filteredData.length,
+                            itemBuilder: (_, i) =>
+                                _buildItemCard(_filteredData[i]),
+                          ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSaveButton(),
+                ],
+              ),
             ),
     );
   }
 
-  Widget _buildHeaderCard() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFE85D75), Color(0xFFC23F5E)],
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.calendar_today, color: Colors.white, size: 13),
-                const SizedBox(width: 6),
-                Text(
-                  _selectedTanggal.isEmpty ? 'Pilih Jadwal' : _selectedTanggal,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _statBox("$_totalHadir", "Hadir", Icons.check_circle_outline),
-              _statBox("$_totalTidak", "Tidak Hadir", Icons.cancel_outlined),
-              _statBox("$_total", "Total Anak", Icons.people_outline),
-            ],
-          ),
-          const SizedBox(height: 16),
-          LinearProgressIndicator(
-            value: _persen,
-            backgroundColor: Colors.white.withOpacity(0.25),
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "${(_persen * 100).toStringAsFixed(0)}% Kehadiran",
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statBox(String val, String label, IconData icon) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.white70, size: 20),
-          const SizedBox(height: 4),
-          Text(
-            val,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
-
+  // ===== DROPDOWN JADWAL =====
   Widget _buildJadwalDropdown() {
     if (_listJadwal.isEmpty) {
       return Container(
@@ -471,29 +374,54 @@ class _KehadiranState extends State<Kehadiran> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade200),
         ),
-        child: const Center(child: Text('Belum ada jadwal posyandu')),
+        child: Center(
+          child: Text(
+            'Belum ada jadwal posyandu',
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
+        ),
       );
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           value: _selectedJadwalId,
           isExpanded: true,
           hint: const Text('Pilih Jadwal Posyandu'),
-          icon: const Icon(Icons.arrow_drop_down, color: _primary),
+          icon: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: _primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: _primary,
+            ),
+          ),
           items: _listJadwal.map((jadwal) {
             return DropdownMenuItem<int>(
               value: jadwal['jadwal_id'],
-              child: Text(
-                '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_rounded, size: 16, color: _primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
               ),
             );
           }).toList(),
@@ -503,15 +431,22 @@ class _KehadiranState extends State<Kehadiran> {
     );
   }
 
+  // ===== SEARCH =====
   Widget _buildSearchRow() {
     return TextField(
       controller: _searchCtrl,
+      style: const TextStyle(fontSize: 13),
       decoration: InputDecoration(
         hintText: "Cari nama ${selectedTab == 0 ? 'anak' : 'orang tua'}...",
-        prefixIcon: const Icon(Icons.search, size: 20),
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400),
         suffixIcon: search.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.close, size: 18),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Colors.grey.shade400,
+                ),
                 onPressed: () {
                   _searchCtrl.clear();
                   setState(() => search = '');
@@ -521,13 +456,26 @@ class _KehadiranState extends State<Kehadiran> {
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
         ),
       ),
     );
   }
 
+  // ===== FILTER =====
   Widget _buildFilterRow() {
     return Row(
       children: [
@@ -546,20 +494,22 @@ class _KehadiranState extends State<Kehadiran> {
       child: GestureDetector(
         onTap: () => setState(() => filter = value),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isActive ? _primary : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isActive ? _primary : Colors.grey.shade200,
+              width: isActive ? 1.5 : 0.5,
             ),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.black54,
-                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : Colors.grey.shade600,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 12,
               ),
             ),
           ),
@@ -568,18 +518,19 @@ class _KehadiranState extends State<Kehadiran> {
     );
   }
 
+  // ===== TAB =====
   Widget _buildTab() {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: Row(
         children: [
-          _tabBtn("Anak", 0, Icons.child_care),
-          _tabBtn("Orang Tua", 1, Icons.people),
+          _tabBtn("Anak", 0, Icons.child_care_rounded),
+          _tabBtn("Orang Tua", 1, Icons.people_rounded),
         ],
       ),
     );
@@ -599,13 +550,18 @@ class _KehadiranState extends State<Kehadiran> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: active ? Colors.white : Colors.grey),
+              Icon(
+                icon,
+                size: 16,
+                color: active ? Colors.white : Colors.grey.shade500,
+              ),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  color: active ? Colors.white : Colors.black54,
-                  fontWeight: FontWeight.w600,
+                  color: active ? Colors.white : Colors.grey.shade600,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
             ],
@@ -615,6 +571,7 @@ class _KehadiranState extends State<Kehadiran> {
     );
   }
 
+  // ===== ITEM CARD =====
   Widget _buildItemCard(Map<String, dynamic> item) {
     if (selectedTab == 0) {
       final bool hadir = item['hadir'] as bool;
@@ -622,52 +579,97 @@ class _KehadiranState extends State<Kehadiran> {
 
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: hadir
-                ? Colors.green.withOpacity(0.3)
-                : Colors.red.withOpacity(0.3),
+            color: hadir ? Colors.green.shade100 : Colors.red.shade100,
+            width: 1,
           ),
-        ),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: hadir
-                ? Colors.green.withOpacity(0.15)
-                : Colors.red.withOpacity(0.15),
-            child: Text(
-              nama.isNotEmpty ? nama[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: hadir ? Colors.green : Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-          ),
-          title: Text(
-            nama,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            hadir ? "Hadir" : "Tidak Hadir",
-            style: TextStyle(color: hadir ? Colors.green : Colors.red),
-          ),
-          trailing: hadir
-              ? null
-              : Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    "Tidak Hadir",
-                    style: TextStyle(color: Colors.red.shade400, fontSize: 11),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: hadir ? Colors.green.shade50 : Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  nama.isNotEmpty ? nama[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: hadir ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    nama,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        hadir ? Icons.check_circle : Icons.cancel,
+                        size: 12,
+                        color: hadir ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        hadir ? "Hadir" : "Tidak Hadir",
+                        style: TextStyle(
+                          color: hadir ? Colors.green : Colors.red,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (!hadir)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "Tidak Hadir",
+                  style: TextStyle(
+                    color: Colors.red.shade400,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
         ),
       );
     } else {
@@ -678,59 +680,146 @@ class _KehadiranState extends State<Kehadiran> {
 
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.orange.shade100, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Colors.orange.withOpacity(0.15),
-            child: Text(
-              namaOrtu.isNotEmpty ? namaOrtu[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: Colors.orange,
-                fontWeight: FontWeight.bold,
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  namaOrtu.isNotEmpty ? namaOrtu[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
-          ),
-          title: Text(
-            namaOrtu,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            "Anak tidak hadir: ${anakTidakHadir.join(', ')}",
-            style: const TextStyle(fontSize: 12),
-          ),
-          trailing: noTelp.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.chat, color: Colors.green, size: 28),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    namaOrtu,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Anak tidak hadir: ${anakTidakHadir.join(', ')}",
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (noTelp.isNotEmpty)
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.chat_rounded, color: Colors.green),
                   onPressed: () =>
                       _sendWhatsApp(noTelp, namaOrtu, anakTidakHadir),
-                )
-              : null,
+                  iconSize: 22,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(),
+                ),
+              ),
+          ],
         ),
       );
     }
   }
 
+  // ===== SAVE BUTTON =====
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 0,
+        ),
+        onPressed: _isSaving ? null : _simpanSemuaKehadiran,
+        child: _isSaving
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.save_rounded, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Simpan Data Kehadiran',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ===== EMPTY STATE =====
   Widget _buildEmpty() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.search_off_rounded, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Text(
             selectedTab == 0
                 ? (search.isNotEmpty
                       ? "Tidak ada anak dengan nama '$search'"
-                      : "Tidak ada data kehadiran")
+                      : "Belum ada data kehadiran")
                 : (search.isNotEmpty
                       ? "Tidak ada orang tua dengan nama '$search'"
-                      : "Semua anak hadir"),
-            style: TextStyle(color: Colors.grey.shade500),
+                      : "Semua anak hadir ✅"),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
           ),
+          const SizedBox(height: 4),
+          if (search.isEmpty && selectedTab == 0)
+            Text(
+              "Silakan pilih jadwal posyandu",
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+            ),
         ],
       ),
     );

@@ -254,9 +254,9 @@ class DataPertumbuhanPage extends StatefulWidget {
   State<DataPertumbuhanPage> createState() => _DataPertumbuhanPageState();
 }
 
-class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
-    with SingleTickerProviderStateMixin {
-  static const Color _pink = Color(0xFFE85D75);
+class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
+  static const Color _primary = Color(0xFFE85D75);
+  static const Color _bg = Color(0xFFF5F7FA);
 
   List<dynamic> _listAnak = [];
   List<dynamic> _listJadwal = [];
@@ -265,19 +265,15 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   String _namaAnak = 'Pilih Anak';
   String _jkAnak = 'L';
   String _namaOrtu = '';
+  String _tanggalLahir = '';
   List<DataPengukuran> _riwayat = [];
   bool _isLoading = true;
-
-  late TabController _tabController;
-  int _tabGrafik = 0;
+  int _usiaOtomatis = 0;
 
   final _formKey = GlobalKey<FormState>();
-  final _ctrlTanggal = TextEditingController();
-  final _ctrlUsia = TextEditingController();
   final _ctrlBb = TextEditingController();
   final _ctrlTb = TextEditingController();
   final _ctrlLk = TextEditingController();
-  DateTime? _selectedDate;
   bool _isSaving = false;
 
   StatusGizi? _statusGizi;
@@ -296,19 +292,12 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(
-      () => setState(() => _tabGrafik = _tabController.index),
-    );
     _loadData();
     _loadJadwal();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
-    _ctrlTanggal.dispose();
-    _ctrlUsia.dispose();
     _ctrlBb.dispose();
     _ctrlTb.dispose();
     _ctrlLk.dispose();
@@ -336,9 +325,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? role = prefs.getString('role');
-    print('Role user: $role');
     try {
       final response = await ApiService.get('/kader/semua-anak');
       if (response.statusCode == 200) {
@@ -351,6 +337,8 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
               _namaAnak = _listAnak[0]['nama_anak'] ?? 'Anak';
               _jkAnak = _listAnak[0]['jenis_kelamin'] ?? 'L';
               _namaOrtu = _listAnak[0]['nama_ortu'] ?? '';
+              _tanggalLahir = _listAnak[0]['tanggal_lahir'] ?? '';
+              _hitungUsiaOtomatis();
             }
             _isLoading = false;
           });
@@ -364,6 +352,23 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     } catch (e) {
       print('Error load data: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  void _hitungUsiaOtomatis() {
+    if (_tanggalLahir.isEmpty) {
+      _usiaOtomatis = 12;
+      return;
+    }
+    try {
+      final lahir = DateTime.parse(_tanggalLahir);
+      final now = DateTime.now();
+      int bulan = (now.year - lahir.year) * 12 + now.month - lahir.month;
+      if (bulan < 0) bulan = 0;
+      if (bulan > 60) bulan = 60;
+      setState(() => _usiaOtomatis = bulan);
+    } catch (e) {
+      _usiaOtomatis = 12;
     }
   }
 
@@ -435,53 +440,13 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
       _namaAnak = selectedAnak['nama_anak'] ?? 'Anak';
       _jkAnak = selectedAnak['jenis_kelamin'] ?? 'L';
       _namaOrtu = selectedAnak['nama_ortu'] ?? '';
+      _tanggalLahir = selectedAnak['tanggal_lahir'] ?? '';
       _riwayat = [];
       _statusGizi = null;
       _pengukuranTerbaru = null;
+      _hitungUsiaOtomatis();
     });
     await _loadRiwayat();
-  }
-
-  String _bulanStr(int m) => [
-    '',
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ][m];
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: _pink,
-            onPrimary: Colors.white,
-            onSurface: Color(0xFF2D2D2D),
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        _ctrlTanggal.text =
-            '${picked.day.toString().padLeft(2, '0')} ${_bulanStr(picked.month)} ${picked.year}';
-      });
-    }
   }
 
   Future<void> _simpan() async {
@@ -498,14 +463,13 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
       return;
     }
     setState(() => _isSaving = true);
-    final usia = int.parse(_ctrlUsia.text.trim());
     final bb = double.parse(_ctrlBb.text.trim());
     final tb = double.parse(_ctrlTb.text.trim());
     final lk = _ctrlLk.text.trim().isNotEmpty
         ? double.tryParse(_ctrlLk.text.trim())
         : null;
     final status = WHOZScore.kalkulasi(
-      usiaBulan: usia,
+      usiaBulan: _usiaOtomatis,
       bb: bb,
       tb: tb,
       jk: _jkAnak,
@@ -523,14 +487,13 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         'tinggi_badan': tb,
         'lingkar_kepala': lk ?? 0,
         'status_gizi': status.labelBbTb,
-        'tanggal_pengukuran': _selectedDate?.toIso8601String().split('T').first,
       });
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           final pengukuran = DataPengukuran(
-            tanggal: _selectedDate ?? DateTime.now(),
-            usiaBulan: usia,
+            tanggal: DateTime.now(),
+            usiaBulan: _usiaOtomatis,
             beratBadan: bb,
             tinggiBadan: tb,
             lingkarKepala: lk,
@@ -542,12 +505,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
             _isSaving = false;
           });
           _showSnack('Data berhasil disimpan', Colors.green);
-          _ctrlUsia.clear();
           _ctrlBb.clear();
           _ctrlTb.clear();
           _ctrlLk.clear();
-          _ctrlTanggal.clear();
-          setState(() => _selectedDate = null);
         } else {
           throw Exception(data['message'] ?? 'Gagal menyimpan');
         }
@@ -566,6 +526,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         content: Text(msg),
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -573,270 +534,127 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F8),
       drawer: const SidebarKader(),
-      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
+      backgroundColor: _bg,
+      appBar: CustomAppBar(
+        backgroundColor: _primary,
+        iconColor: Colors.white,
+        showBackButton: false,
+        showDrawerIcon: true,
+        showNotificationIcon: true,
+      ),
+      bottomNavigationBar: const BottomNavbarKader(selectedIndex: 3),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _pink))
-          : CustomScrollView(
-              slivers: [
-                _buildSliverAppBar(),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 40),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _buildSectionLabel('Pilih Anak dan Jadwal'),
-                      const SizedBox(height: 12),
-                      _buildSelectionCard(),
-                      const SizedBox(height: 24),
-                      _buildSectionLabel('Input Pengukuran'),
-                      const SizedBox(height: 12),
-                      _buildFormCard(),
-                      if (_statusGizi != null) ...[
-                        const SizedBox(height: 24),
-                        _buildSectionLabel('Hasil Analisis Z-Score'),
-                        const SizedBox(height: 12),
-                        _buildStatusGiziCard(),
-                      ],
-                      const SizedBox(height: 24),
-                      _buildSectionLabel('Grafik Pertumbuhan'),
-                      const SizedBox(height: 12),
-                      _buildGrafikCard(),
-                      const SizedBox(height: 24),
-                      _buildSectionLabel('Riwayat Pengukuran'),
-                      const SizedBox(height: 12),
-                      _buildRiwayatCard(),
-                    ]),
+          ? const Center(child: CircularProgressIndicator(color: _primary))
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ===== HEADER =====
+                  _buildHeader(),
+                  const SizedBox(height: 20),
+
+                  // ===== PILIH ANAK & JADWAL =====
+                  _buildSectionLabel('Pilih Anak & Jadwal'),
+                  const SizedBox(height: 10),
+                  _buildSelectionCard(),
+                  const SizedBox(height: 20),
+
+                  // ===== INPUT PENGUKURAN =====
+                  _buildSectionLabel('Input Pengukuran'),
+                  const SizedBox(height: 10),
+                  _buildFormCard(),
+                  const SizedBox(height: 20),
+
+                  // ===== STATUS GIZI =====
+                  if (_statusGizi != null) ...[
+                    _buildSectionLabel('Hasil Analisis Z-Score'),
+                    const SizedBox(height: 10),
+                    _buildStatusGiziCard(),
+                    const SizedBox(height: 20),
+                  ],
+
+                  // ===== RIWAYAT =====
+                  _buildSectionLabel('Riwayat Pengukuran'),
+                  const SizedBox(height: 10),
+                  _buildRiwayatCard(),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // ===== HEADER =====
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE85D75), Color(0xFFD44B66)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: _primary.withValues(alpha: 0.2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.monitor_heart_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Catat Pertumbuhan Anak',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Input pengukuran dan pantau status gizi',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
                   ),
                 ),
               ],
             ),
-    );
-  }
-
-  Widget _buildSliverAppBar() {
-    return SliverAppBar(
-      expandedHeight: 130,
-      pinned: true,
-      backgroundColor: _pink,
-      foregroundColor: Colors.white,
-      elevation: 0,
-      centerTitle: true,
-      title: const Text(
-        'SiTumbuh',
-        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined, size: 22),
-          onPressed: () {},
-        ),
-        const SizedBox(width: 4),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(color: _pink),
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          alignment: Alignment.bottomLeft,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Catat Pertumbuhan Anak',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Input pengukuran dan pantau status gizi',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.78),
-                  fontSize: 12,
-                ),
-              ),
-            ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String label) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 18,
-          decoration: BoxDecoration(
-            color: _pink,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSelectionCard() {
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _dropdownLabel('Anak', Icons.child_care_rounded),
-          const SizedBox(height: 8),
-          _dropdownContainer(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                isExpanded: true,
-                value: _selectedAnakId,
-                hint: const Text('Pilih anak'),
-                dropdownColor: Colors.white,
-                icon: const Icon(
-                  Icons.expand_more_rounded,
-                  color: _pink,
-                  size: 20,
-                ),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF2D2D2D),
-                ),
-                items: _listAnak.map((anak) {
-                  return DropdownMenuItem<int>(
-                    value: anak['anak_id'],
-                    child: Row(
-                      children: [
-                        Icon(
-                          anak['jenis_kelamin'] == 'L'
-                              ? Icons.boy_rounded
-                              : Icons.girl_rounded,
-                          color: _pink,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${anak['nama_anak']}  •  ${anak['nama_ortu']}',
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: _onAnakChanged,
-              ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          if (_selectedAnakId != null) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: _pink.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: _pink.withOpacity(0.15),
-                    child: Icon(
-                      _jkAnak == 'L' ? Icons.boy_rounded : Icons.girl_rounded,
-                      color: _pink,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _namaAnak,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Color(0xFF2D2D2D),
-                          ),
-                        ),
-                        Text(
-                          '${_jkAnak == 'L' ? 'Laki-laki' : 'Perempuan'}  ·  Ortu: $_namaOrtu',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _pink,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${_riwayat.length} data',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(height: 16),
-          _dropdownLabel('Jadwal Posyandu', Icons.calendar_month_rounded),
-          const SizedBox(height: 8),
-          _dropdownContainer(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<int>(
-                isExpanded: true,
-                value: _selectedJadwalId,
-                hint: const Text('Pilih jadwal'),
-                dropdownColor: Colors.white,
-                icon: const Icon(
-                  Icons.expand_more_rounded,
-                  color: _pink,
-                  size: 20,
-                ),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF2D2D2D),
-                ),
-                items: _listJadwal.map((jadwal) {
-                  return DropdownMenuItem<int>(
-                    value: jadwal['jadwal_id'],
-                    child: Text(
-                      '${jadwal['tanggal']}  —  ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (v) => setState(() => _selectedJadwalId = v),
+            child: Text(
+              '${_riwayat.length} data',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -845,80 +663,205 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  Widget _dropdownLabel(String label, IconData icon) {
+  // ===== SECTION LABEL =====
+  Widget _buildSectionLabel(String label) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: _pink),
-        const SizedBox(width: 6),
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: _primary,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF555555),
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A1A),
           ),
         ),
       ],
     );
   }
 
-  Widget _dropdownContainer({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE8E8E8)),
+  // ===== SELECTION CARD =====
+  Widget _buildSelectionCard() {
+    return _card(
+      child: Column(
+        children: [
+          // Dropdown Anak
+          _buildDropdown(
+            label: 'Pilih Anak',
+            icon: Icons.child_care_rounded,
+            value: _selectedAnakId,
+            items: _listAnak.map((anak) {
+              return DropdownMenuItem<int>(
+                value: anak['anak_id'],
+                child: Row(
+                  children: [
+                    Icon(
+                      anak['jenis_kelamin'] == 'L'
+                          ? Icons.boy_rounded
+                          : Icons.girl_rounded,
+                      color: _primary,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${anak['nama_anak']} (${anak['nama_ortu']})',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: _onAnakChanged,
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          const SizedBox(height: 12),
+          // Dropdown Jadwal
+          _buildDropdown(
+            label: 'Pilih Jadwal Posyandu',
+            icon: Icons.calendar_month_rounded,
+            value: _selectedJadwalId,
+            items: _listJadwal.map((jadwal) {
+              return DropdownMenuItem<int>(
+                value: jadwal['jadwal_id'],
+                child: Text(
+                  '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              );
+            }).toList(),
+            onChanged: (v) => setState(() => _selectedJadwalId = v),
+          ),
+        ],
       ),
-      child: child,
     );
   }
 
+  Widget _buildDropdown<T>({
+    required String label,
+    required IconData icon,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required void Function(T?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: _primary),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              hint: Text(
+                'Pilih $label',
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              ),
+              dropdownColor: Colors.white,
+              icon: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: _primary,
+                  size: 18,
+                ),
+              ),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1A1A1A),
+              ),
+              items: items,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===== FORM CARD =====
   Widget _buildFormCard() {
     return _card(
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _inputField(
-              label: 'Tanggal Pengukuran',
-              hint: 'Pilih tanggal',
-              ctrl: _ctrlTanggal,
-              icon: Icons.calendar_month_rounded,
-              readOnly: true,
-              onTap: _pickDate,
-              validator: (v) => (v == null || v.isEmpty) ? 'Wajib diisi' : null,
+            // Info Usia Otomatis
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _primary.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _primary.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFE85D75),
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Usia: $_usiaOtomatis bulan (otomatis dari tanggal lahir)',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
-                  child: _inputField(
-                    label: 'Usia (bulan)',
-                    hint: 'contoh: 4',
-                    ctrl: _ctrlUsia,
-                    icon: Icons.cake_rounded,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Wajib diisi';
-                      final n = int.tryParse(v);
-                      if (n == null || n < 0 || n > 60) {
-                        return 'Usia 0 sampai 60';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _inputField(
+                  child: _buildFormField(
                     label: 'Berat Badan (kg)',
-                    hint: 'contoh: 7.5',
-                    ctrl: _ctrlBb,
+                    hint: '0.5 - 50',
+                    controller: _ctrlBb,
                     icon: Icons.monitor_weight_rounded,
-                    keyboardType: const TextInputType.numberWithOptions(
+                    keyboardType: TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: (v) {
@@ -931,18 +874,14 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     },
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
+                const SizedBox(width: 12),
                 Expanded(
-                  child: _inputField(
+                  child: _buildFormField(
                     label: 'Tinggi Badan (cm)',
-                    hint: 'contoh: 63.5',
-                    ctrl: _ctrlTb,
+                    hint: '30 - 120',
+                    controller: _ctrlTb,
                     icon: Icons.height_rounded,
-                    keyboardType: const TextInputType.numberWithOptions(
+                    keyboardType: TextInputType.numberWithOptions(
                       decimal: true,
                     ),
                     validator: (v) {
@@ -955,51 +894,53 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _inputField(
-                    label: 'Lingkar Kepala (cm)',
-                    hint: 'contoh: 40.5',
-                    ctrl: _ctrlLk,
-                    icon: Icons.radio_button_checked_rounded,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                  ),
-                ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
+            _buildFormField(
+              label: 'Lingkar Kepala (cm)',
+              hint: 'Opsional',
+              controller: _ctrlLk,
+              icon: Icons.face_6_rounded,
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _pink,
+                  backgroundColor: _primary,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 onPressed: _isSaving ? null : _simpan,
-                icon: _isSaving
+                child: _isSaving
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                        height: 20,
+                        width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.save_rounded, size: 18),
-                label: Text(
-                  _isSaving ? 'Menyimpan...' : 'Simpan Data',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.save_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Simpan Data',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ),
           ],
@@ -1008,15 +949,12 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  Widget _inputField({
+  Widget _buildFormField({
     required String label,
     required String hint,
-    required TextEditingController ctrl,
+    required TextEditingController controller,
     required IconData icon,
-    bool readOnly = false,
-    VoidCallback? onTap,
     TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return Column(
@@ -1024,42 +962,42 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF555555),
+            color: Colors.grey.shade600,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         TextFormField(
-          controller: ctrl,
-          readOnly: readOnly,
-          onTap: onTap,
+          controller: controller,
           keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
           validator: validator,
           style: const TextStyle(fontSize: 13),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
-            prefixIcon: Icon(icon, color: _pink, size: 16),
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+            prefixIcon: Icon(icon, color: _primary, size: 18),
             filled: true,
-            fillColor: const Color(0xFFF8F9FA),
+            fillColor: Colors.grey.shade50,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 12,
-              vertical: 13,
+              vertical: 12,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: _pink, width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFFE85D75),
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -1072,6 +1010,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
+  // ===== STATUS GIZI CARD =====
   Widget _buildStatusGiziCard() {
     final s = _statusGizi!;
     return _card(
@@ -1080,49 +1019,54 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.verified_rounded,
-                color: Color(0xFF2E7D32),
-                size: 18,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.verified_rounded,
+                  color: Color(0xFF2E7D32),
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 8),
               const Text(
-                'WHO Z-Score',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                'Status Gizi (WHO Z-Score)',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF1A1A1A),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(
-                child: _ZScoreChip(
-                  title: 'BB/TB',
-                  subtitle: 'Wasting',
-                  label: s.labelBbTb,
-                  zScore: s.zScoreBbTb,
-                  warna: s.warnaBbTb,
-                ),
+              _buildZScoreChip(
+                title: 'BB/TB',
+                subtitle: 'Wasting',
+                label: s.labelBbTb,
+                zScore: s.zScoreBbTb,
+                warna: s.warnaBbTb,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ZScoreChip(
-                  title: 'TB/U',
-                  subtitle: 'Stunting',
-                  label: s.labelTbU,
-                  zScore: s.zScoreTbU,
-                  warna: s.warnaTbU,
-                ),
+              const SizedBox(width: 8),
+              _buildZScoreChip(
+                title: 'TB/U',
+                subtitle: 'Stunting',
+                label: s.labelTbU,
+                zScore: s.zScoreTbU,
+                warna: s.warnaTbU,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ZScoreChip(
-                  title: 'BB/U',
-                  subtitle: 'Underweight',
-                  label: s.labelBbU,
-                  zScore: s.zScoreBbU,
-                  warna: s.warnaBbU,
-                ),
+              const SizedBox(width: 8),
+              _buildZScoreChip(
+                title: 'BB/U',
+                subtitle: 'Underweight',
+                label: s.labelBbU,
+                zScore: s.zScoreBbU,
+                warna: s.warnaBbU,
               ),
             ],
           ),
@@ -1131,56 +1075,68 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  Widget _buildGrafikCard() {
-    return _card(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F0F3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                color: _pink,
-                borderRadius: BorderRadius.circular(7),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey[600],
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
+  Widget _buildZScoreChip({
+    required String title,
+    required String subtitle,
+    required String label,
+    required double zScore,
+    required Color warna,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: warna.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: warna.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
                 fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: warna,
               ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 11,
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 8, color: Colors.grey.shade500),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Z ${zScore > 0 ? '+' : ''}${zScore.toStringAsFixed(1)}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: warna,
               ),
-              tabs: const [
-                Tab(text: 'Berat'),
-                Tab(text: 'Tinggi'),
-                Tab(text: 'L. Kepala'),
-              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 200,
-            child: _GrafikPertumbuhan(
-              riwayat: _riwayat,
-              mode: _tabGrafik,
-              jk: _jkAnak,
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: warna,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  // ===== RIWAYAT CARD =====
   Widget _buildRiwayatCard() {
     return _card(
       padding: EdgeInsets.zero,
@@ -1189,22 +1145,49 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-            child: Text(
-              '${_riwayat.length} Catatan',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_riwayat.length} Catatan',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Terbaru',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: _primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           Container(
-            color: const Color(0xFFFAFAFA),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: Colors.grey.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                _thCell('Tanggal', flex: 3),
-                _thCell('Usia\n(bln)', flex: 2),
-                _thCell('BB\n(kg)', flex: 2),
-                _thCell('TB\n(cm)', flex: 2),
-                _thCell('LK\n(cm)', flex: 2),
+                _tableHeader('Tanggal', flex: 3),
+                _tableHeader('Usia', flex: 2),
+                _tableHeader('BB', flex: 2),
+                _tableHeader('TB', flex: 2),
+                _tableHeader('LK', flex: 2),
               ],
             ),
           ),
@@ -1222,29 +1205,28 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
           else
             ...List.generate(_riwayat.length, (i) {
               final item = _riwayat[i];
+              final isEven = i % 2 == 0;
               return Column(
                 children: [
-                  Padding(
+                  Container(
+                    color: isEven ? Colors.white : Colors.grey.shade50,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 11,
                     ),
                     child: Row(
                       children: [
-                        _tdCell(
+                        _tableCell(
                           '${item.tanggal.day}/${item.tanggal.month}/${item.tanggal.year}',
                           flex: 3,
                         ),
-                        _tdCell('${item.usiaBulan}', flex: 2),
-                        _tdCell(
-                          item.beratBadan.toStringAsFixed(1),
-                          flex: 2,
-                        ),
-                        _tdCell(
+                        _tableCell('${item.usiaBulan}', flex: 2),
+                        _tableCell(item.beratBadan.toStringAsFixed(1), flex: 2),
+                        _tableCell(
                           item.tinggiBadan.toStringAsFixed(1),
                           flex: 2,
                         ),
-                        _tdCell(
+                        _tableCell(
                           item.lingkarKepala != null
                               ? item.lingkarKepala!.toStringAsFixed(1)
                               : '-',
@@ -1269,25 +1251,29 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
     );
   }
 
-  Widget _thCell(String text, {required int flex}) => Expanded(
+  Widget _tableHeader(String text, {required int flex}) => Expanded(
     flex: flex,
     child: Text(
       text,
+      textAlign: TextAlign.center,
       style: const TextStyle(
         fontSize: 10,
         fontWeight: FontWeight.w700,
         color: Color(0xFF888888),
       ),
-      textAlign: TextAlign.center,
     ),
   );
 
-  Widget _tdCell(String text, {required int flex}) => Expanded(
+  Widget _tableCell(String text, {required int flex}) => Expanded(
     flex: flex,
     child: Text(
       text,
-      style: const TextStyle(fontSize: 12, color: Color(0xFF333333)),
       textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 12,
+        color: Color(0xFF333333),
+        fontWeight: FontWeight.w500,
+      ),
     ),
   );
 
@@ -1299,320 +1285,14 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: Colors.grey.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: Colors.grey.shade100, width: 0.5),
       ),
       child: child,
     );
   }
-}
-
-class _ZScoreChip extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String label;
-  final double zScore;
-  final Color warna;
-
-  const _ZScoreChip({
-    required this.title,
-    required this.subtitle,
-    required this.label,
-    required this.zScore,
-    required this.warna,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: warna.withOpacity(0.07),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: warna.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: warna,
-            ),
-          ),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 9, color: Colors.grey[500]),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Z ${zScore > 0 ? '+' : ''}${zScore.toStringAsFixed(1)}',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: warna,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: warna,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GrafikPertumbuhan extends StatelessWidget {
-  final List<DataPengukuran> riwayat;
-  final int mode;
-  final String jk;
-
-  const _GrafikPertumbuhan({
-    required this.riwayat,
-    required this.mode,
-    required this.jk,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (riwayat.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bar_chart_rounded, size: 40, color: Colors.grey[300]),
-            const SizedBox(height: 8),
-            const Text(
-              'Belum ada data',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
-            ),
-          ],
-        ),
-      );
-    }
-    return CustomPaint(
-      painter: _GrafikPainter(riwayat: riwayat, mode: mode, jk: jk),
-      child: const SizedBox.expand(),
-    );
-  }
-}
-
-class _GrafikPainter extends CustomPainter {
-  final List<DataPengukuran> riwayat;
-  final int mode;
-  final String jk;
-
-  _GrafikPainter({required this.riwayat, required this.mode, required this.jk});
-
-  List<double> get _median {
-    if (mode == 0) {
-      return jk == 'L'
-          ? [
-              3.3,
-              5.6,
-              7.0,
-              7.9,
-              8.6,
-              9.2,
-              9.6,
-              10.1,
-              10.5,
-              10.9,
-              11.3,
-              11.8,
-              12.2,
-            ]
-          : [
-              3.2,
-              5.1,
-              6.4,
-              7.3,
-              7.9,
-              8.5,
-              8.9,
-              9.4,
-              9.8,
-              10.2,
-              10.6,
-              11.1,
-              11.5,
-            ];
-    } else if (mode == 1) {
-      return jk == 'L'
-          ? [
-              49.9,
-              58.4,
-              63.9,
-              67.6,
-              70.6,
-              73.3,
-              75.7,
-              78.0,
-              80.2,
-              82.3,
-              84.2,
-              86.0,
-              88.0,
-            ]
-          : [
-              49.1,
-              57.1,
-              62.1,
-              65.7,
-              68.7,
-              71.5,
-              74.0,
-              76.4,
-              78.6,
-              80.7,
-              82.7,
-              84.6,
-              86.4,
-            ];
-    } else {
-      return [
-        34.5,
-        39.0,
-        41.0,
-        42.5,
-        43.5,
-        44.5,
-        45.0,
-        45.5,
-        46.0,
-        46.5,
-        47.0,
-        47.3,
-        47.5,
-      ];
-    }
-  }
-
-  double get _sd => mode == 0 ? 1.2 : (mode == 1 ? 2.5 : 1.0);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final median = _median;
-    final sd = _sd;
-    final vals = riwayat.map((r) {
-      if (mode == 0) return r.beratBadan;
-      if (mode == 1) return r.tinggiBadan;
-      return r.lingkarKepala ?? 0.0;
-    }).toList();
-
-    final allY = [
-      ...vals.where((v) => v > 0),
-      ...median.map((m) => m - 2.5 * sd),
-      ...median.map((m) => m + 2.5 * sd),
-    ];
-    final minY = allY.reduce(min) * 0.94;
-    final maxY = allY.reduce(max) * 1.06;
-    const pad = EdgeInsets.fromLTRB(36, 10, 12, 28);
-    final w = size.width - pad.left - pad.right;
-    final h = size.height - pad.top - pad.bottom;
-
-    double px(double x) => pad.left + x / 24.0 * w;
-    double py(double y) => pad.top + h - (y - minY) / (maxY - minY) * h;
-
-    final gridPaint = Paint()
-      ..color = const Color(0xFFF0F0F0)
-      ..strokeWidth = 1;
-    for (int i = 0; i <= 4; i++) {
-      final y = pad.top + h * i / 4;
-      canvas.drawLine(Offset(pad.left, y), Offset(pad.left + w, y), gridPaint);
-      final val = maxY - (maxY - minY) * i / 4;
-      final tp = TextPainter(
-        text: TextSpan(
-          text: val.toStringAsFixed(1),
-          style: const TextStyle(fontSize: 9, color: Color(0xFFAAAAAA)),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(0, y - 5));
-    }
-
-    final refXs = List.generate(13, (i) => (i * 2).toDouble());
-    final bandPath = Path();
-    bandPath.moveTo(px(refXs[0]), py(median[0] + 2 * sd));
-    for (int i = 1; i < 13; i++) {
-      bandPath.lineTo(px(refXs[i]), py(median[i] + 2 * sd));
-    }
-    for (int i = 12; i >= 0; i--) {
-      bandPath.lineTo(px(refXs[i]), py(median[i] - 2 * sd));
-    }
-    bandPath.close();
-    canvas.drawPath(
-      bandPath,
-      Paint()..color = const Color(0xFFE85D75).withOpacity(0.07),
-    );
-
-    final medPaint = Paint()
-      ..color = const Color(0xFFE85D75).withOpacity(0.5)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    final medPath = Path();
-    medPath.moveTo(px(refXs[0]), py(median[0]));
-    for (int i = 1; i < 13; i++) {
-      medPath.lineTo(px(refXs[i]), py(median[i]));
-    }
-    canvas.drawPath(medPath, medPaint);
-
-    final xs = riwayat.map((r) => r.usiaBulan.toDouble()).toList();
-    final ys = vals;
-    final validPoints = <Offset>[];
-    for (int i = 0; i < riwayat.length; i++) {
-      if (mode == 2 && riwayat[i].lingkarKepala == null) continue;
-      validPoints.add(Offset(px(xs[i]), py(ys[i])));
-    }
-
-    if (validPoints.length > 1) {
-      final linePath = Path()..moveTo(validPoints[0].dx, validPoints[0].dy);
-      for (int i = 1; i < validPoints.length; i++) {
-        linePath.lineTo(validPoints[i].dx, validPoints[i].dy);
-      }
-      canvas.drawPath(
-        linePath,
-        Paint()
-          ..color = const Color(0xFFE85D75)
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-
-    for (final pt in validPoints) {
-      canvas.drawCircle(pt, 5, Paint()..color = Colors.white);
-      canvas.drawCircle(
-        pt,
-        5,
-        Paint()
-          ..color = const Color(0xFFE85D75)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GrafikPainter old) =>
-      old.riwayat != riwayat || old.mode != mode || old.jk != jk;
 }
