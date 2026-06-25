@@ -19,6 +19,20 @@ class _BottomNavState extends State<BottomNav> {
   String _namaAnak = '';
   String _jenisKelamin = '';
 
+  // Warna-warna tampilan
+  static const Color _maroon = Color(0xFF76172D); // warna bubble aktif
+  static const Color _softPink = Color(0xFFE85D75); // background navbar
+  static const Color _inactiveColor = Color(
+    0xFF76172D,
+  ); // ikon & label nonaktif
+
+  final List<_NavItemData> _navItems = const [
+    _NavItemData(icon: Icons.home_rounded, label: "Beranda"),
+    _NavItemData(icon: Icons.show_chart_rounded, label: "Pertumbuhan"),
+    _NavItemData(icon: Icons.menu_book_rounded, label: "Edukasi"),
+    _NavItemData(icon: Icons.person_rounded, label: "Profil"),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -72,50 +86,94 @@ class _BottomNavState extends State<BottomNav> {
 
   @override
   Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: widget.currentIndex,
-      onTap: (index) => _navigate(context, index),
-      backgroundColor: const Color(0xFF76172D), // Warna bottom navbar
-      selectedItemColor: const Color(
-        0xFFFFFFFF,
-      ), // Ikon & teks putih saat aktif
-      unselectedItemColor: const Color(
-        0xFFFFFFFF,
-      ).withOpacity(0.7), // Ikon & teks putih transparan saat tidak aktif
-      type: BottomNavigationBarType.fixed,
-      elevation: 8,
-      iconSize: 22,
-      selectedLabelStyle: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
+    return Material(
+      color: _softPink, // Background card full-lebar, nempel kiri-kanan
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      clipBehavior: Clip.none, // Biar bubble boleh "keluar" dari card
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64, // Tinggi card TETAP, tidak ikut membesar
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: List.generate(_navItems.length, (index) {
+              final bool isActive = widget.currentIndex == index;
+              final item = _navItems[index];
+
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _navigate(context, index),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Transform.translate cuma geser tampilan,
+                      // TIDAK menambah tinggi layout -> card tetap fixed
+                      Transform.translate(
+                        offset: isActive ? const Offset(0, -22) : Offset.zero,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          width: isActive ? 46 : 24,
+                          height: isActive ? 46 : 24,
+                          decoration: BoxDecoration(
+                            color: isActive ? _maroon : Colors.transparent,
+                            shape: BoxShape.circle,
+                            boxShadow: isActive
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : [],
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            item.icon,
+                            size: 22,
+                            color: isActive ? Colors.white : _inactiveColor,
+                          ),
+                        ),
+                      ),
+                      // Geser label ikut naik sedikit biar pas
+                      // di bawah card seperti contoh gambar
+                      Transform.translate(
+                        offset: isActive ? const Offset(0, -10) : Offset.zero,
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 220),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isActive
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isActive ? _maroon : _inactiveColor,
+                          ),
+                          child: Text(
+                            item.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
       ),
-      unselectedLabelStyle: const TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w400,
-      ),
-      landscapeLayout: BottomNavigationBarLandscapeLayout.linear,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home_outlined, size: 22),
-          activeIcon: Icon(Icons.home, size: 22),
-          label: "Beranda",
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.show_chart_outlined, size: 22),
-          activeIcon: Icon(Icons.show_chart, size: 22),
-          label: "Pertumbuhan",
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.calendar_today_outlined, size: 22),
-          activeIcon: Icon(Icons.calendar_today, size: 22),
-          label: "Edukasi",
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline, size: 22),
-          activeIcon: Icon(Icons.person, size: 22),
-          label: "Profil",
-        ),
-      ],
     );
   }
+}
+
+class _NavItemData {
+  final IconData icon;
+  final String label;
+
+  const _NavItemData({required this.icon, required this.label});
 }

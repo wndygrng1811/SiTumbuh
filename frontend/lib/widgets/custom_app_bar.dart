@@ -67,21 +67,46 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    return AppBar(
-      title: const Text(
-        'SiTumbuh',
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
+    return Container(
+      decoration: BoxDecoration(
+        // Warna background TIDAK diubah, tetap dari parameter / default-nya
+        color: widget.backgroundColor ?? const Color(0xFFE85D75),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      centerTitle: true,
-      backgroundColor: widget.backgroundColor ?? const Color(0xFFE85D75),
-      elevation: 0,
-      leading: _buildLeading(context),
-      actions: _buildActions(context),
-      automaticallyImplyLeading: false,
+      child: AppBar(
+        title: const Text(
+          'SiTumbuh',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            letterSpacing: 0.4,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+        ),
+        leading: _buildLeading(context),
+        actions: _buildActions(context),
+        automaticallyImplyLeading: false,
+      ),
     );
   }
 
@@ -89,12 +114,14 @@ class _CustomAppBarState extends State<CustomAppBar> {
     if (widget.showBackButton) {
       return IconButton(
         icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+        splashRadius: 22,
         onPressed: () => Navigator.pop(context),
       );
     } else if (widget.showDrawerIcon) {
       return Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white, size: 24),
+          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+          splashRadius: 22,
           onPressed: () {
             Scaffold.of(context).openDrawer();
           },
@@ -108,13 +135,15 @@ class _CustomAppBarState extends State<CustomAppBar> {
     if (widget.showNotificationIcon) {
       return [
         Stack(
+          clipBehavior: Clip.none,
           children: [
             IconButton(
               icon: const Icon(
-                Icons.notifications_none,
+                Icons.notifications_none_rounded,
                 color: Colors.white,
                 size: 24,
               ),
+              splashRadius: 22,
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -129,13 +158,20 @@ class _CustomAppBarState extends State<CustomAppBar> {
             ),
             if (_unreadCount > 0)
               Positioned(
-                right: 8,
-                top: 8,
+                right: 6,
+                top: 6,
                 child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.9),
+                      width: 1.2,
+                    ),
                   ),
                   constraints: const BoxConstraints(
                     minWidth: 16,
@@ -147,6 +183,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      height: 1.1,
                     ),
                     textAlign: TextAlign.center,
                   ),
