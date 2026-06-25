@@ -30,9 +30,7 @@ class _ProfilState extends State<Profil> {
   }
 
   Future<void> loadProfil() async {
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -42,7 +40,6 @@ class _ProfilState extends State<Profil> {
         throw Exception('User ID tidak ditemukan');
       }
 
-      print('📡 Memuat profil untuk user_id: $userId');
       final response = await ApiService.get('/kader/profil/$userId');
 
       if (response.statusCode == 200) {
@@ -58,34 +55,17 @@ class _ProfilState extends State<Profil> {
             isLoading = false;
           });
         } else {
-          setState(() {
-            isLoading = false;
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result['message'] ?? 'Gagal load profil'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+          setState(() => isLoading = false);
+          _showSnackbar(result['message'] ?? 'Gagal load profil', Colors.red);
         }
       } else {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
         throw Exception('Gagal terhubung ke server (${response.statusCode})');
       }
     } catch (e) {
       print('❌ Error load profil: $e');
-      setState(() {
-        isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      setState(() => isLoading = false);
+      _showSnackbar('Error: $e', Colors.red);
     }
   }
 
@@ -95,9 +75,7 @@ class _ProfilState extends State<Profil> {
     required String newTelp,
     required String newAlamat,
   }) async {
-    setState(() {
-      isSaving = true;
-    });
+    setState(() => isSaving = true);
 
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -126,14 +104,7 @@ class _ProfilState extends State<Profil> {
             alamat = data['alamat'] ?? newAlamat;
             isSaving = false;
           });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Profil berhasil diupdate"),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          _showSnackbar('Profil berhasil diupdate', Colors.green);
         } else {
           throw Exception(result['message'] ?? 'Gagal update profil');
         }
@@ -142,14 +113,21 @@ class _ProfilState extends State<Profil> {
       }
     } catch (e) {
       print('❌ Error update profil: $e');
-      setState(() {
-        isSaving = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
+      setState(() => isSaving = false);
+      _showSnackbar('Error: $e', Colors.red);
+    }
+  }
+
+  void _showSnackbar(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 
@@ -157,8 +135,7 @@ class _ProfilState extends State<Profil> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const SidebarKader(),
-      backgroundColor: const Color(0xFFF6F7FB),
-      // ========== APP BAR YANG DIPERBAIKI ==========
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFE85D75),
         iconColor: Colors.white,
@@ -167,136 +144,46 @@ class _ProfilState extends State<Profil> {
         showNotificationIcon: true,
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFE85D75)),
+            )
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 children: [
-                  // HEADER PROFIL
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFE85D75), Color(0xFFF06292)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
-                          ),
-                          child: const CircleAvatar(
-                            radius: 45,
-                            backgroundColor: Colors.white,
-                            child: Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Color(0xFFE85D75),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        Text(
-                          nama.isEmpty ? "Kader" : nama,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            email.isEmpty ? "email@example.com" : email,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // ===== HEADER PROFIL =====
+                  _buildProfileHeader(),
                   const SizedBox(height: 24),
 
-                  // INFO CARD
+                  // ===== INFO PROFIL =====
+                  _buildSectionLabel('Informasi Profil'),
+                  const SizedBox(height: 12),
                   _buildInfoCard(
-                    Icons.person,
-                    "Nama",
-                    nama.isEmpty ? "-" : nama,
+                    Icons.person_outline_rounded,
+                    'Nama',
+                    nama.isEmpty ? '-' : nama,
                   ),
                   _buildInfoCard(
-                    Icons.email,
-                    "Email",
-                    email.isEmpty ? "-" : email,
+                    Icons.email_outlined,
+                    'Email',
+                    email.isEmpty ? '-' : email,
                   ),
                   _buildInfoCard(
-                    Icons.phone,
-                    "No Telepon",
-                    telp.isEmpty ? "-" : telp,
+                    Icons.phone_outlined,
+                    'No Telepon',
+                    telp.isEmpty ? '-' : telp,
                   ),
                   _buildInfoCard(
-                    Icons.location_on,
-                    "Alamat",
-                    alamat.isEmpty ? "-" : alamat,
+                    Icons.location_on_outlined,
+                    'Alamat',
+                    alamat.isEmpty ? '-' : alamat,
                   ),
 
                   const SizedBox(height: 24),
 
-                  // BUTTON EDIT
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isSaving
-                          ? null
-                          : () => showEditDialog(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFE85D75),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: isSaving
-                          ? const SizedBox(
-                              height: 22,
-                              width: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              "Edit Profil",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
+                  // ===== TOMBOL EDIT =====
+                  _buildEditButton(),
                 ],
               ),
             ),
@@ -304,32 +191,160 @@ class _ProfilState extends State<Profil> {
     );
   }
 
-  // INFO CARD
-  Widget _buildInfoCard(IconData icon, String title, String value) {
+  // ===== HEADER PROFIL =====
+  Widget _buildProfileHeader() {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE85D75), Color(0xFFD44B66)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFFE85D75).withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
-        border: Border.all(color: Colors.grey.shade100, width: 1),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 3),
+            ),
+            child: CircleAvatar(
+              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              child: Text(
+                nama.isNotEmpty ? nama[0].toUpperCase() : 'K',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nama.isEmpty ? 'Kader' : nama,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.verified_rounded,
+                      color: Colors.white.withValues(alpha: 0.7),
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Kader Aktif',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.email_outlined,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      size: 12,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        email.isEmpty ? 'email@example.com' : email,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 11,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== SECTION LABEL =====
+  Widget _buildSectionLabel(String label) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE85D75),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF1A1A1A),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===== INFO CARD =====
+  Widget _buildInfoCard(IconData icon, String title, String value) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100, width: 0.5),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFE85D75).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFE85D75).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFFE85D75), size: 22),
+            child: Icon(icon, color: const Color(0xFFE85D75), size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -344,13 +359,13 @@ class _ProfilState extends State<Profil> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
-                    color: Color(0xFF2D2D2D),
+                    color: Color(0xFF1A1A1A),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -358,101 +373,339 @@ class _ProfilState extends State<Profil> {
               ],
             ),
           ),
+          Icon(
+            Icons.edit_outlined,
+            color: Colors.grey.shade300,
+            size: 16,
+          ),
         ],
       ),
     );
   }
 
-  // POPUP EDIT PROFIL
-  void showEditDialog(BuildContext context) {
+  // ===== TOMBOL EDIT =====
+  Widget _buildEditButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: isSaving ? null : () => _showEditDialog(context),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE85D75),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          elevation: 0,
+        ),
+        icon: isSaving
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.edit_rounded, size: 20),
+        label: isSaving
+            ? const Text('Menyimpan...')
+            : const Text(
+                'Edit Profil',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+
+  // ===== POPUP EDIT PROFIL YANG DIPERCANTIK =====
+  void _showEditDialog(BuildContext context) {
     final namaC = TextEditingController(text: nama);
     final emailC = TextEditingController(text: email);
     final telpC = TextEditingController(text: telp);
     final alamatC = TextEditingController(text: alamat);
 
+    final formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          "Edit Profil",
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 30,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildInputField(namaC, "Nama", Icons.person),
-              const SizedBox(height: 12),
-              _buildInputField(emailC, "Email", Icons.email),
-              const SizedBox(height: 12),
-              _buildInputField(telpC, "No Telepon", Icons.phone),
-              const SizedBox(height: 12),
-              _buildInputField(alamatC, "Alamat", Icons.location_on),
+              // ===== HEADER DIALOG =====
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFE85D75), Color(0xFFD44B66)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.edit_rounded,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Edit Profil',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Perbarui data diri Anda',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ===== BODY DIALOG =====
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                child: SingleChildScrollView(
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildDialogField(
+                          controller: namaC,
+                          label: 'Nama Lengkap',
+                          hint: 'Masukkan nama lengkap',
+                          icon: Icons.person_outline_rounded,
+                          validator: (v) =>
+                              v?.isEmpty ?? true ? 'Nama harus diisi' : null,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildDialogField(
+                          controller: emailC,
+                          label: 'Email',
+                          hint: 'Masukkan email',
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) {
+                            if (v?.isEmpty ?? true) return 'Email harus diisi';
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                .hasMatch(v!)) {
+                              return 'Format email tidak valid';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _buildDialogField(
+                          controller: telpC,
+                          label: 'No Telepon',
+                          hint: 'Masukkan no telepon',
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                          validator: (v) {
+                            if (v?.isEmpty ?? true) return 'No telepon harus diisi';
+                            if (v!.length < 10) return 'Minimal 10 digit';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 14),
+                        _buildDialogField(
+                          controller: alamatC,
+                          label: 'Alamat',
+                          hint: 'Masukkan alamat',
+                          icon: Icons.location_on_outlined,
+                          maxLines: 2,
+                          validator: (v) =>
+                              v?.isEmpty ?? true ? 'Alamat harus diisi' : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // ===== FOOTER DIALOG =====
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(24),
+                    bottomRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey.shade600,
+                          side: BorderSide(color: Colors.grey.shade300),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Batal'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE85D75),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        onPressed: () {
+                          if (formKey.currentState!.validate()) {
+                            Navigator.pop(context);
+                            updateProfil(
+                              newNama: namaC.text,
+                              newEmail: emailC.text,
+                              newTelp: telpC.text,
+                              newAlamat: alamatC.text,
+                            );
+                          }
+                        },
+                        child: const Text(
+                          'Simpan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey.shade600),
-            child: const Text("Batal"),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE85D75),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              updateProfil(
-                newNama: namaC.text,
-                newEmail: emailC.text,
-                newTelp: telpC.text,
-                newAlamat: alamatC.text,
-              );
-            },
-            child: const Text("Simpan"),
-          ),
-        ],
       ),
     );
   }
 
-  // INPUT FIELD UNTUK DIALOG
-  Widget _buildInputField(
-    TextEditingController controller,
-    String label,
-    IconData icon,
-  ) {
-    return TextField(
+  // ===== INPUT FIELD DIALOG =====
+  Widget _buildDialogField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType? keyboardType,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
       controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFFE85D75), size: 20),
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+        labelStyle: const TextStyle(
+          color: Color(0xFF555555),
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Container(
+          width: 20,
+          margin: const EdgeInsets.only(right: 4),
+          child: Icon(icon, color: const Color(0xFFE85D75), size: 20),
+        ),
         filled: true,
         fillColor: Colors.grey.shade50,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFE85D75), width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.red, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
       ),
+      validator: validator,
     );
   }
 }
