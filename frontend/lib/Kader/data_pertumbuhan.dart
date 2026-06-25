@@ -1237,16 +1237,16 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage>
                         ),
                         _tdCell('${item.usiaBulan}', flex: 2),
                         _tdCell(
-                          '${item.beratBadan.toStringAsFixed(1)}',
+                          item.beratBadan.toStringAsFixed(1),
                           flex: 2,
                         ),
                         _tdCell(
-                          '${item.tinggiBadan.toStringAsFixed(1)}',
+                          item.tinggiBadan.toStringAsFixed(1),
                           flex: 2,
                         ),
                         _tdCell(
                           item.lingkarKepala != null
-                              ? '${item.lingkarKepala!.toStringAsFixed(1)}'
+                              ? item.lingkarKepala!.toStringAsFixed(1)
                               : '-',
                           flex: 2,
                         ),

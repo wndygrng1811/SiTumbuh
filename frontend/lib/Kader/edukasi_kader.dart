@@ -101,7 +101,7 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
     with SingleTickerProviderStateMixin {
   List<KategoriModel> _kategoriList = [];
   List<EdukasiModel> _edukasiList = [];
-  Map<String, String> _imageCache = {};
+  final Map<String, String> _imageCache = {};
   String _filterKategoriId = 'semua';
   String _searchQuery = '';
   bool _isLoading = true;

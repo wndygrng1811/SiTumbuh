@@ -597,12 +597,15 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return '$label harus diisi';
-        if (label == 'Email' && !value.contains('@'))
+        if (label == 'Email' && !value.contains('@')) {
           return 'Email tidak valid';
-        if (label == 'No Telepon' && value.length < 10)
+        }
+        if (label == 'No Telepon' && value.length < 10) {
           return 'Nomor telepon minimal 10 digit';
-        if (label == 'Password' && value.length < 6)
+        }
+        if (label == 'Password' && value.length < 6) {
           return 'Password minimal 6 karakter';
+        }
         return null;
       },
     );

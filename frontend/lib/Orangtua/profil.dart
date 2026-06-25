@@ -318,8 +318,9 @@ class _ProfilePageState extends State<ProfilePage> {
   void _updateProfileFromLengkap(Map<String, dynamic> dataBaru) {
     if (mounted) {
       setState(() {
-        if (dataBaru.containsKey('nama_lengkap'))
+        if (dataBaru.containsKey('nama_lengkap')) {
           namaOrangTua = dataBaru['nama_lengkap'];
+        }
         if (dataBaru.containsKey('email')) email = dataBaru['email'];
         if (dataBaru.containsKey('no_hp')) noHp = dataBaru['no_hp'];
         if (dataBaru.containsKey('alamat')) alamat = dataBaru['alamat'];

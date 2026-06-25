@@ -702,7 +702,7 @@ class _TambahEdukasiPageState extends State<TambahEdukasiPage>
     }
 
     return DropdownButtonFormField<String>(
-      value: _selectedKategoriId,
+      initialValue: _selectedKategoriId,
       validator: (v) => v == null ? 'Pilih kategori' : null,
       onChanged: (v) => setState(() => _selectedKategoriId = v),
       decoration: InputDecoration(
