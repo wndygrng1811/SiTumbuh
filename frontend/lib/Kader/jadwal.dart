@@ -17,7 +17,10 @@ import '../services/api_service.dart';
 import '../widgets/custom_app_bar.dart';
 
 class Jadwal extends StatefulWidget {
-  const Jadwal({super.key});
+  final bool fromNotification;
+  final int? notificationId;
+
+  const Jadwal({super.key, this.fromNotification = false, this.notificationId});
 
   @override
   State<Jadwal> createState() => _JadwalState();
@@ -33,6 +36,17 @@ class _JadwalState extends State<Jadwal> {
   void initState() {
     super.initState();
     _loadJadwal();
+
+    if (widget.fromNotification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi jadwal diterima'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadJadwal() async {
@@ -534,12 +548,11 @@ class _JadwalState extends State<Jadwal> {
       ),
       body: Column(
         children: [
-          // ========== HEADER DENGAN WARNA SAMA KAYAK APP BAR ==========
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             decoration: const BoxDecoration(
-              color: Color(0xFFE85D75), // SAMA KAYAK APP BAR
+              color: Color(0xFFE85D75),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(16),
                 bottomRight: Radius.circular(16),
@@ -551,18 +564,15 @@ class _JadwalState extends State<Jadwal> {
                 const Text(
                   "Jadwal Posyandu",
                   style: TextStyle(
-                    color: Colors.white, // TEKS PUTIH
+                    color: Colors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  "Kader dapat membuat dan membagikan jadwal posyandu\nmenggunakan poster melalui WhatsApp",
-                  style: TextStyle(
-                    color: Colors.white70, // TEKS PUTIH 70%
-                    fontSize: 12,
-                  ),
+                  "Kader dapat membuat dan membagikan jadwal posyandu menggunakan poster melalui WhatsApp",
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),

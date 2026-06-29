@@ -37,6 +37,8 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage> {
         forceHD: true,
         disableDragSeek: false,
         enableCaption: false,
+        hideControls: false,
+        startAt: 0,
       ),
     );
   }
@@ -49,9 +51,12 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage> {
       videoId = url.split('youtu.be/')[1].split('?')[0];
     } else if (url.contains('embed/')) {
       videoId = url.split('embed/')[1].split('?')[0];
+    } else if (url.contains('shorts/')) {
+      videoId = url.split('shorts/')[1].split('?')[0];
     } else {
       videoId = url;
     }
+    videoId = videoId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
     return videoId;
   }
 
@@ -68,31 +73,26 @@ class _YoutubePlayerPageState extends State<YoutubePlayerPage> {
       appBar: AppBar(
         title: Text(
           widget.title,
-          style: const TextStyle(fontSize: 16),
+          style: const TextStyle(fontSize: 16, color: Colors.white),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: YoutubePlayerBuilder(
-        player: YoutubePlayer(
+      body: Center(
+        child: YoutubePlayer(
           controller: _controller,
           showVideoProgressIndicator: true,
           progressIndicatorColor: Colors.red,
+          aspectRatio: 16 / 9,
         ),
-        builder: (context, player) {
-          return Column(
-            children: [
-              player, // Video akan otomatis full width
-            ],
-          );
-        },
       ),
     );
   }

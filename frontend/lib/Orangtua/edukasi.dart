@@ -7,9 +7,19 @@ import 'package:si_tumbuh/widgets/sidebar_menu.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:si_tumbuh/services/api_service.dart';
+import '../widgets/youtube_player_page.dart';
 
 class EdukasiPage extends StatefulWidget {
-  const EdukasiPage({super.key});
+  final String? edukasiId;
+  final bool fromNotification;
+  final int? notificationId;
+
+  const EdukasiPage({
+    super.key,
+    this.edukasiId,
+    this.fromNotification = false,
+    this.notificationId,
+  });
 
   @override
   State<EdukasiPage> createState() => _EdukasiPageState();
@@ -26,6 +36,8 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   List<Map<String, dynamic>> _artikelList = [];
   bool _isLoading = true;
+  int _highlightedIndex = -1;
+  final ScrollController _scrollController = ScrollController();
 
   final Map<int, String> _kategoriMapping = {
     1: 'Stunting',
@@ -39,6 +51,17 @@ class _EdukasiPageState extends State<EdukasiPage> {
   void initState() {
     super.initState();
     _loadData();
+
+    if (widget.fromNotification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi edukasi diterima'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -70,7 +93,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
     await _fetchDataFromApi();
   }
 
-  // Ekstrak gambar dari URL
   Future<String?> _extractImageFromUrl(String articleUrl) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -137,9 +159,8 @@ class _EdukasiPageState extends State<EdukasiPage> {
         List<Map<String, dynamic>> artikelBaru = [];
 
         for (var item in data) {
-          // 🔥 HANYA TAMPILKAN YANG STATUS = DIPUBLIKASIKAN
           if (item['status'] != 'Dipublikasikan') {
-            continue; // Skip yang draft
+            continue;
           }
 
           int kategoriId = item['kategori_id'] ?? 1;
@@ -149,12 +170,10 @@ class _EdukasiPageState extends State<EdukasiPage> {
           String imageUrl = item['image'] ?? '';
           String jenisKonten = item['jenis_konten'] ?? 'artikel';
 
-          // Tentukan jenis konten
           if (youtubeUrl.isNotEmpty) {
             jenisKonten = 'video';
           }
 
-          // Cek cache gambar
           SharedPreferences prefs = await SharedPreferences.getInstance();
           String cacheKey = 'img_${isi.hashCode}';
           String? cachedImage = prefs.getString(cacheKey);
@@ -181,8 +200,13 @@ class _EdukasiPageState extends State<EdukasiPage> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('edukasi_cache_ortu', json.encode(artikelBaru));
 
-        // Ambil gambar di background
         _fetchAllImagesInBackground(data);
+
+        if (widget.fromNotification &&
+            widget.edukasiId != null &&
+            widget.edukasiId!.isNotEmpty) {
+          _scrollToEdukasi(widget.edukasiId!);
+        }
       } else if (mounted && _artikelList.isEmpty) {
         setState(() {
           _isLoading = false;
@@ -195,6 +219,25 @@ class _EdukasiPageState extends State<EdukasiPage> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  void _scrollToEdukasi(String id) {
+    final index = _artikelList.indexWhere((item) {
+      return item['edukasi_id']?.toString() == id;
+    });
+
+    if (index != -1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollController.animateTo(
+          (index / 2).floor() * 200.0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+        setState(() {
+          _highlightedIndex = index;
+        });
+      });
     }
   }
 
@@ -284,30 +327,82 @@ class _EdukasiPageState extends State<EdukasiPage> {
     }
   }
 
+  bool _isYoutubeUrl(String text) {
+    final youtubePatterns = [
+      r'youtube\.com/watch\?v=',
+      r'youtu\.be/',
+      r'youtube\.com/embed/',
+      r'youtube\.com/shorts/',
+    ];
+    for (var pattern in youtubePatterns) {
+      if (RegExp(pattern).hasMatch(text)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _extractYoutubeUrl(String text) {
+    final patterns = [
+      r'https?://(?:www\.)?youtube\.com/watch\?v=[^\s&]+',
+      r'https?://(?:www\.)?youtu\.be/[^\s?]+',
+      r'https?://(?:www\.)?youtube\.com/embed/[^\s?]+',
+      r'https?://(?:www\.)?youtube\.com/shorts/[^\s?]+',
+    ];
+
+    for (var pattern in patterns) {
+      final match = RegExp(pattern).firstMatch(text);
+      if (match != null) {
+        return match.group(0) ?? '';
+      }
+    }
+    return '';
+  }
+
   void _openContent(Map<String, dynamic> data) {
     if (data['jenis_konten'] == 'video' && data['youtube_url'].isNotEmpty) {
+      // PAKAI YOUTUBE PLAYER (tanpa komentar)
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => WebViewArtikelPage(
+          builder: (context) => YoutubePlayerPage(
             title: data['judul'],
-            url: data['youtube_url'],
-            isVideo: true,
+            videoUrl: data['youtube_url'],
           ),
         ),
       );
     } else if (data['isi'].isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => WebViewArtikelPage(
-            title: data['judul'],
-            url: data['isi'],
-            isVideo: false,
+      final isi = data['isi'] ?? '';
+      // CEK APAKAH ISI ADALAH LINK YOUTUBE
+      if (_isYoutubeUrl(isi)) {
+        final youtubeUrl = _extractYoutubeUrl(isi);
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                YoutubePlayerPage(title: data['judul'], videoUrl: youtubeUrl),
           ),
-        ),
-      );
+        );
+      } else {
+        // SELAIN ITU PAKAI WEBVIEW
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WebViewArtikelPage(
+              title: data['judul'],
+              url: isi,
+              isVideo: false,
+            ),
+          ),
+        );
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -438,6 +533,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   Widget _buildArtikelGrid() {
     return GridView.builder(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -447,9 +543,13 @@ class _EdukasiPageState extends State<EdukasiPage> {
       ),
       itemCount: _filteredArtikel.length,
       itemBuilder: (context, index) {
+        final data = _filteredArtikel[index];
+        final isHighlighted = _highlightedIndex == index;
+
         return EduCard(
-          data: _filteredArtikel[index],
-          onTap: () => _openContent(_filteredArtikel[index]),
+          data: data,
+          isHighlighted: isHighlighted,
+          onTap: () => _openContent(data),
         );
       },
     );
@@ -458,9 +558,15 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
 class EduCard extends StatelessWidget {
   final Map<String, dynamic> data;
+  final bool isHighlighted;
   final VoidCallback onTap;
 
-  const EduCard({super.key, required this.data, required this.onTap});
+  const EduCard({
+    super.key,
+    required this.data,
+    required this.onTap,
+    this.isHighlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -474,6 +580,9 @@ class EduCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
+          border: isHighlighted
+              ? Border.all(color: const Color(0xFFE85D75), width: 3)
+              : null,
           boxShadow: const [
             BoxShadow(
               color: Colors.black12,
@@ -544,6 +653,23 @@ class EduCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (isHighlighted)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE85D75),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
               ],
             ),
             Padding(
@@ -575,10 +701,15 @@ class EduCard extends StatelessWidget {
                     data['judul'],
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      fontWeight: isHighlighted
+                          ? FontWeight.bold
+                          : FontWeight.w600,
                       fontSize: 10,
                       height: 1.2,
+                      color: isHighlighted
+                          ? const Color(0xFFE85D75)
+                          : Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -636,6 +767,7 @@ class EduCard extends StatelessWidget {
   }
 }
 
+// ==================== WEBVIEW UNTUK ARTIKEL ====================
 class WebViewArtikelPage extends StatefulWidget {
   final String title;
   final String url;

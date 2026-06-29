@@ -5,17 +5,23 @@ import '../services/api_service.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
 import '../widgets/custom_app_bar.dart';
-import '../Kader/jadwal.dart';
+import 'jadwal.dart';
 
 class HalamanUtamaKader extends StatefulWidget {
-  const HalamanUtamaKader({super.key});
+  final bool fromNotification;
+  final int? notificationId;
+
+  const HalamanUtamaKader({
+    super.key,
+    this.fromNotification = false,
+    this.notificationId,
+  });
 
   @override
   State<HalamanUtamaKader> createState() => _HalamanUtamaKaderState();
 }
 
 class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
-  // Data dari database
   int _jumlahAnak = 0;
   int _jumlahOrangTua = 0;
   int _jumlahPemantauan = 0;
@@ -32,6 +38,17 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
   void initState() {
     super.initState();
     _loadUserId();
+
+    if (widget.fromNotification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi kader diterima'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadUserId() async {
@@ -74,7 +91,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         }
       }
     } catch (e) {
-      print("❌ Error load nama kader: $e");
+      print("Error load nama kader: $e");
     }
   }
 
@@ -93,7 +110,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         }
       }
     } catch (e) {
-      print("❌ Error load statistik: $e");
+      print("Error load statistik: $e");
     }
   }
 
@@ -114,7 +131,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         }
       }
     } catch (e) {
-      print("❌ Error load jadwal: $e");
+      print("Error load jadwal: $e");
     }
   }
 
@@ -152,13 +169,10 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ===== RINGKASAN PEMANTAUAN =====
                     _buildSectionLabel("Ringkasan Pemantauan"),
                     const SizedBox(height: 12),
                     _buildRingkasanCard(),
                     const SizedBox(height: 24),
-
-                    // ===== JADWAL =====
                     _buildSectionLabel("Jadwal Terdekat"),
                     const SizedBox(height: 12),
                     _buildJadwalCard(),
@@ -169,7 +183,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     );
   }
 
-  // ===== SECTION LABEL =====
   Widget _buildSectionLabel(String label) {
     return Row(
       children: [
@@ -195,7 +208,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     );
   }
 
-  // ===== RINGKASAN PEMANTAUAN (PUTIH) =====
   Widget _buildRingkasanCard() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -213,11 +225,8 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
       child: Column(
         children: [
           const SizedBox(height: 16),
-
-          // Statistik - 2 kolom
           Row(
             children: [
-              // Kolom Kiri: Total Pemantauan
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -258,8 +267,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 ),
               ),
               const SizedBox(width: 12),
-
-              // Kolom Kanan: Anak Terdaftar
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -302,8 +309,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
             ],
           ),
           const SizedBox(height: 12),
-
-          // Baris kedua: Kehadiran (full width)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -372,7 +377,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     );
   }
 
-  // ===== JADWAL CARD =====
   Widget _buildJadwalCard() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -389,7 +393,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
       ),
       child: Column(
         children: [
-          // Body Jadwal
           _buildJadwalRow(
             icon: Icons.access_time_rounded,
             label: "Waktu",
@@ -414,8 +417,6 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
             value: _jadwalKegiatan,
           ),
           const SizedBox(height: 16),
-
-          // Tombol Lihat Detail
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(

@@ -42,15 +42,18 @@ class _CustomAppBarState extends State<CustomAppBar> {
     setState(() {
       _userRole = role;
     });
-
-    // Load notifikasi untuk semua role (tapi kader akan dapat 0)
     _loadUnreadCount();
   }
 
   Future<void> _loadUnreadCount() async {
     try {
-      final data = await ApiService.getNotifikasi();
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id') ?? 1;
+      final role = prefs.getString('role') ?? '';
+
+      final data = await ApiService.getNotifikasi(userId: userId, role: role);
       final count = data.where((n) => n['is_read'] == 0).length;
+
       if (mounted) {
         setState(() {
           _unreadCount = count;
@@ -69,7 +72,6 @@ class _CustomAppBarState extends State<CustomAppBar> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        // Warna background TIDAK diubah, tetap dari parameter / default-nya
         color: widget.backgroundColor ?? const Color(0xFFE85D75),
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(20),
@@ -148,7 +150,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const NotifikasiPage(),
+                    builder: (context) => NotifikasiPage(role: _userRole),
                   ),
                 );
                 if (result == true) {

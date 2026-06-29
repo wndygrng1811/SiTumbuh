@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://10.103.31.155:8000/api';
+  static const String baseUrl = 'http://192.168.100.29:8000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -113,9 +113,36 @@ class ApiService {
       print('Login response status: ${response.statusCode}');
       print('Login response body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+      final Map<String, dynamic> data = json.decode(response.body);
 
+      if (response.statusCode == 401) {
+        return {
+          'success': false,
+          'message': data['message'] ?? 'Email atau password salah',
+        };
+      }
+
+      if (response.statusCode == 422) {
+        String errorMessage = 'Email atau password salah';
+        if (data['errors'] != null) {
+          final errors = data['errors'] as Map<String, dynamic>;
+          if (errors.isNotEmpty) {
+            errorMessage = errors.values.first.first;
+          }
+        } else if (data['message'] != null) {
+          errorMessage = data['message'];
+        }
+        return {'success': false, 'message': errorMessage};
+      }
+
+      if (response.statusCode == 500) {
+        return {
+          'success': false,
+          'message': 'Terjadi kesalahan pada server. Silakan coba lagi nanti.',
+        };
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         if (data['success'] == true) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('token', data['token'] ?? '');
@@ -128,27 +155,52 @@ class ApiService {
           await prefs.setString('jenis_kelamin', data['jenis_kelamin'] ?? '');
 
           print('Login berhasil. Role: ${data['role']}');
-          return {'success': true, 'role': data['role'] ?? ''};
+          return {
+            'success': true,
+            'role': data['role'] ?? '',
+            'message': data['message'] ?? 'Login berhasil',
+          };
         } else {
-          print('Login gagal: ${data['message']}');
           return {
             'success': false,
-            'message': data['message'] ?? 'Login gagal',
+            'message': data['message'] ?? 'Email atau password salah',
           };
         }
-      } else {
-        print('HTTP Error: ${response.statusCode}');
-        return {
-          'success': false,
-          'message': 'Server error: ${response.statusCode}',
-        };
       }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Login gagal. Silakan coba lagi.',
+      };
     } catch (e) {
       print('Login error: $e');
       return {
         'success': false,
-        'message': 'Tidak dapat terhubung ke server: $e',
+        'message': 'Koneksi gagal. Periksa koneksi internet Anda.',
       };
+    }
+  }
+
+  // ============ LOGOUT ============
+  static Future<void> logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token != null) {
+        await http.post(
+          Uri.parse('$baseUrl/logout'),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        );
+      }
+    } catch (e) {
+      print('Logout error: $e');
+    } finally {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
     }
   }
 
@@ -403,11 +455,21 @@ class ApiService {
   }
 
   // ============ NOTIFIKASI ============
-  static Future<List<dynamic>> getNotifikasi() async {
+  static Future<List<dynamic>> getNotifikasi({
+    int? userId,
+    String? role,
+  }) async {
     try {
-      final response = await get('/notifikasi?user_id=1');
-      print('📡 Notifikasi response status: ${response.statusCode}');
-      print('📡 Notifikasi response body: ${response.body}');
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = userId ?? prefs.getInt('user_id') ?? 1;
+      final currentRole = role ?? prefs.getString('role') ?? '';
+
+      final response = await get(
+        '/notifikasi?user_id=$currentUserId&role=$currentRole',
+      );
+
+      print('Notifikasi response status: ${response.statusCode}');
+      print('Notifikasi response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -422,9 +484,15 @@ class ApiService {
     }
   }
 
-  static Future<bool> markNotifikasiAsRead(int id) async {
+  static Future<bool> markNotifikasiAsRead(int id, {int? userId}) async {
     try {
-      final response = await put('/notifikasi/$id/read', {});
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = userId ?? prefs.getInt('user_id') ?? 1;
+
+      final response = await put(
+        '/notifikasi/$id/read?user_id=$currentUserId',
+        {},
+      );
       return response.statusCode == 200;
     } catch (e) {
       print('Error mark notifikasi: $e');
@@ -432,9 +500,16 @@ class ApiService {
     }
   }
 
-  static Future<bool> markAllNotifikasiAsRead() async {
+  static Future<bool> markAllNotifikasiAsRead({int? userId}) async {
     try {
-      final response = await put('/notifikasi/read-all', {});
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = userId ?? prefs.getInt('user_id') ?? 1;
+      final currentRole = prefs.getString('role') ?? '';
+
+      final response = await put(
+        '/notifikasi/read-all?user_id=$currentUserId&role=$currentRole',
+        {},
+      );
       return response.statusCode == 200;
     } catch (e) {
       print('Error mark all notifikasi: $e');

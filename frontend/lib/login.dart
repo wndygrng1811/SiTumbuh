@@ -14,6 +14,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool isHidden = true;
+  bool isLoading = false;
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
@@ -25,29 +26,39 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _clearSession() async {
-    // Hapus semua data session saat halaman login dimuat
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 
   Future<void> handleLoginFixed() async {
+    if (isLoading) return;
+
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email dan password harus diisi')),
-      );
+    if (email.isEmpty) {
+      _showSnackbar('Email tidak boleh kosong', Colors.red);
       return;
     }
 
-    print('Mencoba login dengan: $email / $password');
+    if (password.isEmpty) {
+      _showSnackbar('Password tidak boleh kosong', Colors.red);
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
 
     final result = await ApiService.login(email, password);
 
-    print('Hasil login: $result');
+    setState(() {
+      isLoading = false;
+    });
 
     if (result['success'] == true) {
+      _showSnackbar('Login berhasil!', Colors.green);
+
       if (result['role'] == 'orang_tua') {
         Navigator.pushReplacement(
           context,
@@ -58,12 +69,35 @@ class _LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(builder: (_) => const HalamanUtamaKader()),
         );
+      } else {
+        _showSnackbar('Role tidak dikenal', Colors.orange);
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Login gagal')),
+      _showSnackbar(
+        result['message'] ?? 'Email atau password salah',
+        Colors.red,
       );
     }
+  }
+
+  void _showSnackbar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white)),
+        backgroundColor: color,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(12),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -101,9 +135,7 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -117,6 +149,8 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       TextField(
                         controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
                         decoration: InputDecoration(
                           hintText: "Email",
                           prefixIcon: const Icon(Icons.email),
@@ -141,12 +175,12 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       TextField(
                         controller: passwordController,
                         obscureText: isHidden,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => handleLoginFixed(),
                         decoration: InputDecoration(
                           hintText: "Kata Sandi",
                           prefixIcon: const Icon(Icons.lock),
@@ -183,14 +217,12 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
-                      const SizedBox(height: 24),
-
+                      const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: handleLoginFixed,
+                          onPressed: isLoading ? null : handleLoginFixed,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFD86487),
                             elevation: 5,
@@ -198,19 +230,26 @@ class _LoginPageState extends State<LoginPage> {
                               borderRadius: BorderRadius.circular(20),
                             ),
                           ),
-                          child: const Text(
-                            "Login",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  "Login",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -237,7 +276,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 20),
                     ],
                   ),

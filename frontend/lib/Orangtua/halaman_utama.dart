@@ -9,6 +9,7 @@ import '../widgets/custom_app_bar.dart';
 import 'grafik.dart';
 import 'profil.dart';
 import 'edukasi.dart';
+import '../widgets/youtube_player_page.dart';
 import '../services/api_service.dart';
 
 class HalamanUtama extends StatefulWidget {
@@ -222,6 +223,12 @@ class _DashboardContentState extends State<DashboardContent> {
   String _currentNamaAnak = '';
   String _currentJenisKelamin = '';
 
+  List<Map<String, dynamic>> _jadwalList = [];
+  bool _isLoadingJadwal = true;
+
+  List<Map<String, dynamic>> _edukasiList = [];
+  bool _isLoadingEdukasi = true;
+
   @override
   void initState() {
     super.initState();
@@ -250,6 +257,8 @@ class _DashboardContentState extends State<DashboardContent> {
 
     _loadDataAnak();
     _loadDataFromDatabase();
+    _loadJadwalTerdekat();
+    _loadEdukasi();
   }
 
   Future<void> _loadDataAnak() async {
@@ -381,6 +390,154 @@ class _DashboardContentState extends State<DashboardContent> {
     }
   }
 
+  Future<void> _loadJadwalTerdekat() async {
+    setState(() => _isLoadingJadwal = true);
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/jadwal'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200 && mounted) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          List<dynamic> jadwalList = data['data'];
+
+          DateTime today = DateTime.now();
+          List<Map<String, dynamic>> jadwalAkanDatang = [];
+
+          for (var j in jadwalList) {
+            try {
+              DateTime tglJadwal = DateTime.parse(j['tanggal']);
+              if (tglJadwal.isAfter(today) ||
+                  tglJadwal.isAtSameMomentAs(today)) {
+                jadwalAkanDatang.add(j);
+              }
+            } catch (e) {}
+          }
+
+          jadwalAkanDatang.sort((a, b) {
+            DateTime tglA = DateTime.parse(a['tanggal']);
+            DateTime tglB = DateTime.parse(b['tanggal']);
+            return tglA.compareTo(tglB);
+          });
+
+          setState(() {
+            _jadwalList = jadwalAkanDatang.cast<Map<String, dynamic>>();
+            _isLoadingJadwal = false;
+          });
+        } else {
+          setState(() => _isLoadingJadwal = false);
+        }
+      } else {
+        setState(() => _isLoadingJadwal = false);
+      }
+    } catch (e) {
+      debugPrint('Error load jadwal: $e');
+      setState(() => _isLoadingJadwal = false);
+    }
+  }
+
+  Future<void> _loadEdukasi() async {
+    setState(() => _isLoadingEdukasi = true);
+    try {
+      final data = await ApiService.getEdukasi();
+
+      final filteredData = data.where((item) {
+        final desc = item['desc']?.toString() ?? '';
+        final status = item['status']?.toString() ?? '';
+        final hasYoutube = _isYoutubeUrl(desc);
+        return hasYoutube && status == 'Dipublikasikan';
+      }).toList();
+
+      filteredData.sort((a, b) {
+        final idA = a['id'] ?? 0;
+        final idB = b['id'] ?? 0;
+        return idB.compareTo(idA);
+      });
+
+      final top3 = filteredData.take(3).toList();
+
+      setState(() {
+        _edukasiList = top3.map((item) {
+          final desc = item['desc']?.toString() ?? '';
+          final youtubeUrl = _extractYoutubeUrl(desc);
+          final thumbnail = _getYoutubeThumbnail(youtubeUrl);
+          return {
+            'id': item['id'] ?? 0,
+            'judul': item['title'] ?? item['judul'] ?? 'Video Edukasi',
+            'youtube_url': youtubeUrl,
+            'thumbnail': thumbnail,
+            'kategori': item['kategori'] ?? 'Edukasi',
+          };
+        }).toList();
+        _isLoadingEdukasi = false;
+      });
+    } catch (e) {
+      debugPrint('Error load edukasi: $e');
+      setState(() => _isLoadingEdukasi = false);
+    }
+  }
+
+  bool _isYoutubeUrl(String text) {
+    final youtubePatterns = [
+      r'youtube\.com/watch\?v=',
+      r'youtu\.be/',
+      r'youtube\.com/embed/',
+      r'youtube\.com/shorts/',
+    ];
+    for (var pattern in youtubePatterns) {
+      if (RegExp(pattern).hasMatch(text)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _extractYoutubeUrl(String text) {
+    final patterns = [
+      r'https?://(?:www\.)?youtube\.com/watch\?v=[^\s&]+',
+      r'https?://(?:www\.)?youtu\.be/[^\s?]+',
+      r'https?://(?:www\.)?youtube\.com/embed/[^\s?]+',
+      r'https?://(?:www\.)?youtube\.com/shorts/[^\s?]+',
+    ];
+
+    for (var pattern in patterns) {
+      final match = RegExp(pattern).firstMatch(text);
+      if (match != null) {
+        return match.group(0) ?? '';
+      }
+    }
+    return '';
+  }
+
+  String _getYoutubeThumbnail(String youtubeUrl) {
+    String videoId = '';
+    if (youtubeUrl.contains('watch?v=')) {
+      videoId = youtubeUrl.split('watch?v=')[1].split('&')[0];
+    } else if (youtubeUrl.contains('youtu.be/')) {
+      videoId = youtubeUrl.split('youtu.be/')[1].split('?')[0];
+    } else if (youtubeUrl.contains('embed/')) {
+      videoId = youtubeUrl.split('embed/')[1].split('?')[0];
+    } else if (youtubeUrl.contains('shorts/')) {
+      videoId = youtubeUrl.split('shorts/')[1].split('?')[0];
+    } else {
+      videoId = youtubeUrl;
+    }
+    videoId = videoId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '');
+
+    if (videoId.isNotEmpty) {
+      return 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg';
+    }
+    return 'assets/images/stunting.jpg';
+  }
+
   void _startAutoSlide() {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
@@ -502,9 +659,12 @@ class _DashboardContentState extends State<DashboardContent> {
     return 0;
   }
 
-  List<FlSpot> _buildStandarCurve(String gender) {
+  List<FlSpot> _buildStandarMedian() {
+    String gender = _currentJenisKelamin == 'Perempuan'
+        ? 'Perempuan'
+        : 'Laki-laki';
     List<FlSpot> spots = [];
-    for (int umur = 0; umur <= 60; umur++) {
+    for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender);
       if (nilai > 0) {
         spots.add(FlSpot(umur.toDouble(), nilai));
@@ -513,34 +673,71 @@ class _DashboardContentState extends State<DashboardContent> {
     return spots;
   }
 
-  List<FlSpot> _buildDataAnakSpots() {
+  List<FlSpot> _buildStandarPlus2() {
+    String gender = _currentJenisKelamin == 'Perempuan'
+        ? 'Perempuan'
+        : 'Laki-laki';
     List<FlSpot> spots = [];
-    for (int i = 0; i < _dataPertumbuhan.length; i++) {
-      double berat = _dataPertumbuhan[i]['berat'] as double;
-      if (berat > 0) {
-        double x = i.toDouble() * 5;
-        if (x > 60) x = 60;
-        spots.add(FlSpot(x, berat));
+    for (int umur = 0; umur <= 24; umur++) {
+      double nilai = _getStandardValue(umur, gender) * 1.15;
+      if (nilai > 0) {
+        spots.add(FlSpot(umur.toDouble(), nilai));
       }
     }
     return spots;
   }
 
-  double _getMaxY() {
-    double maxValue = 0;
-    for (var data in _dataPertumbuhan) {
-      double berat = data['berat'] as double;
-      if (berat > maxValue) maxValue = berat;
-    }
-
+  List<FlSpot> _buildStandarPlus1() {
     String gender = _currentJenisKelamin == 'Perempuan'
         ? 'Perempuan'
         : 'Laki-laki';
-    for (int umur = 0; umur <= 60; umur++) {
-      double std = _getStandardValue(umur, gender);
-      if (std > maxValue) maxValue = std;
+    List<FlSpot> spots = [];
+    for (int umur = 0; umur <= 24; umur++) {
+      double nilai = _getStandardValue(umur, gender) * 1.07;
+      if (nilai > 0) {
+        spots.add(FlSpot(umur.toDouble(), nilai));
+      }
     }
-    return (maxValue + 5).ceilToDouble();
+    return spots;
+  }
+
+  List<FlSpot> _buildStandarMinus1() {
+    String gender = _currentJenisKelamin == 'Perempuan'
+        ? 'Perempuan'
+        : 'Laki-laki';
+    List<FlSpot> spots = [];
+    for (int umur = 0; umur <= 24; umur++) {
+      double nilai = _getStandardValue(umur, gender) * 0.93;
+      if (nilai > 0) {
+        spots.add(FlSpot(umur.toDouble(), nilai));
+      }
+    }
+    return spots;
+  }
+
+  List<FlSpot> _buildStandarMinus2() {
+    String gender = _currentJenisKelamin == 'Perempuan'
+        ? 'Perempuan'
+        : 'Laki-laki';
+    List<FlSpot> spots = [];
+    for (int umur = 0; umur <= 24; umur++) {
+      double nilai = _getStandardValue(umur, gender) * 0.85;
+      if (nilai > 0) {
+        spots.add(FlSpot(umur.toDouble(), nilai));
+      }
+    }
+    return spots;
+  }
+
+  List<FlSpot> _buildDataAnakSpotsKMS() {
+    List<FlSpot> spots = [];
+    for (int i = 0; i < _dataPertumbuhan.length; i++) {
+      double berat = _dataPertumbuhan[i]['berat'] as double;
+      if (berat > 0) {
+        spots.add(FlSpot(i.toDouble(), berat));
+      }
+    }
+    return spots;
   }
 
   @override
@@ -555,6 +752,8 @@ class _DashboardContentState extends State<DashboardContent> {
       onRefresh: () async {
         await _loadDataAnak();
         await _loadDataFromDatabase();
+        await _loadJadwalTerdekat();
+        await _loadEdukasi();
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -808,8 +1007,8 @@ class _DashboardContentState extends State<DashboardContent> {
           ),
           const SizedBox(height: 10),
           Container(
-            height: 220,
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -839,8 +1038,8 @@ class _DashboardContentState extends State<DashboardContent> {
           GestureDetector(
             onTap: () => _navigateToGrafik(),
             child: Container(
-              height: 220,
-              padding: const EdgeInsets.all(12),
+              width: double.infinity,
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -879,22 +1078,9 @@ class _DashboardContentState extends State<DashboardContent> {
       );
     }
 
-    String gender = _currentJenisKelamin == 'Perempuan'
-        ? 'Perempuan'
-        : 'Laki-laki';
-    List<FlSpot> standarMedian = _buildStandarCurve(gender);
-    List<FlSpot> standarMinus2 = [];
-    List<FlSpot> standarPlus2 = [];
-    List<FlSpot> dataAnakSpots = _buildDataAnakSpots();
-
-    for (int i = 0; i < standarMedian.length; i++) {
-      double median = standarMedian[i].y;
-      standarMinus2.add(FlSpot(standarMedian[i].x, median * 0.85));
-      standarPlus2.add(FlSpot(standarMedian[i].x, median * 1.15));
-    }
-
-    double maxY = _getMaxY();
-    if (maxY < 20) maxY = 20;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double chartWidth = screenWidth - 48;
+    final double chartHeight = chartWidth / (811 / 1146);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,8 +1097,9 @@ class _DashboardContentState extends State<DashboardContent> {
         GestureDetector(
           onTap: () => _navigateToGrafik(),
           child: Container(
-            height: 220,
-            padding: const EdgeInsets.all(12),
+            width: double.infinity,
+            height: chartHeight,
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -920,130 +1107,26 @@ class _DashboardContentState extends State<DashboardContent> {
                 BoxShadow(color: Colors.black12, blurRadius: 4),
               ],
             ),
-            child: LineChart(
-              LineChartData(
-                minX: 0,
-                maxX: 60,
-                minY: 0,
-                maxY: maxY,
-                clipData: const FlClipData.all(),
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  drawHorizontalLine: true,
-                  getDrawingHorizontalLine: (value) =>
-                      FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-                  getDrawingVerticalLine: (value) =>
-                      FlLine(color: Colors.grey.shade200, strokeWidth: 0.5),
-                ),
-                borderData: FlBorderData(
-                  show: true,
-                  border: Border.all(color: Colors.grey.shade300, width: 0.5),
-                ),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    axisNameWidget: const Text(
-                      'Berat (kg)',
-                      style: TextStyle(fontSize: 8, color: Colors.grey),
-                    ),
-                    axisNameSize: 15,
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: maxY <= 20 ? 5 : 10,
-                      reservedSize: 25,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toInt().toString(),
-                        style: const TextStyle(fontSize: 7),
-                      ),
-                    ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  Image.asset(
+                    'assets/tabel.png',
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.contain,
                   ),
-                  bottomTitles: AxisTitles(
-                    axisNameWidget: const Text(
-                      'Umur (bulan)',
-                      style: TextStyle(fontSize: 8, color: Colors.grey),
-                    ),
-                    axisNameSize: 15,
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 6,
-                      reservedSize: 20,
-                      getTitlesWidget: (value, meta) => Text(
-                        value.toInt().toString(),
-                        style: const TextStyle(fontSize: 7),
-                      ),
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: standarMinus2,
-                    isCurved: true,
-                    color: Colors.transparent,
-                    barWidth: 0,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.orange.shade100.withOpacity(0.4),
-                    ),
-                  ),
-                  LineChartBarData(
-                    spots: standarMedian,
-                    isCurved: true,
-                    color: Colors.transparent,
-                    barWidth: 0,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.green.withOpacity(0.25),
-                    ),
-                  ),
-                  LineChartBarData(
-                    spots: standarPlus2,
-                    isCurved: true,
-                    color: Colors.transparent,
-                    barWidth: 0,
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: Colors.orange.shade100.withOpacity(0.4),
-                    ),
-                  ),
-                  LineChartBarData(
-                    spots: standarMedian,
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 1.5,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  LineChartBarData(
-                    spots: standarPlus2,
-                    isCurved: true,
-                    color: Colors.orange,
-                    barWidth: 1,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  LineChartBarData(
-                    spots: standarMinus2,
-                    isCurved: true,
-                    color: Colors.orange,
-                    barWidth: 1,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: false),
-                  ),
-                  LineChartBarData(
-                    spots: dataAnakSpots,
-                    isCurved: true,
-                    color: const Color(0xFFDB5C7A),
-                    barWidth: 3,
-                    dotData: const FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: const Color(0xFFDB5C7A).withOpacity(0.15),
+                  CustomPaint(
+                    size: Size.infinite,
+                    painter: GrafikKMSPainter(
+                      dataAnakSpots: _buildDataAnakSpotsKMS(),
+                      standarPlus2: _buildStandarPlus2(),
+                      standarPlus1: _buildStandarPlus1(),
+                      standarMedian: _buildStandarMedian(),
+                      standarMinus1: _buildStandarMinus1(),
+                      standarMinus2: _buildStandarMinus2(),
+                      maxUmur: 24,
                     ),
                   ),
                 ],
@@ -1088,6 +1171,91 @@ class _DashboardContentState extends State<DashboardContent> {
   }
 
   Widget _buildJadwalCard() {
+    if (_isLoadingJadwal) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDE2E7),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.calendar_today, color: Color(0xFF8B1E3F)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Memuat jadwal...",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_jadwalList.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFDE2E7),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          children: [
+            Icon(Icons.calendar_today, color: Color(0xFF8B1E3F)),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Belum ada jadwal posyandu",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final jadwalTerdekat = _jadwalList.first;
+    final tanggal = jadwalTerdekat['tanggal'] ?? 'Belum ada jadwal';
+    final waktu = jadwalTerdekat['waktu'] ?? '';
+    final namaPosyandu = jadwalTerdekat['nama_posyandu'] ?? 'Posyandu';
+    final alamat = jadwalTerdekat['alamat'] ?? '';
+
+    String displayTanggal = tanggal;
+    try {
+      DateTime tgl = DateTime.parse(tanggal);
+      final days = [
+        'Senin',
+        'Selasa',
+        'Rabu',
+        'Kamis',
+        'Jumat',
+        'Sabtu',
+        'Minggu',
+      ];
+      final months = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      displayTanggal =
+          '${days[tgl.weekday - 1]}, ${tgl.day} ${months[tgl.month - 1]} ${tgl.year}';
+    } catch (e) {}
+
+    String displayText = displayTanggal;
+    if (waktu.isNotEmpty) {
+      displayText = '$displayTanggal, $waktu';
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1095,25 +1263,39 @@ class _DashboardContentState extends State<DashboardContent> {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        children: const [
-          Icon(Icons.calendar_today, color: Color(0xFF8B1E3F)),
-          SizedBox(width: 10),
+        children: [
+          const Icon(Icons.calendar_today, color: Color(0xFF8B1E3F)),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Jadwal Kegiatan Posyandu",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  namaPosyandu,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 Text(
-                  "Senin, 30 Maret 2026",
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
+                  displayText,
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
                 ),
+                if (alamat.isNotEmpty)
+                  Text(
+                    alamat,
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
-          Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFF8B1E3F)),
+          const Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Color(0xFF8B1E3F),
+          ),
         ],
       ),
     );
@@ -1132,37 +1314,143 @@ class _DashboardContentState extends State<DashboardContent> {
           ),
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: EduCard(
-                imagePath: 'assets/images/stunting.jpg',
-                caption:
-                    'Cegah Hambatan Tumbuh Kembang Anak\ndengan Skrining Tumbuh Kembang!',
-                onTap: () => _navigateToEdukasi(),
+        if (_isLoadingEdukasi)
+          const Center(child: CircularProgressIndicator())
+        else if (_edukasiList.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Center(
+              child: Text(
+                'Belum ada video edukasi',
+                style: TextStyle(color: Colors.grey),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: EduCard(
-                imagePath: 'assets/images/stunting2.jpg',
-                caption: 'Pelajari lebih lanjut tentang kesehatan anak',
-                onTap: () => _navigateToEdukasi(),
-              ),
+          )
+        else
+          SizedBox(
+            height: 120,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _edukasiList.length,
+              itemBuilder: (context, index) {
+                final item = _edukasiList[index];
+                return _buildEdukasiCard(
+                  thumbnail: item['thumbnail'] ?? 'assets/images/stunting.jpg',
+                  judul: item['judul'] ?? 'Video Edukasi',
+                  youtubeUrl: item['youtube_url'] ?? '',
+                );
+              },
             ),
-          ],
-        ),
+          ),
         Align(
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: () => _navigateToEdukasi(),
             child: const Text(
-              "Baca selengkapnya",
+              "Lihat selengkapnya",
               style: TextStyle(color: Color(0xFF8B1E3F), fontSize: 13),
             ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEdukasiCard({
+    required String thumbnail,
+    required String judul,
+    required String youtubeUrl,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                YoutubePlayerPage(title: judul, videoUrl: youtubeUrl),
+          ),
+        );
+      },
+      child: Container(
+        width: 160,
+        margin: const EdgeInsets.only(right: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: Stack(
+                children: [
+                  Image.network(
+                    thumbnail,
+                    height: 80,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Image.asset(
+                      'assets/images/stunting.jpg',
+                      height: 80,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.play_arrow, color: Colors.white, size: 10),
+                          SizedBox(width: 2),
+                          Text(
+                            'Tonton',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 7,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+              child: Text(
+                judul,
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1190,6 +1478,261 @@ class _DashboardContentState extends State<DashboardContent> {
   }
 }
 
+// ==================== GRAFIK KMS PAINTER ====================
+class GrafikKMSPainter extends CustomPainter {
+  final List<FlSpot> dataAnakSpots;
+  final List<FlSpot> standarPlus2;
+  final List<FlSpot> standarPlus1;
+  final List<FlSpot> standarMedian;
+  final List<FlSpot> standarMinus1;
+  final List<FlSpot> standarMinus2;
+  final int maxUmur;
+
+  const GrafikKMSPainter({
+    required this.dataAnakSpots,
+    required this.standarPlus2,
+    required this.standarPlus1,
+    required this.standarMedian,
+    required this.standarMinus1,
+    required this.standarMinus2,
+    required this.maxUmur,
+  });
+
+  static const double refWidth = 811;
+  static const double refHeight = 1146;
+  static const double gridLeft = 114;
+  static const double gridTop = 114;
+  static const double gridWidth = 636;
+  static const double gridHeight = 944;
+  static const double minBerat = 1;
+  static const double maxBerat = 18;
+
+  double xPos(int month, double canvasWidth, double canvasHeight) {
+    final scaleX = canvasWidth / refWidth;
+    final left = gridLeft * scaleX;
+    final width = gridWidth * scaleX;
+    return left + ((month + 0.5) / (maxUmur + 1)) * width;
+  }
+
+  double yPos(double value, double canvasWidth, double canvasHeight) {
+    final scaleY = canvasHeight / refHeight;
+    final top = gridTop * scaleY;
+    final height = gridHeight * scaleY;
+    return top + height - ((value - minBerat) / (maxBerat - minBerat)) * height;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double canvasWidth = size.width;
+    final double canvasHeight = size.height;
+
+    _drawBand(
+      canvas,
+      standarMinus1,
+      standarMinus2,
+      const Color(0xFFFFD54F),
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawBand(
+      canvas,
+      standarMedian,
+      standarMinus1,
+      const Color(0xFF81C784),
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawBand(
+      canvas,
+      standarPlus1,
+      standarMedian,
+      const Color(0xFF388E3C),
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawBand(
+      canvas,
+      standarPlus2,
+      standarPlus1,
+      const Color(0xFFFFD54F),
+      canvasWidth,
+      canvasHeight,
+    );
+
+    _drawCurve(
+      canvas,
+      standarPlus2,
+      Colors.grey.shade600,
+      1.5,
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawCurve(
+      canvas,
+      standarPlus1,
+      Colors.grey.shade600,
+      1.5,
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawCurve(
+      canvas,
+      standarMedian,
+      Colors.black87,
+      2,
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawCurve(
+      canvas,
+      standarMinus1,
+      Colors.grey.shade600,
+      1.5,
+      canvasWidth,
+      canvasHeight,
+    );
+    _drawCurve(
+      canvas,
+      standarMinus2,
+      Colors.grey.shade600,
+      1.5,
+      canvasWidth,
+      canvasHeight,
+    );
+
+    _drawDataAnak(canvas, canvasWidth, canvasHeight);
+  }
+
+  void _drawBand(
+    Canvas canvas,
+    List<FlSpot> topCurve,
+    List<FlSpot> bottomCurve,
+    Color color,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    if (topCurve.isEmpty || bottomCurve.isEmpty) return;
+
+    final Path path = Path();
+    bool hasStarted = false;
+
+    for (int i = 0; i < topCurve.length; i++) {
+      final double x = xPos(topCurve[i].x.toInt(), canvasWidth, canvasHeight);
+      final double y = yPos(topCurve[i].y, canvasWidth, canvasHeight);
+      if (!hasStarted) {
+        path.moveTo(x, y);
+        hasStarted = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    for (int i = bottomCurve.length - 1; i >= 0; i--) {
+      final double x = xPos(
+        bottomCurve[i].x.toInt(),
+        canvasWidth,
+        canvasHeight,
+      );
+      final double y = yPos(bottomCurve[i].y, canvasWidth, canvasHeight);
+      path.lineTo(x, y);
+    }
+
+    path.close();
+
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawCurve(
+    Canvas canvas,
+    List<FlSpot> data,
+    Color color,
+    double width,
+    double canvasWidth,
+    double canvasHeight,
+  ) {
+    if (data.isEmpty) return;
+
+    final Path path = Path();
+    bool hasStarted = false;
+
+    for (int i = 0; i < data.length; i++) {
+      final double x = xPos(data[i].x.toInt(), canvasWidth, canvasHeight);
+      final double y = yPos(data[i].y, canvasWidth, canvasHeight);
+      if (!hasStarted) {
+        path.moveTo(x, y);
+        hasStarted = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    if (!hasStarted) return;
+
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawDataAnak(Canvas canvas, double canvasWidth, double canvasHeight) {
+    if (dataAnakSpots.isEmpty) return;
+
+    List<Offset> validPoints = [];
+    for (var spot in dataAnakSpots) {
+      if (spot.x < 0 || spot.x > maxUmur) continue;
+      if (spot.y <= 0) continue;
+      double x = xPos(spot.x.toInt(), canvasWidth, canvasHeight);
+      double y = yPos(spot.y, canvasWidth, canvasHeight);
+      validPoints.add(Offset(x, y));
+    }
+
+    if (validPoints.isEmpty) return;
+
+    if (validPoints.length >= 2) {
+      final Path path = Path();
+      path.moveTo(validPoints.first.dx, validPoints.first.dy);
+      for (int i = 1; i < validPoints.length; i++) {
+        path.lineTo(validPoints[i].dx, validPoints[i].dy);
+      }
+
+      final Paint linePaint = Paint()
+        ..color = Colors.red.withOpacity(0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      canvas.drawPath(path, linePaint);
+    }
+
+    final Paint dotPaint = Paint()
+      ..color = Colors.red.withOpacity(0.9)
+      ..style = PaintingStyle.fill;
+
+    for (var point in validPoints) {
+      canvas.drawCircle(point, 6, dotPaint);
+      final Paint borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawCircle(point, 6, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
 class InfoItem extends StatelessWidget {
   final String title;
   final String value;
@@ -1213,78 +1756,6 @@ class InfoItem extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class EduCard extends StatelessWidget {
-  final String imagePath;
-  final String caption;
-  final VoidCallback? onTap;
-  const EduCard({
-    super.key,
-    required this.imagePath,
-    required this.caption,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            SizedBox(
-              height: 130,
-              width: double.infinity,
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(Icons.image_not_supported, color: Colors.grey),
-                  ),
-                ),
-              ),
-            ),
-            if (caption.isNotEmpty)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.65),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Text(
-                    caption,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

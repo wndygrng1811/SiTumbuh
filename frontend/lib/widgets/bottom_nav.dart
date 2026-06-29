@@ -22,8 +22,11 @@ class _BottomNavState extends State<BottomNav> {
   // Warna-warna tampilan
   static const Color _maroon = Color(0xFF76172D); // warna bubble aktif
   static const Color _softPink = Color(0xFFE85D75); // background navbar
-  static const Color _inactiveColor = Color(
-    0xFF76172D,
+  static const Color _inactiveColor = Color.fromRGBO(
+    247,
+    244,
+    245,
+    1,
   ); // ikon & label nonaktif
 
   final List<_NavItemData> _navItems = const [

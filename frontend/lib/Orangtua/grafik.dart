@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/services.dart';
 import 'package:si_tumbuh/services/api_service.dart';
 import 'package:si_tumbuh/widgets/custom_app_bar.dart';
 import 'package:si_tumbuh/widgets/bottom_nav.dart';
@@ -7,8 +8,8 @@ import 'package:si_tumbuh/widgets/sidebar_menu.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:fl_chart/fl_chart.dart';
 
-// DATA Z-SCORE WHO
 class WHOData {
   static const Map<int, double> beratLaki = {
     0: 3.3,
@@ -233,7 +234,7 @@ class WHOData {
     19: 47.0,
     20: 47.2,
     21: 47.4,
-    22: 48.6,
+    22: 47.6,
     23: 47.8,
     24: 48.0,
     27: 48.5,
@@ -256,6 +257,8 @@ class GrafikPage extends StatefulWidget {
   final String namaAnak;
   final String jenisKelamin;
   final VoidCallback? onChildChanged;
+  final bool fromNotification;
+  final int? notificationId;
 
   const GrafikPage({
     super.key,
@@ -263,6 +266,8 @@ class GrafikPage extends StatefulWidget {
     required this.namaAnak,
     required this.jenisKelamin,
     this.onChildChanged,
+    this.fromNotification = false,
+    this.notificationId,
   });
 
   @override
@@ -280,23 +285,29 @@ class _GrafikPageState extends State<GrafikPage> {
   String _currentJenisKelamin = '';
   DateTime? _tanggalLahir;
 
-  String _selectedFilter = "Berat Badan";
-  final List<String> _filterOptions = [
-    "Berat Badan",
-    "Tinggi Badan",
-    "Lingkar Kepala",
-  ];
+  String _selectedFilter = "Grafik KMS";
+  final List<String> _filterOptions = ["Grafik KMS", "Tinggi Badan"];
 
   @override
   void initState() {
     super.initState();
     _initializeData();
+
+    if (widget.fromNotification) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notifikasi pertumbuhan diterima'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      });
+    }
   }
 
   @override
   void didUpdateWidget(GrafikPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Jika data anak berubah, reload semua data
     if (oldWidget.anakId != widget.anakId ||
         oldWidget.namaAnak != widget.namaAnak) {
       _initializeData();
@@ -311,7 +322,6 @@ class _GrafikPageState extends State<GrafikPage> {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
-    // PRIORITASKAN data dari widget (dari HalamanUtama)
     if (widget.anakId != 0) {
       _currentAnakId = widget.anakId;
       _currentNamaAnak = widget.namaAnak.isNotEmpty ? widget.namaAnak : 'Anak';
@@ -319,7 +329,6 @@ class _GrafikPageState extends State<GrafikPage> {
           ? widget.jenisKelamin
           : 'Laki-laki';
     } else {
-      // Fallback ke SharedPreferences
       int savedAnakId = prefs.getInt('anak_id') ?? 0;
       String savedNamaAnak = prefs.getString('nama_anak') ?? '';
       String savedJenisKelamin = prefs.getString('jenis_kelamin') ?? '';
@@ -332,10 +341,6 @@ class _GrafikPageState extends State<GrafikPage> {
             : 'Laki-laki';
       }
     }
-
-    print('========== GRAFIK PAGE INIT ==========');
-    print('Current Anak ID: $_currentAnakId');
-    print('Current Nama: $_currentNamaAnak');
 
     await _loadDataAnak();
     await _loadRiwayatPertumbuhan();
@@ -405,7 +410,6 @@ class _GrafikPageState extends State<GrafikPage> {
           List<dynamic> dataList = data['data'];
 
           if (dataList.isNotEmpty) {
-            // 🔥 URUTKAN BERDASARKAN TANGGAL (TERLAMA KE TERBARU)
             dataList.sort((a, b) => a['tanggal'].compareTo(b['tanggal']));
 
             setState(() {
@@ -414,13 +418,6 @@ class _GrafikPageState extends State<GrafikPage> {
                   .toList();
               _isLoading = false;
             });
-
-            print('========== DATA PERTUMBUHAN ==========');
-            for (var r in _riwayat) {
-              print(
-                'Tanggal: ${r.tanggal}, Berat: ${r.berat}, Status: ${r.status}',
-              );
-            }
           } else {
             setState(() {
               _errorMessage = 'Belum ada data pertumbuhan untuk anak ini';
@@ -486,15 +483,14 @@ class _GrafikPageState extends State<GrafikPage> {
     if (_tanggalLahir == null) return 0;
     int bulan = (tanggalPemeriksaan.year - _tanggalLahir!.year) * 12;
     bulan += tanggalPemeriksaan.month - _tanggalLahir!.month;
-    return bulan.toDouble();
+    int hari = tanggalPemeriksaan.day - _tanggalLahir!.day;
+    return bulan.toDouble() + (hari / 30.0);
   }
 
   double _getNilai(RiwayatPertumbuhan data) {
     switch (_selectedFilter) {
       case "Tinggi Badan":
         return data.tinggi;
-      case "Lingkar Kepala":
-        return data.lKepala;
       default:
         return data.berat;
     }
@@ -504,55 +500,16 @@ class _GrafikPageState extends State<GrafikPage> {
     switch (_selectedFilter) {
       case "Tinggi Badan":
         return 'tinggi';
-      case "Lingkar Kepala":
-        return 'lk';
       default:
         return 'berat';
     }
   }
 
-  double _getMaxY() {
-    if (_riwayat.isEmpty) return 25;
-    double maxValue = 0;
-    for (var data in _riwayat) {
-      double value = _getNilai(data);
-      if (value > maxValue) maxValue = value;
-    }
-    switch (_selectedFilter) {
-      case "Tinggi Badan":
-        return (maxValue + 20).ceilToDouble();
-      case "Lingkar Kepala":
-        return (maxValue + 10).ceilToDouble();
-      default:
-        return (maxValue + 5).ceilToDouble();
-    }
-  }
-
-  String _getLabelY() {
-    switch (_selectedFilter) {
-      case "Tinggi Badan":
-        return "Tinggi (cm)";
-      case "Lingkar Kepala":
-        return "L. Kepala (cm)";
-      default:
-        return "Berat (kg)";
-    }
-  }
-
-  double _getInterval() {
-    double maxY = _getMaxY();
-    if (_selectedFilter == "Tinggi Badan") {
-      if (maxY <= 60) return 10;
-      if (maxY <= 100) return 20;
-      return 25;
-    } else if (_selectedFilter == "Lingkar Kepala") {
-      if (maxY <= 40) return 5;
-      if (maxY <= 60) return 10;
-      return 15;
+  String _getBackgroundImage() {
+    if (_selectedFilter == "Grafik KMS") {
+      return 'assets/tabel.png';
     } else {
-      if (maxY <= 20) return 5;
-      if (maxY <= 50) return 10;
-      return 20;
+      return 'assets/tabel1.png';
     }
   }
 
@@ -647,7 +604,7 @@ class _GrafikPageState extends State<GrafikPage> {
                     const SizedBox(height: 20),
                     _buildFilterChips(),
                     const SizedBox(height: 16),
-                    SizedBox(height: 300, child: _buildGrafikKMS()),
+                    _buildGrafik(),
                     const SizedBox(height: 16),
                     _buildStatusInfo(isNormal),
                     const SizedBox(height: 24),
@@ -695,11 +652,9 @@ class _GrafikPageState extends State<GrafikPage> {
       ),
       child: Row(
         children: [
-          _buildChip("Berat Badan"),
+          _buildChip("Grafik KMS"),
           const SizedBox(width: 8),
           _buildChip("Tinggi Badan"),
-          const SizedBox(width: 8),
-          _buildChip("Lingkar Kepala"),
         ],
       ),
     );
@@ -735,10 +690,10 @@ class _GrafikPageState extends State<GrafikPage> {
     );
   }
 
-  Widget _buildGrafikKMS() {
+  Widget _buildGrafik() {
     if (_riwayat.isEmpty) {
       return Container(
-        height: 300,
+        height: 450,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -747,175 +702,101 @@ class _GrafikPageState extends State<GrafikPage> {
       );
     }
 
-    List<FlSpot> titikData = [];
-    List<FlSpot> standarMinus2 = [];
-    List<FlSpot> standarMedian = [];
-    List<FlSpot> standarPlus2 = [];
+    int maxUmur = _selectedFilter == "Grafik KMS" ? 24 : 60;
+
+    List<FlSpot> dataAnakSpots = [];
+
+    List<RiwayatPertumbuhan> sortedRiwayat = List.from(_riwayat)
+      ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+
+    for (var data in sortedRiwayat) {
+      double umurBulan = _hitungUmurBulan(data.tanggal);
+      double nilai = _getNilai(data);
+
+      if (umurBulan >= 0 && umurBulan <= maxUmur && nilai > 0) {
+        dataAnakSpots.add(FlSpot(umurBulan, nilai));
+      }
+    }
+
+    if (dataAnakSpots.isNotEmpty && dataAnakSpots.first.x > 0.5) {
+      dataAnakSpots.insert(0, FlSpot(0, dataAnakSpots.first.y));
+    }
 
     String jenisFilter = _getJenisFilter();
     String gender = _currentJenisKelamin == 'Perempuan'
         ? 'Perempuan'
         : 'Laki-laki';
 
-    // 🔥 BUAT TITIK DATA ANAK (berdasarkan umur dalam bulan)
-    for (var data in _riwayat) {
-      double umurBulan = _hitungUmurBulan(data.tanggal);
-      double nilai = _getNilai(data);
-      if (umurBulan >= 0 && umurBulan <= 60 && nilai > 0) {
-        titikData.add(FlSpot(umurBulan, nilai));
-        print('Titik data: umur=$umurBulan bulan, nilai=$nilai');
+    List<double> standarPlus2 = [];
+    List<double> standarPlus1 = [];
+    List<double> standarMedian = [];
+    List<double> standarMinus1 = [];
+    List<double> standarMinus2 = [];
+
+    for (int i = 0; i <= maxUmur; i++) {
+      double medianVal = _getStandardValue(i, jenisFilter, gender);
+      if (medianVal > 0) {
+        standarMedian.add(medianVal);
+        standarPlus2.add(medianVal * 1.15);
+        standarPlus1.add(medianVal * 1.07);
+        standarMinus1.add(medianVal * 0.93);
+        standarMinus2.add(medianVal * 0.85);
+      } else {
+        standarMedian.add(0);
+        standarPlus2.add(0);
+        standarPlus1.add(0);
+        standarMinus1.add(0);
+        standarMinus2.add(0);
       }
     }
 
-    // 🔥 BUAT KURVA STANDAR WHO
-    for (int umur = 0; umur <= 60; umur++) {
-      double median = _getStandardValue(umur, jenisFilter, gender);
-      if (median > 0) {
-        double minus2SD = median * 0.85;
-        double plus2SD = median * 1.15;
-
-        standarMedian.add(FlSpot(umur.toDouble(), median));
-        standarMinus2.add(FlSpot(umur.toDouble(), minus2SD));
-        standarPlus2.add(FlSpot(umur.toDouble(), plus2SD));
-      }
-    }
-
-    double maxY = _getMaxY();
-    if (maxY < 20) maxY = 25;
-    if (maxY > 200) maxY = 210;
-
-    return ClipRect(
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: 60,
-          minY: 0,
-          maxY: maxY,
-          clipData: const FlClipData.all(),
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: true,
-            drawHorizontalLine: true,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(color: Colors.grey.shade200, strokeWidth: 0.5);
-            },
-            getDrawingVerticalLine: (value) {
-              return FlLine(color: Colors.grey.shade200, strokeWidth: 0.5);
-            },
+    return Container(
+      height: 450,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border.all(color: Colors.grey.shade300, width: 0.5),
-          ),
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              axisNameWidget: Text(
-                _getLabelY(),
-                style: const TextStyle(fontSize: 8, color: Colors.grey),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            FutureBuilder<ByteData>(
+              future: rootBundle.load(_getBackgroundImage()),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Image.memory(
+                    snapshot.data!.buffer.asUint8List(),
+                    width: double.infinity,
+                    height: double.infinity,
+                    fit: BoxFit.contain,
+                  );
+                } else {
+                  return Container(
+                    color: Colors.grey.shade100,
+                    child: const Center(child: CircularProgressIndicator()),
+                  );
+                }
+              },
+            ),
+            CustomPaint(
+              size: Size.infinite,
+              painter: KMSPainter(
+                dataAnakSpots: dataAnakSpots,
+                plus2: standarPlus2,
+                plus1: standarPlus1,
+                median: standarMedian,
+                minus1: standarMinus1,
+                minus2: standarMinus2,
+                selectedFilter: _selectedFilter,
+                maxUmur: maxUmur,
               ),
-              axisNameSize: 15,
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: _getInterval(),
-                reservedSize: 25,
-                getTitlesWidget: (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(fontSize: 7),
-                ),
-              ),
-            ),
-            bottomTitles: AxisTitles(
-              axisNameWidget: const Text(
-                'Umur (bulan)',
-                style: TextStyle(fontSize: 8, color: Colors.grey),
-              ),
-              axisNameSize: 15,
-              sideTitles: SideTitles(
-                showTitles: true,
-                interval: 6,
-                reservedSize: 20,
-                getTitlesWidget: (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(fontSize: 7),
-                ),
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          lineBarsData: [
-            // Area bawah -2SD (oranye)
-            LineChartBarData(
-              spots: standarMinus2,
-              isCurved: true,
-              color: Colors.transparent,
-              barWidth: 0,
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.orange.shade100.withOpacity(0.4),
-              ),
-            ),
-            // Area tengah (hijau) - zona normal
-            LineChartBarData(
-              spots: standarMedian,
-              isCurved: true,
-              color: Colors.transparent,
-              barWidth: 0,
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.green.withOpacity(0.25),
-              ),
-            ),
-            // Area atas +2SD (oranye)
-            LineChartBarData(
-              spots: standarPlus2,
-              isCurved: true,
-              color: Colors.transparent,
-              barWidth: 0,
-              belowBarData: BarAreaData(
-                show: true,
-                color: Colors.orange.shade100.withOpacity(0.4),
-              ),
-            ),
-            // Garis median (hijau)
-            LineChartBarData(
-              spots: standarMedian,
-              isCurved: true,
-              color: Colors.green,
-              barWidth: 1.5,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
-            ),
-            // Garis +2SD (oranye)
-            LineChartBarData(
-              spots: standarPlus2,
-              isCurved: true,
-              color: Colors.orange,
-              barWidth: 1,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
-            ),
-            // Garis -2SD (oranye)
-            LineChartBarData(
-              spots: standarMinus2,
-              isCurved: true,
-              color: Colors.orange,
-              barWidth: 1,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
-            ),
-            // 🔥 DATA ANAK (GARIS MERAH DENGAN TITIK)
-            LineChartBarData(
-              spots: titikData,
-              isCurved: true,
-              color: Colors.red,
-              barWidth: 2.5,
-              dotData: const FlDotData(show: true),
-              belowBarData: BarAreaData(show: false),
             ),
           ],
         ),
@@ -990,7 +871,6 @@ class _GrafikPageState extends State<GrafikPage> {
       return const Center(child: Text('Belum ada riwayat pertumbuhan'));
     }
 
-    // Tampilkan dari yang terbaru ke terlama
     List<RiwayatPertumbuhan> riwayatTerbalik = List.from(_riwayat.reversed);
 
     return ListView.builder(
@@ -1090,6 +970,296 @@ class _GrafikPageState extends State<GrafikPage> {
   }
 }
 
+class KMSPainter extends CustomPainter {
+  final List<FlSpot> dataAnakSpots;
+  final List<double> plus2;
+  final List<double> plus1;
+  final List<double> median;
+  final List<double> minus1;
+  final List<double> minus2;
+  final String selectedFilter;
+  final int maxUmur;
+
+  const KMSPainter({
+    required this.dataAnakSpots,
+    required this.plus2,
+    required this.plus1,
+    required this.median,
+    required this.minus1,
+    required this.minus2,
+    required this.selectedFilter,
+    required this.maxUmur,
+  });
+
+  static const double refWidth = 811;
+  static const double refHeight = 1146;
+  static const double gridLeft = 114;
+  static const double gridTop = 114;
+  static const double gridWidth = 636;
+  static const double gridHeight = 944;
+  static const double minBerat = 1;
+  static const double maxBerat = 18;
+
+  static const double refWidthTB = 1553;
+  static const double refHeightTB = 1013;
+  static const double gridLeftTB = 104;
+  static const double gridRightTB = 1460;
+  static const double gridTopTB = 115;
+  static const double gridBottomTB = 946;
+  static const double minTB = 10;
+  static const double maxTB = 130;
+  static const double x24TB = 730;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double canvasWidth = size.width;
+    final double canvasHeight = size.height;
+
+    if (selectedFilter == "Grafik KMS") {
+      _drawKMS(canvas, canvasWidth, canvasHeight);
+    } else if (selectedFilter == "Tinggi Badan") {
+      _drawTinggi(canvas, canvasWidth, canvasHeight);
+    }
+  }
+
+  void _drawKMS(Canvas canvas, double canvasWidth, double canvasHeight) {
+    final scaleX = canvasWidth / refWidth;
+    final scaleY = canvasHeight / refHeight;
+    final left = gridLeft * scaleX;
+    final top = gridTop * scaleY;
+    final width = gridWidth * scaleX;
+    final height = gridHeight * scaleY;
+
+    double xPos(int month) {
+      return left + ((month + 0.5) / (maxUmur + 1)) * width;
+    }
+
+    double yPos(double value) {
+      return top +
+          height -
+          ((value - minBerat) / (maxBerat - minBerat)) * height;
+    }
+
+    _drawBand(canvas, minus1, minus2, const Color(0xFFFFD54F), xPos, yPos);
+    _drawBand(canvas, median, minus1, const Color(0xFF81C784), xPos, yPos);
+    _drawBand(canvas, plus1, median, const Color(0xFF388E3C), xPos, yPos);
+    _drawBand(canvas, plus2, plus1, const Color(0xFFFFD54F), xPos, yPos);
+
+    _drawCurve(canvas, plus2, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurve(canvas, plus1, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurve(canvas, median, Colors.black87, 2, xPos, yPos);
+    _drawCurve(canvas, minus1, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurve(canvas, minus2, Colors.grey.shade600, 1.5, xPos, yPos);
+
+    _drawDataAnak(canvas, xPos, yPos);
+  }
+
+  void _drawTinggi(Canvas canvas, double canvasWidth, double canvasHeight) {
+    final scaleX = canvasWidth / refWidthTB;
+    final scaleY = canvasHeight / refHeightTB;
+    final left = gridLeftTB * scaleX;
+    final right = gridRightTB * scaleX;
+    final top = gridTopTB * scaleY;
+    final bottom = gridBottomTB * scaleY;
+    final x24 = x24TB * scaleX;
+
+    double xPos(double umur) {
+      if (umur <= 24) {
+        return left + ((umur - 0) / (24 - 0)) * (x24 - left);
+      } else {
+        return x24 + ((umur - 24) / (60 - 24)) * (right - x24);
+      }
+    }
+
+    double yPos(double value) {
+      return bottom - ((value - minTB) / (maxTB - minTB)) * (bottom - top);
+    }
+
+    _drawDataAnakTinggi(canvas, xPos, yPos);
+  }
+
+  void _drawBand(
+    Canvas canvas,
+    List<double> topCurve,
+    List<double> bottomCurve,
+    Color color,
+    double Function(int) xPos,
+    double Function(double) yPos,
+  ) {
+    if (topCurve.isEmpty || bottomCurve.isEmpty) return;
+
+    final Path path = Path();
+    bool hasStarted = false;
+
+    for (int i = 0; i < topCurve.length && i <= maxUmur; i++) {
+      if (topCurve[i] <= 0) continue;
+      final double x = xPos(i);
+      final double y = yPos(topCurve[i]);
+      if (!hasStarted) {
+        path.moveTo(x, y);
+        hasStarted = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    for (int i = bottomCurve.length - 1; i >= 0 && i <= maxUmur; i--) {
+      if (bottomCurve[i] <= 0) continue;
+      final double x = xPos(i);
+      final double y = yPos(bottomCurve[i]);
+      path.lineTo(x, y);
+    }
+
+    path.close();
+
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawCurve(
+    Canvas canvas,
+    List<double> data,
+    Color color,
+    double width,
+    double Function(int) xPos,
+    double Function(double) yPos,
+  ) {
+    if (data.isEmpty) return;
+
+    final Path path = Path();
+    bool hasStarted = false;
+
+    for (int i = 0; i < data.length && i <= maxUmur; i++) {
+      if (data[i] <= 0) continue;
+      final double x = xPos(i);
+      final double y = yPos(data[i]);
+      if (!hasStarted) {
+        path.moveTo(x, y);
+        hasStarted = true;
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    if (!hasStarted) return;
+
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawDataAnak(
+    Canvas canvas,
+    double Function(int) xPos,
+    double Function(double) yPos,
+  ) {
+    if (dataAnakSpots.isEmpty) return;
+
+    List<Offset> validPoints = [];
+    for (var spot in dataAnakSpots) {
+      if (spot.x < 0 || spot.x > maxUmur) continue;
+      if (spot.y <= 0) continue;
+      double x = xPos(spot.x.toInt());
+      double y = yPos(spot.y);
+      validPoints.add(Offset(x, y));
+    }
+
+    if (validPoints.isEmpty) return;
+
+    if (validPoints.length >= 2) {
+      final Path path = Path();
+      path.moveTo(validPoints.first.dx, validPoints.first.dy);
+      for (int i = 1; i < validPoints.length; i++) {
+        path.lineTo(validPoints[i].dx, validPoints[i].dy);
+      }
+
+      final Paint linePaint = Paint()
+        ..color = Colors.red.withOpacity(0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      canvas.drawPath(path, linePaint);
+    }
+
+    final Paint dotPaint = Paint()
+      ..color = Colors.red.withOpacity(0.9)
+      ..style = PaintingStyle.fill;
+
+    for (var point in validPoints) {
+      canvas.drawCircle(point, 6, dotPaint);
+      final Paint borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawCircle(point, 6, borderPaint);
+    }
+  }
+
+  void _drawDataAnakTinggi(
+    Canvas canvas,
+    double Function(double) xPos,
+    double Function(double) yPos,
+  ) {
+    if (dataAnakSpots.isEmpty) return;
+
+    List<Offset> validPoints = [];
+    for (var spot in dataAnakSpots) {
+      if (spot.x < 0 || spot.x > maxUmur) continue;
+      if (spot.y <= 0) continue;
+      double x = xPos(spot.x);
+      double y = yPos(spot.y);
+      validPoints.add(Offset(x, y));
+    }
+
+    if (validPoints.isEmpty) return;
+
+    if (validPoints.length >= 2) {
+      final Path path = Path();
+      path.moveTo(validPoints.first.dx, validPoints.first.dy);
+      for (int i = 1; i < validPoints.length; i++) {
+        path.lineTo(validPoints[i].dx, validPoints[i].dy);
+      }
+
+      final Paint linePaint = Paint()
+        ..color = Colors.red.withOpacity(0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      canvas.drawPath(path, linePaint);
+    }
+
+    final Paint dotPaint = Paint()
+      ..color = Colors.red.withOpacity(0.9)
+      ..style = PaintingStyle.fill;
+
+    for (var point in validPoints) {
+      canvas.drawCircle(point, 6, dotPaint);
+      final Paint borderPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2;
+      canvas.drawCircle(point, 6, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return true;
+  }
+}
+
 class RiwayatPertumbuhan {
   final String id;
   final DateTime tanggal;
@@ -1124,12 +1294,46 @@ class RiwayatPertumbuhan {
       }
     }
 
+    double berat = 0;
+    double tinggi = 0;
+    double lKepala = 0;
+
+    if (json['berat'] != null) {
+      berat = (json['berat'] is String)
+          ? double.parse(json['berat'])
+          : json['berat'].toDouble();
+    } else if (json['berat_badan'] != null) {
+      berat = (json['berat_badan'] is String)
+          ? double.parse(json['berat_badan'])
+          : json['berat_badan'].toDouble();
+    }
+
+    if (json['tinggi'] != null) {
+      tinggi = (json['tinggi'] is String)
+          ? double.parse(json['tinggi'])
+          : json['tinggi'].toDouble();
+    } else if (json['tinggi_badan'] != null) {
+      tinggi = (json['tinggi_badan'] is String)
+          ? double.parse(json['tinggi_badan'])
+          : json['tinggi_badan'].toDouble();
+    }
+
+    if (json['l_kepala'] != null) {
+      lKepala = (json['l_kepala'] is String)
+          ? double.parse(json['l_kepala'])
+          : json['l_kepala'].toDouble();
+    } else if (json['lingkar_kepala'] != null) {
+      lKepala = (json['lingkar_kepala'] is String)
+          ? double.parse(json['lingkar_kepala'])
+          : json['lingkar_kepala'].toDouble();
+    }
+
     return RiwayatPertumbuhan(
       id: json['id']?.toString() ?? '0',
       tanggal: parsedDate,
-      berat: (json['berat'] ?? 0).toDouble(),
-      tinggi: (json['tinggi'] ?? 0).toDouble(),
-      lKepala: (json['l_kepala'] ?? 0).toDouble(),
+      berat: berat,
+      tinggi: tinggi,
+      lKepala: lKepala,
       status: json['status']?.toString() ?? 'Normal',
     );
   }
