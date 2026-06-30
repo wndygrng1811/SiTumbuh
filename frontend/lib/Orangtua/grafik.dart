@@ -342,6 +342,11 @@ class _GrafikPageState extends State<GrafikPage> {
       }
     }
 
+    print('=== GRAFIK PAGE INIT ===');
+    print('Anak ID: $_currentAnakId');
+    print('Nama: $_currentNamaAnak');
+    print('Jenis Kelamin: $_currentJenisKelamin');
+
     await _loadDataAnak();
     await _loadRiwayatPertumbuhan();
   }
@@ -353,6 +358,8 @@ class _GrafikPageState extends State<GrafikPage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
+      print('Loading data anak for ID: $_currentAnakId');
+
       final response = await http.get(
         Uri.parse('${ApiService.baseUrl}/anak/$_currentAnakId'),
         headers: {
@@ -361,21 +368,32 @@ class _GrafikPageState extends State<GrafikPage> {
         },
       );
 
+      print('Response anak status: ${response.statusCode}');
+      print('Response anak body: ${response.body}');
+
       if (response.statusCode == 200 && mounted) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
           final anakData = data['data'];
           setState(() {
-            _currentNamaAnak = anakData['nama_anak'] ?? _currentNamaAnak;
-            _currentJenisKelamin =
-                anakData['jenis_kelamin'] ?? _currentJenisKelamin;
+            _currentNamaAnak = anakData['nama'] ?? _currentNamaAnak;
+            _currentJenisKelamin = anakData['jenis_kelamin'] == 'L'
+                ? 'Laki-laki'
+                : anakData['jenis_kelamin'] == 'P'
+                ? 'Perempuan'
+                : _currentJenisKelamin;
             if (anakData['tanggal_lahir'] != null) {
               try {
                 _tanggalLahir = DateTime.parse(anakData['tanggal_lahir']);
-              } catch (e) {}
+                print('Tanggal lahir: $_tanggalLahir');
+              } catch (e) {
+                print('Error parsing tanggal lahir: $e');
+              }
             }
           });
         }
+      } else {
+        print('Failed to load anak data, status: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('Error load data anak: $e');
@@ -395,6 +413,8 @@ class _GrafikPageState extends State<GrafikPage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
+      print('Loading riwayat for anak ID: $_currentAnakId');
+
       final response = await http.get(
         Uri.parse('${ApiService.baseUrl}/pertumbuhan/$_currentAnakId'),
         headers: {
@@ -403,6 +423,9 @@ class _GrafikPageState extends State<GrafikPage> {
         },
       );
 
+      print('Response riwayat status: ${response.statusCode}');
+      print('Response riwayat body: ${response.body}');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
 
@@ -410,7 +433,11 @@ class _GrafikPageState extends State<GrafikPage> {
           List<dynamic> dataList = data['data'];
 
           if (dataList.isNotEmpty) {
-            dataList.sort((a, b) => a['tanggal'].compareTo(b['tanggal']));
+            dataList.sort((a, b) {
+              String tglA = a['tanggal'] ?? '';
+              String tglB = b['tanggal'] ?? '';
+              return tglA.compareTo(tglB);
+            });
 
             setState(() {
               _riwayat = dataList
@@ -418,19 +445,29 @@ class _GrafikPageState extends State<GrafikPage> {
                   .toList();
               _isLoading = false;
             });
+
+            print('Jumlah data riwayat: ${_riwayat.length}');
+            for (var r in _riwayat) {
+              print(
+                'Tanggal: ${r.tanggal}, Berat: ${r.berat}, Tinggi: ${r.tinggi}',
+              );
+            }
           } else {
+            print('Data riwayat kosong');
             setState(() {
               _errorMessage = 'Belum ada data pertumbuhan untuk anak ini';
               _isLoading = false;
             });
           }
         } else {
+          print('Data tidak ditemukan');
           setState(() {
             _errorMessage = data['message'] ?? 'Data tidak ditemukan';
             _isLoading = false;
           });
         }
       } else {
+        print('Gagal memuat data, status: ${response.statusCode}');
         setState(() {
           _errorMessage = 'Gagal memuat data pertumbuhan';
           _isLoading = false;
@@ -480,11 +517,20 @@ class _GrafikPageState extends State<GrafikPage> {
   }
 
   double _hitungUmurBulan(DateTime tanggalPemeriksaan) {
-    if (_tanggalLahir == null) return 0;
-    int bulan = (tanggalPemeriksaan.year - _tanggalLahir!.year) * 12;
-    bulan += tanggalPemeriksaan.month - _tanggalLahir!.month;
+    if (_tanggalLahir == null) {
+      print('Tanggal lahir null');
+      return 0;
+    }
+
+    int tahun = tanggalPemeriksaan.year - _tanggalLahir!.year;
+    int bulan = tanggalPemeriksaan.month - _tanggalLahir!.month;
     int hari = tanggalPemeriksaan.day - _tanggalLahir!.day;
-    return bulan.toDouble() + (hari / 30.0);
+
+    double umur = (tahun * 12) + bulan + (hari / 30.0);
+    if (umur < 0) umur = 0;
+
+    print('Umur: ${umur.toStringAsFixed(2)} bulan');
+    return umur;
   }
 
   double _getNilai(RiwayatPertumbuhan data) {
@@ -631,13 +677,28 @@ class _GrafikPageState extends State<GrafikPage> {
           BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2)),
         ],
       ),
-      child: Text(
-        _currentNamaAnak.isNotEmpty ? _currentNamaAnak : "Anak",
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
-          color: Color(0xFF5A2A2A),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _currentNamaAnak.isNotEmpty ? _currentNamaAnak : "Anak",
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Color(0xFF5A2A2A),
+            ),
+          ),
+          if (_tanggalLahir != null)
+            Text(
+              'Tanggal Lahir: ${_formatTanggal(_tanggalLahir!)}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          if (_riwayat.isNotEmpty)
+            Text(
+              'Jumlah Data: ${_riwayat.length}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+        ],
       ),
     );
   }
@@ -664,11 +725,9 @@ class _GrafikPageState extends State<GrafikPage> {
     final active = _selectedFilter == label;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedFilter = label;
-          });
-        },
+        onTap: () => setState(() {
+          _selectedFilter = label;
+        }),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
@@ -698,7 +757,22 @@ class _GrafikPageState extends State<GrafikPage> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Center(child: Text('Belum ada data untuk ditampilkan')),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.show_chart, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            const Text(
+              'Belum ada data untuk ditampilkan',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Anak: $_currentNamaAnak (ID: $_currentAnakId)',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
       );
     }
 
@@ -715,6 +789,7 @@ class _GrafikPageState extends State<GrafikPage> {
 
       if (umurBulan >= 0 && umurBulan <= maxUmur && nilai > 0) {
         dataAnakSpots.add(FlSpot(umurBulan, nilai));
+        print('Point: (${umurBulan.toStringAsFixed(2)}, $nilai)');
       }
     }
 
@@ -1040,16 +1115,18 @@ class KMSPainter extends CustomPainter {
           ((value - minBerat) / (maxBerat - minBerat)) * height;
     }
 
-    _drawBand(canvas, minus1, minus2, const Color(0xFFFFD54F), xPos, yPos);
-    _drawBand(canvas, median, minus1, const Color(0xFF81C784), xPos, yPos);
-    _drawBand(canvas, plus1, median, const Color(0xFF388E3C), xPos, yPos);
-    _drawBand(canvas, plus2, plus1, const Color(0xFFFFD54F), xPos, yPos);
+    // Band warna dengan garis LURUS
+    _drawBandLurus(canvas, minus1, minus2, const Color(0xFFFFD54F), xPos, yPos);
+    _drawBandLurus(canvas, median, minus1, const Color(0xFF81C784), xPos, yPos);
+    _drawBandLurus(canvas, plus1, median, const Color(0xFF388E3C), xPos, yPos);
+    _drawBandLurus(canvas, plus2, plus1, const Color(0xFFFFD54F), xPos, yPos);
 
-    _drawCurve(canvas, plus2, Colors.grey.shade600, 1.5, xPos, yPos);
-    _drawCurve(canvas, plus1, Colors.grey.shade600, 1.5, xPos, yPos);
-    _drawCurve(canvas, median, Colors.black87, 2, xPos, yPos);
-    _drawCurve(canvas, minus1, Colors.grey.shade600, 1.5, xPos, yPos);
-    _drawCurve(canvas, minus2, Colors.grey.shade600, 1.5, xPos, yPos);
+    // Garis batas dengan garis LURUS
+    _drawCurveLurus(canvas, plus2, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurveLurus(canvas, plus1, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurveLurus(canvas, median, Colors.black87, 2, xPos, yPos);
+    _drawCurveLurus(canvas, minus1, Colors.grey.shade600, 1.5, xPos, yPos);
+    _drawCurveLurus(canvas, minus2, Colors.grey.shade600, 1.5, xPos, yPos);
 
     _drawDataAnak(canvas, xPos, yPos);
   }
@@ -1078,7 +1155,9 @@ class KMSPainter extends CustomPainter {
     _drawDataAnakTinggi(canvas, xPos, yPos);
   }
 
-  void _drawBand(
+  // ==================== GARIS LURUS (TIDAK BENGKOK) ====================
+
+  void _drawBandLurus(
     Canvas canvas,
     List<double> topCurve,
     List<double> bottomCurve,
@@ -1088,38 +1167,39 @@ class KMSPainter extends CustomPainter {
   ) {
     if (topCurve.isEmpty || bottomCurve.isEmpty) return;
 
-    final Path path = Path();
-    bool hasStarted = false;
-
+    List<Offset> topPoints = [];
     for (int i = 0; i < topCurve.length && i <= maxUmur; i++) {
       if (topCurve[i] <= 0) continue;
-      final double x = xPos(i);
-      final double y = yPos(topCurve[i]);
-      if (!hasStarted) {
-        path.moveTo(x, y);
-        hasStarted = true;
-      } else {
-        path.lineTo(x, y);
-      }
+      topPoints.add(Offset(xPos(i), yPos(topCurve[i])));
     }
 
-    for (int i = bottomCurve.length - 1; i >= 0 && i <= maxUmur; i--) {
+    List<Offset> bottomPoints = [];
+    for (int i = 0; i < bottomCurve.length && i <= maxUmur; i++) {
       if (bottomCurve[i] <= 0) continue;
-      final double x = xPos(i);
-      final double y = yPos(bottomCurve[i]);
-      path.lineTo(x, y);
+      bottomPoints.add(Offset(xPos(i), yPos(bottomCurve[i])));
     }
 
+    if (topPoints.length < 2 || bottomPoints.length < 2) return;
+
+    final Path path = Path();
+    path.moveTo(topPoints[0].dx, topPoints[0].dy);
+    for (int i = 1; i < topPoints.length; i++) {
+      path.lineTo(topPoints[i].dx, topPoints[i].dy);
+    }
+    for (int i = bottomPoints.length - 1; i >= 0; i--) {
+      path.lineTo(bottomPoints[i].dx, bottomPoints[i].dy);
+    }
     path.close();
 
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
   }
 
-  void _drawCurve(
+  void _drawCurveLurus(
     Canvas canvas,
     List<double> data,
     Color color,
@@ -1129,31 +1209,29 @@ class KMSPainter extends CustomPainter {
   ) {
     if (data.isEmpty) return;
 
-    final Path path = Path();
-    bool hasStarted = false;
-
+    List<Offset> points = [];
     for (int i = 0; i < data.length && i <= maxUmur; i++) {
       if (data[i] <= 0) continue;
-      final double x = xPos(i);
-      final double y = yPos(data[i]);
-      if (!hasStarted) {
-        path.moveTo(x, y);
-        hasStarted = true;
-      } else {
-        path.lineTo(x, y);
-      }
+      points.add(Offset(xPos(i), yPos(data[i])));
     }
 
-    if (!hasStarted) return;
+    if (points.length < 2) return;
 
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+    final Path path = Path();
+    path.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < points.length; i++) {
+      path.lineTo(points[i].dx, points[i].dy);
+    }
 
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = width
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   void _drawDataAnak(
@@ -1167,41 +1245,49 @@ class KMSPainter extends CustomPainter {
     for (var spot in dataAnakSpots) {
       if (spot.x < 0 || spot.x > maxUmur) continue;
       if (spot.y <= 0) continue;
-      double x = xPos(spot.x.toInt());
-      double y = yPos(spot.y);
-      validPoints.add(Offset(x, y));
+      validPoints.add(Offset(xPos(spot.x.toInt()), yPos(spot.y)));
     }
 
     if (validPoints.isEmpty) return;
 
     if (validPoints.length >= 2) {
       final Path path = Path();
-      path.moveTo(validPoints.first.dx, validPoints.first.dy);
+      path.moveTo(validPoints[0].dx, validPoints[0].dy);
       for (int i = 1; i < validPoints.length; i++) {
-        path.lineTo(validPoints[i].dx, validPoints[i].dy);
+        path.cubicTo(
+          (validPoints[i - 1].dx + validPoints[i].dx) / 2,
+          validPoints[i - 1].dy,
+          (validPoints[i - 1].dx + validPoints[i].dx) / 2,
+          validPoints[i].dy,
+          validPoints[i].dx,
+          validPoints[i].dy,
+        );
       }
-
-      final Paint linePaint = Paint()
-        ..color = Colors.red.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-
-      canvas.drawPath(path, linePaint);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.red.withOpacity(0.8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3,
+      );
     }
 
-    final Paint dotPaint = Paint()
-      ..color = Colors.red.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-
     for (var point in validPoints) {
-      canvas.drawCircle(point, 6, dotPaint);
-      final Paint borderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(point, 6, borderPaint);
+      canvas.drawCircle(
+        point,
+        6,
+        Paint()
+          ..color = Colors.red.withOpacity(0.9)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawCircle(
+        point,
+        6,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
     }
   }
 
@@ -1216,41 +1302,49 @@ class KMSPainter extends CustomPainter {
     for (var spot in dataAnakSpots) {
       if (spot.x < 0 || spot.x > maxUmur) continue;
       if (spot.y <= 0) continue;
-      double x = xPos(spot.x);
-      double y = yPos(spot.y);
-      validPoints.add(Offset(x, y));
+      validPoints.add(Offset(xPos(spot.x), yPos(spot.y)));
     }
 
     if (validPoints.isEmpty) return;
 
     if (validPoints.length >= 2) {
       final Path path = Path();
-      path.moveTo(validPoints.first.dx, validPoints.first.dy);
+      path.moveTo(validPoints[0].dx, validPoints[0].dy);
       for (int i = 1; i < validPoints.length; i++) {
-        path.lineTo(validPoints[i].dx, validPoints[i].dy);
+        path.cubicTo(
+          (validPoints[i - 1].dx + validPoints[i].dx) / 2,
+          validPoints[i - 1].dy,
+          (validPoints[i - 1].dx + validPoints[i].dx) / 2,
+          validPoints[i].dy,
+          validPoints[i].dx,
+          validPoints[i].dy,
+        );
       }
-
-      final Paint linePaint = Paint()
-        ..color = Colors.red.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-
-      canvas.drawPath(path, linePaint);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.red.withOpacity(0.8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3,
+      );
     }
 
-    final Paint dotPaint = Paint()
-      ..color = Colors.red.withOpacity(0.9)
-      ..style = PaintingStyle.fill;
-
     for (var point in validPoints) {
-      canvas.drawCircle(point, 6, dotPaint);
-      final Paint borderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(point, 6, borderPaint);
+      canvas.drawCircle(
+        point,
+        6,
+        Paint()
+          ..color = Colors.red.withOpacity(0.9)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawCircle(
+        point,
+        6,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
     }
   }
 

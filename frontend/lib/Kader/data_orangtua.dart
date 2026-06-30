@@ -21,7 +21,6 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
   String _searchQuery = '';
   bool _isLoading = true;
   bool _isSubmitting = false;
-  final int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -42,12 +41,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     });
 
     try {
-      print('📡 Mengambil data orang tua...');
-
       final response = await ApiService.get('/kader/orangtua');
-
-      print('📡 Status: ${response.statusCode}');
-      print('📡 Response: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -58,7 +52,6 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
             _filtered = List.from(_allData);
             _isLoading = false;
           });
-          print('✅ Berhasil memuat ${_allData.length} data orang tua');
         } else {
           setState(() => _isLoading = false);
           _showErrorDialog(
@@ -70,16 +63,12 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
         setState(() => _isLoading = false);
         _showErrorDialog(
           'Koneksi Gagal',
-          'Server merespon dengan kode ${response.statusCode}\nPastikan server berjalan.',
+          'Server merespon dengan kode ${response.statusCode}',
         );
       }
     } catch (e) {
-      print('❌ Error load data: $e');
       setState(() => _isLoading = false);
-      _showErrorDialog(
-        'Error Koneksi',
-        'Tidak dapat terhubung ke server.\nPeriksa koneksi internet dan pastikan server berjalan.\n\nError: $e',
-      );
+      _showErrorDialog('Error Koneksi', 'Tidak dapat terhubung ke server.');
     }
   }
 
@@ -168,7 +157,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text(
-                    '💡 Solusi:',
+                    'Solusi:',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   SizedBox(height: 6),
@@ -207,7 +196,6 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     final emailCtrl = TextEditingController();
     final teleponCtrl = TextEditingController();
     final alamatCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController();
 
     showDialog(
       context: context,
@@ -223,6 +211,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildTextField(namaCtrl, 'Nama Lengkap', Icons.person),
                 const SizedBox(height: 12),
@@ -241,12 +230,29 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                 ),
                 const SizedBox(height: 12),
                 _buildTextField(alamatCtrl, 'Alamat', Icons.location_on),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  passwordCtrl,
-                  'Password',
-                  Icons.lock,
-                  obscure: true,
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue.shade700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Password akan dikirim otomatis ke email orang tua.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -266,31 +272,12 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                 ? null
                 : () async {
                     if (formKey.currentState!.validate()) {
-                      if (passwordCtrl.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password harus diisi!'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
-                      if (passwordCtrl.text.length < 6) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password minimal 6 karakter!'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
                       Navigator.pop(context);
                       await _simpanOrangTua({
                         'nama': namaCtrl.text,
                         'email': emailCtrl.text,
                         'telepon': teleponCtrl.text,
                         'alamat': alamatCtrl.text,
-                        'password': passwordCtrl.text,
                       });
                     }
                   },
@@ -319,7 +306,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _loadData();
         _showSuccessSnackbar(
-          '✓ Data orang tua berhasil ditambahkan! Email notifikasi telah dikirim.',
+          'Data orang tua berhasil ditambahkan! Password dikirim ke email.',
         );
       } else {
         final error = json.decode(response.body);
@@ -329,36 +316,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
         );
       }
     } catch (e) {
-      _showErrorDialog(
-        'Error Koneksi',
-        'Tidak dapat terhubung ke server.\n\nError: $e',
-      );
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  Future<void> _updateOrangTua(int id, Map<String, dynamic> data) async {
-    setState(() => _isSubmitting = true);
-
-    try {
-      final response = await ApiService.put('/kader/orangtua/$id', data);
-
-      if (response.statusCode == 200) {
-        await _loadData();
-        _showSuccessSnackbar('✓ Data orang tua berhasil diupdate!');
-      } else {
-        final error = json.decode(response.body);
-        _showErrorDialog(
-          'Gagal Update',
-          error['message'] ?? 'Terjadi kesalahan',
-        );
-      }
-    } catch (e) {
-      _showErrorDialog(
-        'Error Koneksi',
-        'Tidak dapat terhubung ke server.\n\nError: $e',
-      );
+      _showErrorDialog('Error Koneksi', 'Tidak dapat terhubung ke server.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -383,9 +341,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
           }
         }
       }
-    } catch (e) {
-      print('❌ Cek anak error: $e');
-    }
+    } catch (e) {}
 
     final confirm = await showDialog<bool>(
       context: context,
@@ -395,7 +351,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
           'Hapus Data',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: Text('Yakin ingin menghapus数据 "$nama"?'),
+        content: Text('Yakin ingin menghapus data "$nama"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -419,7 +375,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
 
       if (response.statusCode == 200) {
         await _loadData();
-        _showSuccessSnackbar('✓ Data orang tua berhasil dihapus!');
+        _showSuccessSnackbar('Data orang tua berhasil dihapus!');
       } else {
         final error = json.decode(response.body);
         _showErrorDialog(
@@ -428,97 +384,10 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
         );
       }
     } catch (e) {
-      _showErrorDialog(
-        'Error Koneksi',
-        'Tidak dapat terhubung ke server.\n\nError: $e',
-      );
+      _showErrorDialog('Error Koneksi', 'Tidak dapat terhubung ke server.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
-  }
-
-  void _editOrangTua(Map<String, dynamic> data, int index) {
-    final formKey = GlobalKey<FormState>();
-    final id = data['orangtua_id'];
-
-    final namaCtrl = TextEditingController(text: data['nama']);
-    final emailCtrl = TextEditingController(text: data['email']);
-    final teleponCtrl = TextEditingController(text: data['no_telp']);
-    final alamatCtrl = TextEditingController(text: data['alamat']);
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Edit Data Orang Tua',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTextField(namaCtrl, 'Nama Lengkap', Icons.person),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  emailCtrl,
-                  'Email',
-                  Icons.email,
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  teleponCtrl,
-                  'No Telepon',
-                  Icons.phone,
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(alamatCtrl, 'Alamat', Icons.location_on),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE85D75),
-              foregroundColor: Colors.white,
-            ),
-            onPressed: _isSubmitting
-                ? null
-                : () async {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pop(context);
-                      await _updateOrangTua(id, {
-                        'nama': namaCtrl.text,
-                        'email': emailCtrl.text,
-                        'telepon': teleponCtrl.text,
-                        'alamat': alamatCtrl.text,
-                      });
-                    }
-                  },
-            child: _isSubmitting
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _detailOrangTua(Map<String, dynamic> data) {
@@ -584,16 +453,16 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
     String label,
     IconData icon, {
     TextInputType keyboardType = TextInputType.text,
-    bool obscure = false,
   }) {
     return TextFormField(
       controller: controller,
-      obscureText: obscure,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFFE85D75)),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        filled: true,
+        fillColor: Colors.white,
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return '$label harus diisi';
@@ -602,9 +471,6 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
         }
         if (label == 'No Telepon' && value.length < 10) {
           return 'Nomor telepon minimal 10 digit';
-        }
-        if (label == 'Password' && value.length < 6) {
-          return 'Password minimal 6 karakter';
         }
         return null;
       },
@@ -615,7 +481,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const SidebarKader(),
-      backgroundColor: const Color(0xFFF5EDEE),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFE85D75),
         iconColor: Colors.white,
@@ -627,37 +493,36 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        "Kelola Data Orang Tua",
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF5A2A2A),
-                        ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Data Orang Tua",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF5A2A2A),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Total: ${_allData.length} orang tua",
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Total: ${_allData.length} orang tua terdaftar",
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                      // 🔥 TOMBOL TAMBAH YANG DIPERKECIL (TANPA IKON)
                       SizedBox(
-                        height: 32,
-                        child: ElevatedButton(
+                        height: 36,
+                        child: ElevatedButton.icon(
                           onPressed: _isSubmitting ? null : _tambahOrangTua,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFE85D75),
@@ -665,14 +530,16 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            minimumSize: const Size(0, 32),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                           ),
-                          child: const Text(
-                            '+Tambah',
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text(
+                            'Tambah',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 13,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -697,7 +564,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(color: Colors.grey.shade300!),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30),
@@ -705,6 +572,10 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                           color: Color(0xFFE85D75),
                           width: 1.5,
                         ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
                     ),
                   ),
@@ -724,15 +595,15 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                               const SizedBox(height: 16),
                               Text(
                                 _searchQuery.isEmpty
-                                    ? 'Belum ada数据 orang tua'
+                                    ? 'Belum ada data orang tua'
                                     : 'Tidak ditemukan hasil untuk "$_searchQuery"',
-                                style: TextStyle(color: Colors.grey[500]),
+                                style: TextStyle(color: Colors.grey.shade500),
                               ),
-                              const SizedBox(height: 16),
-                              if (_searchQuery.isEmpty)
+                              if (_searchQuery.isEmpty) ...[
+                                const SizedBox(height: 16),
                                 SizedBox(
-                                  height: 36,
-                                  child: ElevatedButton(
+                                  height: 40,
+                                  child: ElevatedButton.icon(
                                     onPressed: _tambahOrangTua,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFFE85D75),
@@ -741,21 +612,25 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
+                                        horizontal: 20,
                                       ),
                                     ),
-                                    child: const Text('Tambah Orang Tua'),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Tambah Orang Tua'),
                                   ),
                                 ),
+                              ],
                             ],
                           ),
                         )
                       : RefreshIndicator(
                           onRefresh: _loadData,
                           child: ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
+                            padding: const EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 8,
+                              bottom: 100,
                             ),
                             itemCount: _filtered.length,
                             itemBuilder: (context, index) {
@@ -773,108 +648,145 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
 
   Widget _buildCard(Map<String, dynamic> data) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            data['nama'] ?? '-',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF5A2A2A),
-            ),
-          ),
-          const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.email, size: 16, color: Colors.grey),
-              const SizedBox(width: 8),
-              Expanded(
+              CircleAvatar(
+                backgroundColor: const Color(0xFFE85D75).withOpacity(0.1),
+                radius: 20,
                 child: Text(
-                  data['email'] ?? '-',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  overflow: TextOverflow.ellipsis,
+                  (data['nama'] ?? '?')[0].toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFFE85D75),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.phone, size: 16, color: Colors.grey),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  data['no_telp'] ?? '-',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.location_on, size: 16, color: Colors.grey),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  data['alamat'] ?? '-',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data['nama'] ?? '-',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D2D2D),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      data['email'] ?? '-',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              TextButton(
-                onPressed: () => _detailOrangTua(data),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Detail', style: TextStyle(fontSize: 13)),
-              ),
+              _buildInfoChip(Icons.phone, data['no_telp'] ?? '-'),
               const SizedBox(width: 8),
-              TextButton(
-                onPressed: _isSubmitting ? null : () => _editOrangTua(data, 0),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFE85D75),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Ubah', style: TextStyle(fontSize: 13)),
-              ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () => _hapusOrangTua(data['orangtua_id'], data['nama']),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Hapus', style: TextStyle(fontSize: 13)),
+              Expanded(
+                child: _buildInfoChip(Icons.location_on, data['alamat'] ?? '-'),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Divider(color: Colors.grey.shade200, height: 1),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _buildActionButton(
+                icon: Icons.visibility,
+                label: 'Detail',
+                color: Colors.blue,
+                onTap: () => _detailOrangTua(data),
+              ),
+              const SizedBox(width: 8),
+              _buildActionButton(
+                icon: Icons.delete_outline,
+                label: 'Hapus',
+                color: Colors.red,
+                onTap: _isSubmitting
+                    ? null
+                    : () => _hapusOrangTua(data['orangtua_id'], data['nama']),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade500),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );

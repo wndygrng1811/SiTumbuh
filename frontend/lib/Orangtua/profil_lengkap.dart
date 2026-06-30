@@ -34,6 +34,12 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _noHpController = TextEditingController();
   final TextEditingController _alamatController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
 
   @override
   void initState() {
@@ -47,6 +53,8 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     _emailController.dispose();
     _noHpController.dispose();
     _alamatController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -125,6 +133,12 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     return emailRegex.hasMatch(email);
   }
 
+  bool _isValidPhone(String phone) {
+    if (phone.isEmpty) return true;
+    final phoneRegex = RegExp(r'^[0-9]{10,13}$');
+    return phoneRegex.hasMatch(phone);
+  }
+
   Future<void> _updateProfile() async {
     if (_namaController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
@@ -147,6 +161,34 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       return;
     }
 
+    String noHpValue = _noHpController.text.trim();
+    if (noHpValue.isNotEmpty && !_isValidPhone(noHpValue)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nomor HP harus berupa angka (10-13 digit)'),
+        ),
+      );
+      return;
+    }
+
+    String password = _passwordController.text.trim();
+    String confirmPassword = _confirmPasswordController.text.trim();
+
+    if (password.isNotEmpty || confirmPassword.isNotEmpty) {
+      if (password.length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password minimal 6 karakter')),
+        );
+        return;
+      }
+      if (password != confirmPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password dan konfirmasi tidak sesuai')),
+        );
+        return;
+      }
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -156,14 +198,16 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       String? token = prefs.getString('token');
       int userId = prefs.getInt('user_id') ?? 0;
 
-      final requestBody = {
+      Map<String, dynamic> requestBody = {
         'nama_lengkap': _namaController.text.trim(),
         'email': _emailController.text.trim(),
         'no_hp': _noHpController.text.trim(),
         'alamat': _alamatController.text.trim(),
       };
 
-      debugPrint('Request body: $requestBody');
+      if (password.isNotEmpty) {
+        requestBody['password'] = password;
+      }
 
       final response = await http.put(
         Uri.parse('${ApiService.baseUrl}/orangtua/$userId/profile-lengkap'),
@@ -173,9 +217,6 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         },
         body: json.encode(requestBody),
       );
-
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -193,6 +234,8 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
             alamat = _alamatController.text.trim();
             _isEditing = false;
             _isSaving = false;
+            _passwordController.clear();
+            _confirmPasswordController.clear();
           });
 
           widget.onProfileUpdated({
@@ -225,44 +268,61 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     }
   }
 
+  void _showCancelConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Batalkan Perubahan?'),
+        content: const Text('Perubahan yang belum disimpan akan hilang.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Lanjutkan Edit'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _isEditing = false;
+                _namaController.text = namaLengkap;
+                _emailController.text = email;
+                _noHpController.text = noHp;
+                _alamatController.text = alamat;
+                _passwordController.clear();
+                _confirmPasswordController.clear();
+              });
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Batalkan'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6EFF1),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text(
           "Profil Lengkap",
-          style: TextStyle(
-            color: Color(0xFF76172D),
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFE85D75),
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF76172D)),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            if (_isEditing) {
+              _showCancelConfirmation();
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
-        actions: _isEditing
-            ? [
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = false;
-                      _namaController.text = namaLengkap;
-                      _emailController.text = email;
-                      _noHpController.text = noHp;
-                      _alamatController.text = alamat;
-                    });
-                  },
-                  child: const Text(
-                    "Batal",
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ]
-            : null,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -286,7 +346,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                   ElevatedButton(
                     onPressed: _loadProfile,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD86487),
+                      backgroundColor: const Color(0xFFE85D75),
                     ),
                     child: const Text('Coba Lagi'),
                   ),
@@ -294,17 +354,19 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
               ),
             )
           : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Column(
                 children: [
-                  const SizedBox(height: 30),
                   Center(
                     child: CircleAvatar(
                       radius: 45,
-                      backgroundColor: const Color(0xFFD86487),
+                      backgroundColor: const Color(
+                        0xFFE85D75,
+                      ).withOpacity(0.15),
                       child: Icon(
                         _isEditing ? Icons.edit : Icons.person,
                         size: 45,
-                        color: Colors.white,
+                        color: const Color(0xFFE85D75),
                       ),
                     ),
                   ),
@@ -323,21 +385,20 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                   ),
                   const SizedBox(height: 30),
                   Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: _isEditing ? _buildEditForm() : _buildInfoView(),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
                   Center(
                     child: SizedBox(
                       width: 160,
@@ -354,11 +415,8 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFD86487),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 20,
-                          ),
+                          backgroundColor: const Color(0xFFE85D75),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
@@ -383,7 +441,6 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -441,49 +498,203 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   Widget _buildEditForm() {
     return Column(
       children: [
-        _editField(_namaController, "Nama Lengkap"),
+        _editField(_namaController, "Nama Lengkap", Icons.person),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _editField(_emailController, "Email"),
+        _editFieldEmail(),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _editFieldPhone(_noHpController, "Nomor HP"),
+        _editFieldPhone(),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _editField(_alamatController, "Alamat"),
+        _editField(_alamatController, "Alamat", Icons.location_on),
+        const Divider(height: 1, thickness: 0.5, color: Colors.grey),
+        _editPasswordField(),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.blue.shade700),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Kosongkan password jika tidak ingin mengubah',
+                    style: TextStyle(fontSize: 10, color: Colors.blue.shade700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
     );
   }
 
-  Widget _editField(TextEditingController controller, String label) {
+  Widget _editField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: TextField(
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          prefixIcon: Icon(icon, size: 18, color: const Color(0xFFE85D75)),
           border: InputBorder.none,
           isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
         ),
         style: const TextStyle(fontSize: 14),
       ),
     );
   }
 
-  Widget _editFieldPhone(TextEditingController controller, String label) {
+  Widget _editFieldEmail() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: TextField(
-        controller: controller,
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        decoration: InputDecoration(
+          labelText: 'Email',
+          labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          prefixIcon: const Icon(
+            Icons.email,
+            size: 18,
+            color: Color(0xFFE85D75),
+          ),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+          errorText:
+              _emailController.text.isNotEmpty &&
+                  !_isValidEmail(_emailController.text)
+              ? 'Format email tidak valid'
+              : null,
+          errorStyle: const TextStyle(fontSize: 10),
+        ),
+        style: const TextStyle(fontSize: 14),
+        onChanged: (value) {
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Widget _editFieldPhone() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: TextField(
+        controller: _noHpController,
         keyboardType: TextInputType.phone,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
-          labelText: label,
+          labelText: 'Nomor HP',
           labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          prefixIcon: const Icon(
+            Icons.phone,
+            size: 18,
+            color: Color(0xFFE85D75),
+          ),
           border: InputBorder.none,
           isDense: true,
-          helperText: 'Hanya angka',
-          helperStyle: const TextStyle(fontSize: 10, color: Colors.grey),
+          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+          errorText:
+              _noHpController.text.isNotEmpty &&
+                  !_isValidPhone(_noHpController.text)
+              ? 'Harus angka (10-13 digit)'
+              : null,
+          errorStyle: const TextStyle(fontSize: 10),
         ),
         style: const TextStyle(fontSize: 14),
+        onChanged: (value) {
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  Widget _editPasswordField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          TextField(
+            controller: _passwordController,
+            obscureText: !_showPassword,
+            decoration: InputDecoration(
+              labelText: 'Password Baru',
+              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+              prefixIcon: const Icon(
+                Icons.lock,
+                size: 18,
+                color: Color(0xFFE85D75),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _showPassword ? Icons.visibility_off : Icons.visibility,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _showPassword = !_showPassword;
+                  });
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+              hintText: 'Minimal 6 karakter',
+              hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _confirmPasswordController,
+            obscureText: !_showConfirmPassword,
+            decoration: InputDecoration(
+              labelText: 'Konfirmasi Password',
+              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+              prefixIcon: const Icon(
+                Icons.lock_outline,
+                size: 18,
+                color: Color(0xFFE85D75),
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _showConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  size: 18,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _showConfirmPassword = !_showConfirmPassword;
+                  });
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+            ),
+            style: const TextStyle(fontSize: 14),
+          ),
+        ],
       ),
     );
   }

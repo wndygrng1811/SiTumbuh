@@ -284,8 +284,11 @@ class _DashboardContentState extends State<DashboardContent> {
             try {
               setState(() {
                 _tanggalLahir = DateTime.parse(anakData['tanggal_lahir']);
+                print('Tanggal lahir: $_tanggalLahir');
               });
-            } catch (e) {}
+            } catch (e) {
+              print('Error parsing tanggal lahir: $e');
+            }
           }
         }
       }
@@ -361,6 +364,8 @@ class _DashboardContentState extends State<DashboardContent> {
                 b['tanggal'] as DateTime,
               ),
             );
+
+            print('Data pertumbuhan loaded: ${_dataPertumbuhan.length} items');
           });
         } else {
           setState(() {
@@ -409,23 +414,63 @@ class _DashboardContentState extends State<DashboardContent> {
         if (data['success'] == true && data['data'] != null) {
           List<dynamic> jadwalList = data['data'];
 
-          DateTime today = DateTime.now();
+          DateTime now = DateTime.now();
           List<Map<String, dynamic>> jadwalAkanDatang = [];
 
           for (var j in jadwalList) {
             try {
               DateTime tglJadwal = DateTime.parse(j['tanggal']);
-              if (tglJadwal.isAfter(today) ||
-                  tglJadwal.isAtSameMomentAs(today)) {
+              String waktuStr = j['waktu'] ?? '00:00:00';
+              List<String> waktuParts = waktuStr.split(':');
+              int jam = int.parse(waktuParts[0]);
+              int menit = int.parse(waktuParts[1]);
+
+              DateTime fullDateTime = DateTime(
+                tglJadwal.year,
+                tglJadwal.month,
+                tglJadwal.day,
+                jam,
+                menit,
+              );
+
+              if (fullDateTime.isAfter(now) ||
+                  fullDateTime.isAtSameMomentAs(now)) {
                 jadwalAkanDatang.add(j);
               }
-            } catch (e) {}
+            } catch (e) {
+              print('Error parsing jadwal: $e');
+            }
           }
 
           jadwalAkanDatang.sort((a, b) {
-            DateTime tglA = DateTime.parse(a['tanggal']);
-            DateTime tglB = DateTime.parse(b['tanggal']);
-            return tglA.compareTo(tglB);
+            try {
+              DateTime tglA = DateTime.parse(a['tanggal']);
+              String waktuA = a['waktu'] ?? '00:00:00';
+              List<String> partsA = waktuA.split(':');
+
+              DateTime tglB = DateTime.parse(b['tanggal']);
+              String waktuB = b['waktu'] ?? '00:00:00';
+              List<String> partsB = waktuB.split(':');
+
+              DateTime fullA = DateTime(
+                tglA.year,
+                tglA.month,
+                tglA.day,
+                int.parse(partsA[0]),
+                int.parse(partsA[1]),
+              );
+              DateTime fullB = DateTime(
+                tglB.year,
+                tglB.month,
+                tglB.day,
+                int.parse(partsB[0]),
+                int.parse(partsB[1]),
+              );
+
+              return fullA.compareTo(fullB);
+            } catch (e) {
+              return 0;
+            }
           });
 
           setState(() {
@@ -659,6 +704,7 @@ class _DashboardContentState extends State<DashboardContent> {
     return 0;
   }
 
+  // ==================== GRAFIK - SAMA SEPERTI DI GRAFIK PAGE ====================
   List<FlSpot> _buildStandarMedian() {
     String gender = _currentJenisKelamin == 'Perempuan'
         ? 'Perempuan'
@@ -729,14 +775,45 @@ class _DashboardContentState extends State<DashboardContent> {
     return spots;
   }
 
+  // ==================== DATA ANAK UNTUK GRAFIK (FIX) ====================
   List<FlSpot> _buildDataAnakSpotsKMS() {
     List<FlSpot> spots = [];
-    for (int i = 0; i < _dataPertumbuhan.length; i++) {
-      double berat = _dataPertumbuhan[i]['berat'] as double;
-      if (berat > 0) {
-        spots.add(FlSpot(i.toDouble(), berat));
+
+    if (_tanggalLahir == null) {
+      print('Tanggal lahir null, tidak bisa buat grafik');
+      return spots;
+    }
+
+    print('=== BUILDING GRAFIK UTAMA ===');
+    print('Tanggal lahir: $_tanggalLahir');
+    print('Jumlah data: ${_dataPertumbuhan.length}');
+
+    for (var data in _dataPertumbuhan) {
+      DateTime tanggal = data['tanggal'] as DateTime;
+      double berat = data['berat'] as double;
+
+      // Hitung umur dalam bulan (sama seperti di grafik_page.dart)
+      int bulan = (tanggal.year - _tanggalLahir!.year) * 12;
+      bulan += tanggal.month - _tanggalLahir!.month;
+      int hari = tanggal.day - _tanggalLahir!.day;
+      double umurBulan = bulan.toDouble() + (hari / 30.0);
+
+      if (umurBulan < 0) umurBulan = 0;
+
+      print(
+        'Data: tanggal=$tanggal, umur=${umurBulan.toStringAsFixed(2)}, berat=$berat',
+      );
+
+      if (berat > 0 && umurBulan >= 0 && umurBulan <= 24) {
+        spots.add(FlSpot(umurBulan, berat));
+        print('Point added: (${umurBulan.toStringAsFixed(2)}, $berat)');
       }
     }
+
+    // Urutkan berdasarkan umur
+    spots.sort((a, b) => a.x.compareTo(b.x));
+
+    print('Total points: ${spots.length}');
     return spots;
   }
 
