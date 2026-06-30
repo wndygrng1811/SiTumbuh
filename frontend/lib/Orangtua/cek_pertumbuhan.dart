@@ -412,18 +412,22 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   }
 
   Color _getColorStatus(String status) {
-    if (status.contains('Severe') || status.contains('Sangat'))
+    if (status.contains('Severe') || status.contains('Sangat')) {
       return Colors.red;
+    }
     if (status.contains('Stunting') ||
         status.contains('Wasting') ||
         status.contains('Underweight') ||
-        status.contains('Kurus'))
+        status.contains('Kurus')) {
       return Colors.orange;
-    if (status.contains('Overweight') || status.contains('Gemuk'))
+    }
+    if (status.contains('Overweight') || status.contains('Gemuk')) {
       return Colors.blue;
+    }
     if (status.contains('Obesitas')) return Colors.redAccent;
-    if (status.contains('Mikrosefali') || status.contains('Makrosefali'))
+    if (status.contains('Mikrosefali') || status.contains('Makrosefali')) {
       return Colors.purple;
+    }
     if (status.contains('Risiko')) return Colors.amber;
     if (status.contains('Normal')) return Colors.green;
     if (status.contains('Tinggi')) return Colors.teal;
