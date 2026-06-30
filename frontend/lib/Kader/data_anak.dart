@@ -380,7 +380,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               ),
                             ),
                             child: DropdownButtonFormField<int>(
-                              value: _selectedOrangTuaId,
+                              initialValue: _selectedOrangTuaId,
                               isExpanded: true,
                               decoration: InputDecoration(
                                 labelText: 'Orang Tua',
@@ -790,7 +790,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
     required String hint,
     required IconData icon,
     TextEditingController? controller,
-    Widget? child,
     bool readOnly = false,
     VoidCallback? onTap,
     TextInputType? keyboardType,
@@ -1450,12 +1449,15 @@ class _DataAnakPageState extends State<DataAnakPage> {
   Color _getStatusColor(String? status) {
     if (status == null) return Colors.grey;
     if (status.contains('Normal')) return Colors.green;
-    if (status.contains('Stunting') || status.contains('Kurus'))
+    if (status.contains('Stunting') || status.contains('Kurus')) {
       return Colors.orange;
-    if (status.contains('Severe') || status.contains('Buruk'))
+    }
+    if (status.contains('Severe') || status.contains('Buruk')) {
       return Colors.red;
-    if (status.contains('Overweight') || status.contains('Obesitas'))
+    }
+    if (status.contains('Overweight') || status.contains('Obesitas')) {
       return Colors.redAccent;
+    }
     return Colors.grey;
   }
 }
