@@ -19,15 +19,9 @@ class _BottomNavState extends State<BottomNav> {
   String _namaAnak = '';
   String _jenisKelamin = '';
 
-  // Warna-warna tampilan
-  static const Color _maroon = Color(0xFF76172D); // warna bubble aktif
-  static const Color _softPink = Color(0xFFE85D75); // background navbar
-  static const Color _inactiveColor = Color.fromRGBO(
-    247,
-    244,
-    245,
-    1,
-  ); // ikon & label nonaktif
+  static const Color _maroon = Color(0xFF76172D);
+  static const Color _pink = Color(0xFF76172D);
+  static const Color _background = Colors.white;
 
   final List<_NavItemData> _navItems = const [
     _NavItemData(icon: Icons.home_rounded, label: "Beranda"),
@@ -43,7 +37,8 @@ class _BottomNavState extends State<BottomNav> {
   }
 
   Future<void> _loadAnakData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
+
     setState(() {
       _anakId = prefs.getInt('anak_id') ?? 0;
       _namaAnak = prefs.getString('nama_anak') ?? '';
@@ -81,80 +76,74 @@ class _BottomNavState extends State<BottomNav> {
         page = const HalamanUtama();
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => page),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _softPink, // Background card full-lebar, nempel kiri-kanan
+      color: _background,
+      elevation: 12,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      clipBehavior: Clip.none, // Biar bubble boleh "keluar" dari card
+      clipBehavior: Clip.none,
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64, // Tinggi card TETAP, tidak ikut membesar
+          height: 78,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(_navItems.length, (index) {
-              final bool isActive = widget.currentIndex == index;
+              final isActive = widget.currentIndex == index;
               final item = _navItems[index];
 
               return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
                   onTap: () => _navigate(context, index),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Transform.translate cuma geser tampilan,
-                      // TIDAK menambah tinggi layout -> card tetap fixed
-                      Transform.translate(
-                        offset: isActive ? const Offset(0, -22) : Offset.zero,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          width: isActive ? 46 : 24,
-                          height: isActive ? 46 : 24,
-                          decoration: BoxDecoration(
-                            color: isActive ? _maroon : Colors.transparent,
-                            shape: BoxShape.circle,
-                            boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            item.icon,
-                            size: 22,
-                            color: isActive ? Colors.white : _inactiveColor,
-                          ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        transform: Matrix4.translationValues(
+                          0,
+                          isActive ? -12 : 0,
+                          0,
+                        ),
+                        width: isActive ? 50 : 26,
+                        height: isActive ? 50 : 26,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isActive ? _pink : Colors.transparent,
+                          shape: BoxShape.circle,
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: _pink.withOpacity(0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Icon(
+                          item.icon,
+                          size: 24,
+                          color: isActive ? Colors.white : _maroon,
                         ),
                       ),
-                      // Geser label ikut naik sedikit biar pas
-                      // di bawah card seperti contoh gambar
-                      Transform.translate(
-                        offset: isActive ? const Offset(0, -10) : Offset.zero,
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 220),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isActive
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isActive ? _maroon : _inactiveColor,
-                          ),
+                      const SizedBox(height: 4),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 250),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: _maroon, // Selalu maroon
+                        ),
+                        child: Transform.translate(
+                          offset: Offset(0, isActive ? -8 : 0),
                           child: Text(
                             item.label,
                             maxLines: 1,

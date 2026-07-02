@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.100.29:8000/api';
+  static const String baseUrl = 'http://10.177.32.54:8000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
 import 'package:si_tumbuh/Kader/data_anak.dart';
+import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
 import 'package:si_tumbuh/Kader/jadwal.dart';
 import 'package:si_tumbuh/Kader/profil.dart';
 
@@ -15,15 +14,9 @@ class BottomNavbarKader extends StatefulWidget {
 }
 
 class _BottomNavbarKaderState extends State<BottomNavbarKader> {
-  // Warna-warna tampilan
-  static const Color _maroon = Color(0xFF76172D); // warna bubble aktif
-  static const Color _softPink = Color(0xFFE85D75); // background navbar
-  static const Color _inactiveColor = Color.fromRGBO(
-    250,
-    249,
-    249,
-    1,
-  ); // ikon & label nonaktif
+  static const Color _maroon = Color(0xFF76172D);
+  static const Color _pink = Color(0xFF76172D);
+  static const Color _background = Colors.white;
 
   final List<_NavItemData> _navItems = const [
     _NavItemData(icon: Icons.home_rounded, label: "Beranda"),
@@ -54,81 +47,74 @@ class _BottomNavbarKaderState extends State<BottomNavbarKader> {
         page = const HalamanUtamaKader();
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => page),
-    );
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
   }
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: _softPink,
+      color: _background,
+      elevation: 12,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       clipBehavior: Clip.none,
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 78,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: List.generate(_navItems.length, (index) {
-              final bool isActive = widget.selectedIndex == index;
+              final isActive = widget.selectedIndex == index;
               final item = _navItems[index];
 
               return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                child: InkWell(
                   onTap: () => _navigate(context, index),
+                  borderRadius: BorderRadius.circular(20),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Transform.translate(
-                        offset: isActive ? const Offset(0, -22) : Offset.zero,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          width: isActive ? 46 : 24,
-                          height: isActive ? 46 : 24,
-                          decoration: BoxDecoration(
-                            color: isActive ? _maroon : Colors.transparent,
-                            shape: BoxShape.circle,
-                            boxShadow: isActive
-                                ? [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ]
-                                : [],
-                          ),
-                          alignment: Alignment.center,
-                          child: Icon(
-                            item.icon,
-                            size: 22,
-                            color: isActive ? Colors.white : _inactiveColor,
-                          ),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        transform: Matrix4.translationValues(
+                          0,
+                          isActive ? -12 : 0,
+                          0,
+                        ),
+                        width: isActive ? 50 : 26,
+                        height: isActive ? 50 : 26,
+                        decoration: BoxDecoration(
+                          color: isActive ? _pink : Colors.transparent,
+                          shape: BoxShape.circle,
+                          boxShadow: isActive
+                              ? [
+                                  BoxShadow(
+                                    color: _pink.withOpacity(0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: Icon(
+                          item.icon,
+                          color: isActive ? Colors.white : _maroon,
+                          size: 24,
                         ),
                       ),
-                      Transform.translate(
-                        offset: isActive ? const Offset(0, -10) : Offset.zero,
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 220),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isActive
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                            color: isActive ? _maroon : _inactiveColor,
-                          ),
-                          child: Text(
-                            item.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                      const SizedBox(height: 4),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 250),
+                        style: TextStyle(
+                          color: _maroon, // selalu maroon
+                          fontSize: 11,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                        child: Transform.translate(
+                          offset: Offset(0, isActive ? -8 : 0),
+                          child: Text(item.label),
                         ),
                       ),
                     ],

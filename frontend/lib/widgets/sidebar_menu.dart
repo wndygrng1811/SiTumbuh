@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:si_tumbuh/Orangtua/halaman_utama.dart';
 import 'package:si_tumbuh/Orangtua/cek_pertumbuhan.dart';
 import 'package:si_tumbuh/Orangtua/grafik.dart';
 import 'package:si_tumbuh/Orangtua/edukasi.dart';
@@ -138,16 +139,23 @@ class _SidebarMenuState extends State<SidebarMenu> {
               child: Column(
                 children: [
                   _buildMenuItem(
-                    Icons.favorite_border,
-                    "Cek Pertumbuhan",
+                    Icons.dashboard_rounded,
+                    "Halaman Utama",
                     0,
                     () => _navigateTo(context, const CekPertumbuhanPage()),
                   ),
 
                   _buildMenuItem(
+                    Icons.favorite_border,
+                    "Cek Pertumbuhan",
+                    1,
+                    () => _navigateTo(context, const HalamanUtama()),
+                  ),
+
+                  _buildMenuItem(
                     Icons.trending_up,
                     "Riwayat Pertumbuhan",
-                    1,
+                    2,
                     () => _navigateTo(
                       context,
                       GrafikPage(
@@ -161,7 +169,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   _buildMenuItem(
                     Icons.history,
                     "Riwayat Kunjungan",
-                    2,
+                    3,
                     () => _navigateTo(
                       context,
                       RiwayatKunjunganPage(anakId: _currentAnakId),
@@ -171,14 +179,14 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   _buildMenuItem(
                     Icons.menu_book,
                     "Edukasi",
-                    3,
+                    4,
                     () => _navigateTo(context, const EdukasiPage()),
                   ),
 
                   _buildMenuItem(
                     Icons.people_outline,
                     "Data Anak",
-                    4,
+                    5,
                     () => _navigateTo(
                       context,
                       DataAnakPage(anakId: _currentAnakId),
@@ -188,7 +196,7 @@ class _SidebarMenuState extends State<SidebarMenu> {
                   _buildMenuItem(
                     Icons.person_outline,
                     "Profil",
-                    5,
+                    6,
                     () => _navigateTo(
                       context,
                       ProfilLengkapPage(

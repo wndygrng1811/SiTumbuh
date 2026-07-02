@@ -37,11 +37,13 @@ class _CustomAppBarState extends State<CustomAppBar> {
   }
 
   Future<void> _loadUserRole() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String role = prefs.getString('role') ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('role') ?? '';
+
     setState(() {
       _userRole = role;
     });
+
     _loadUnreadCount();
   }
 
@@ -52,6 +54,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
       final role = prefs.getString('role') ?? '';
 
       final data = await ApiService.getNotifikasi(userId: userId, role: role);
+
       final count = data.where((n) => n['is_read'] == 0).length;
 
       if (mounted) {
@@ -60,7 +63,7 @@ class _CustomAppBarState extends State<CustomAppBar> {
         });
       }
     } catch (e) {
-      print('Error load unread count: $e');
+      debugPrint('Error load unread count: $e');
     }
   }
 
@@ -70,132 +73,112 @@ class _CustomAppBarState extends State<CustomAppBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: widget.backgroundColor ?? const Color(0xFFE85D75),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+    return AppBar(
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      title: const Text(
+        'SiTumbuh',
+        style: TextStyle(
+          color: Color(0xFF76172D),
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          letterSpacing: 0.4,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
-      child: AppBar(
-        title: const Text(
-          'SiTumbuh',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-            letterSpacing: 0.4,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            bottomLeft: Radius.circular(20),
-            bottomRight: Radius.circular(20),
-          ),
-        ),
-        leading: _buildLeading(context),
-        actions: _buildActions(context),
-        automaticallyImplyLeading: false,
-      ),
+      leading: _buildLeading(context),
+      actions: _buildActions(context),
     );
   }
 
   Widget? _buildLeading(BuildContext context) {
     if (widget.showBackButton) {
       return IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
         splashRadius: 22,
+        icon: const Icon(
+          Icons.arrow_back_ios,
+          color: Color(0xFF76172D),
+          size: 20,
+        ),
         onPressed: () => Navigator.pop(context),
       );
     } else if (widget.showDrawerIcon) {
       return Builder(
         builder: (context) => IconButton(
-          icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 24),
           splashRadius: 22,
+          icon: const Icon(
+            Icons.menu_rounded,
+            color: Color(0xFF76172D),
+            size: 24,
+          ),
           onPressed: () {
             Scaffold.of(context).openDrawer();
           },
         ),
       );
     }
+
     return null;
   }
 
   List<Widget>? _buildActions(BuildContext context) {
-    if (widget.showNotificationIcon) {
-      return [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            IconButton(
-              icon: const Icon(
-                Icons.notifications_none_rounded,
-                color: Colors.white,
-                size: 24,
-              ),
-              splashRadius: 22,
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NotifikasiPage(role: _userRole),
-                  ),
-                );
-                if (result == true) {
-                  _refreshUnreadCount();
-                }
-              },
+    if (!widget.showNotificationIcon) return null;
+
+    return [
+      Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            splashRadius: 22,
+            icon: const Icon(
+              Icons.notifications_none_rounded,
+              color: Color(0xFF76172D),
+              size: 24,
             ),
-            if (_unreadCount > 0)
-              Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotifikasiPage(role: _userRole),
+                ),
+              );
+
+              if (result == true) {
+                _refreshUnreadCount();
+              }
+            },
+          ),
+          if (_unreadCount > 0)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.2),
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                child: Text(
+                  _unreadCount > 9 ? '9+' : '$_unreadCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    height: 1.1,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.9),
-                      width: 1.2,
-                    ),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 16,
-                    minHeight: 16,
-                  ),
-                  child: Text(
-                    _unreadCount > 9 ? '9+' : '$_unreadCount',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      height: 1.1,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
-          ],
-        ),
-        const SizedBox(width: 8),
-      ];
-    }
-    return null;
+            ),
+        ],
+      ),
+      const SizedBox(width: 8),
+    ];
   }
 }

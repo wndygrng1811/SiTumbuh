@@ -308,7 +308,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
 
     if (severeStunting || severeWasting || severeUnderweight) {
       return {
-        'status': '⚠️ Gizi Buruk - Segera Konsultasi!',
+        'status': 'Gizi Buruk - Segera Konsultasi!',
         'deskripsi':
             'Anak menunjukkan tanda-tanda gizi buruk (stunting berat / wasting berat / underweight berat). Segera bawa ke posyandu atau puskesmas.',
         'warna': Colors.red,
@@ -316,7 +316,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (stunting && (wasting || underweight)) {
       return {
-        'status': '📏 Stunting + Wasting/Underweight',
+        'status': 'Stunting + Wasting/Underweight',
         'deskripsi':
             'Anak mengalami stunting disertai masalah berat badan. Perlu penanganan gizi segera.',
         'warna': Colors.deepOrange,
@@ -324,7 +324,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (stunting) {
       return {
-        'status': '📏 Stunting (Tinggi Badan di Bawah Standar)',
+        'status': 'Stunting (Tinggi Badan di Bawah Standar)',
         'deskripsi':
             'Tinggi badan anak di bawah standar usianya. Perhatikan asupan gizi protein, vitamin, dan mineral.',
         'warna': Colors.orange,
@@ -332,7 +332,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (wasting || underweight) {
       return {
-        'status': '⚖️ Wasting / Underweight',
+        'status': 'Wasting / Underweight',
         'deskripsi':
             'Berat badan anak di bawah standar. Tingkatkan asupan makanan bergizi seimbang.',
         'warna': Colors.orange,
@@ -340,7 +340,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (overweight) {
       return {
-        'status': '🍎 Gizi Lebih (Overweight)',
+        'status': 'Gizi Lebih (Overweight)',
         'deskripsi':
             'Anak memiliki berat badan berlebih. Atur pola makan sehat dan tingkatkan aktivitas fisik.',
         'warna': Colors.blue,
@@ -348,7 +348,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (mikrosefali || makrosefali) {
       return {
-        'status': '🧠 Perkembangan Kepala Perlu Diperhatikan',
+        'status': 'Perkembangan Kepala Perlu Diperhatikan',
         'deskripsi':
             'Ukuran lingkar kepala tidak sesuai standar. Konsultasikan ke dokter anak.',
         'warna': Colors.purple,
@@ -356,7 +356,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else {
       return {
-        'status': '✅ Pertumbuhan Normal',
+        'status': 'Pertumbuhan Normal',
         'deskripsi':
             'Semua indikator tumbuh kembang anak berada dalam rentang normal. Pertahankan!',
         'warna': Colors.green,
@@ -369,7 +369,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   Map<String, dynamic> _getStatusUtamaDewasa(String statusIMT) {
     if (statusIMT.contains('Severe Thinness') || statusIMT.contains('Severe')) {
       return {
-        'status': '⚠️ Kurang Gizi Berat (Severe)',
+        'status': 'Kurang Gizi Berat (Severe)',
         'deskripsi':
             'IMT menunjukkan kekurangan gizi berat. Segera konsultasikan ke dokter atau ahli gizi.',
         'warna': Colors.red,
@@ -378,7 +378,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     } else if (statusIMT.contains('Underweight') ||
         statusIMT.contains('Kurus')) {
       return {
-        'status': '⚖️ Kurang Gizi (Underweight)',
+        'status': 'Kurang Gizi (Underweight)',
         'deskripsi':
             'Berat badan di bawah standar. Perhatikan asupan nutrisi dan konsultasikan ke ahli gizi.',
         'warna': Colors.orange,
@@ -386,7 +386,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (statusIMT.contains('Overweight')) {
       return {
-        'status': '🍎 Gemuk (Overweight)',
+        'status': 'Gemuk (Overweight)',
         'deskripsi':
             'Berat badan berlebih. Jaga pola makan sehat dan rutin berolahraga.',
         'warna': Colors.blue,
@@ -394,7 +394,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else if (statusIMT.contains('Obesitas')) {
       return {
-        'status': '⚠️ Obesitas',
+        'status': 'Obesitas',
         'deskripsi':
             'IMT menunjukkan obesitas. Risiko penyakit tidak menular meningkat. Konsultasikan ke dokter.',
         'warna': Colors.redAccent,
@@ -402,7 +402,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       };
     } else {
       return {
-        'status': '✅ Berat Badan Normal',
+        'status': 'Berat Badan Normal',
         'deskripsi':
             'IMT berada dalam rentang normal. Pertahankan pola hidup sehat!',
         'warna': Colors.green,
