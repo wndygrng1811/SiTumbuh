@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excel;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -19,7 +19,7 @@ class LaporanPage extends StatefulWidget {
 
 class _LaporanPageState extends State<LaporanPage> {
   static const Color _pink = Color(0xFFE85D75);
-  static const Color _bg = Color(0xFFF8F9FA);
+  static const Color _bg = Color(0xFFF5F7FA);
 
   String _selectedBulan = 'Juni';
   String _selectedTahun = '2026';
@@ -167,7 +167,7 @@ class _LaporanPageState extends State<LaporanPage> {
         showNotificationIcon: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _pink))
           : _errorMessage.isNotEmpty
           ? _buildErrorWidget()
           : _buildMainContent(),
@@ -179,13 +179,32 @@ class _LaporanPageState extends State<LaporanPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.error_outline,
+              size: 40,
+              color: Colors.red.shade300,
+            ),
+          ),
           const SizedBox(height: 16),
-          Text(_errorMessage),
+          Text(_errorMessage, style: TextStyle(color: Colors.grey.shade700)),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _loadData,
-            style: ElevatedButton.styleFrom(backgroundColor: _pink),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _pink,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
             child: const Text('Coba Lagi'),
           ),
         ],
@@ -208,22 +227,7 @@ class _LaporanPageState extends State<LaporanPage> {
                 const SizedBox(height: 20),
                 _buildFilterSection(),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Data Pertumbuhan Anak',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Text(
-                      '${_filteredData.length} data',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                  ],
-                ),
+                _buildTableHeader(),
                 const SizedBox(height: 10),
                 _buildDataTable(),
                 const SizedBox(height: 20),
@@ -239,44 +243,84 @@ class _LaporanPageState extends State<LaporanPage> {
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       decoration: BoxDecoration(
-        color: _pink,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.grid_view_rounded,
-                color: Colors.white70,
-                size: 14,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Laporan Bulanan',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 12,
-                ),
-              ),
-            ],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_pink, _pink.withOpacity(0.85)],
+        ),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: _pink.withOpacity(0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 3),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Laporan Posyandu',
-            style: TextStyle(
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.insert_chart_rounded,
               color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
+              size: 24,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Posyandu Melati · RW 03 · $_selectedBulan $_selectedTahun',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Laporan Posyandu',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_month_rounded,
+                      color: Colors.white.withOpacity(0.7),
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$_selectedBulan $_selectedTahun',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.location_on_rounded,
+                      color: Colors.white.withOpacity(0.7),
+                      size: 13,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Posyandu Melati',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -284,118 +328,143 @@ class _LaporanPageState extends State<LaporanPage> {
   }
 
   Widget _buildStatCards() {
-    return Row(
+    return Column(
       children: [
-        _StatCard(
-          icon: Icons.child_care_rounded,
-          label: 'Total Anak',
-          value: '$_totalAnak',
-          iconBg: const Color(0xFFE91E8C),
+        Row(
+          children: [
+            _StatCard(
+              icon: Icons.child_care_rounded,
+              label: 'Total Anak',
+              value: '$_totalAnak',
+              color: const Color(0xFFE85D75),
+            ),
+            const SizedBox(width: 10),
+            _StatCard(
+              icon: Icons.verified_rounded,
+              label: 'Gizi Normal',
+              value: '$_totalNormal',
+              color: const Color(0xFF4CAF50),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        _StatCard(
-          icon: Icons.verified_rounded,
-          label: 'Gizi Normal',
-          value: '$_totalNormal',
-          iconBg: const Color(0xFF66BB6A),
-        ),
-        const SizedBox(width: 10),
-        _StatCard(
-          icon: Icons.warning_rounded,
-          label: 'Gizi Kurang',
-          value: '$_totalKurang',
-          iconBg: const Color(0xFFFF9800),
-        ),
-        const SizedBox(width: 10),
-        _StatCard(
-          icon: Icons.error_rounded,
-          label: 'Obesitas',
-          value: '$_totalObesitas',
-          iconBg: const Color(0xFFF44336),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _StatCard(
+              icon: Icons.warning_rounded,
+              label: 'Gizi Kurang',
+              value: '$_totalKurang',
+              color: const Color(0xFFFF9800),
+            ),
+            const SizedBox(width: 10),
+            _StatCard(
+              icon: Icons.error_rounded,
+              label: 'Obesitas',
+              value: '$_totalObesitas',
+              color: const Color(0xFFF44336),
+            ),
+          ],
         ),
       ],
     );
   }
 
   Widget _buildFilterSection() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildDropdown(
-                icon: Icons.calendar_month_rounded,
-                value: _selectedBulan,
-                items: _listBulan,
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedBulan = val);
-                    _loadData();
-                  }
-                },
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildDropdown(
+                  icon: Icons.calendar_month_rounded,
+                  value: _selectedBulan,
+                  items: _listBulan,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedBulan = val);
+                      _loadData();
+                    }
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 110,
-              child: _buildDropdown(
-                icon: Icons.date_range_rounded,
-                value: _selectedTahun,
-                items: _listTahun,
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() => _selectedTahun = val);
-                    _loadData();
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 110,
+                child: _buildDropdown(
+                  icon: Icons.date_range_rounded,
+                  value: _selectedTahun,
+                  items: _listTahun,
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedTahun = val);
+                      _loadData();
+                    }
+                  },
+                ),
               ),
             ],
           ),
-          child: TextField(
-            controller: _searchCtrl,
-            style: const TextStyle(fontSize: 14),
-            decoration: InputDecoration(
-              hintText: 'Cari nama anak...',
-              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
-              prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400]),
-              suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      color: Colors.grey[400],
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        _filterData();
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          const SizedBox(height: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200, width: 0.5),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
+              decoration: InputDecoration(
+                hintText: 'Cari nama anak...',
+                hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                ),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        color: Colors.grey.shade400,
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _filterData();
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey.shade50,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _pink, width: 1.5),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -408,24 +477,29 @@ class _LaporanPageState extends State<LaporanPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: value,
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+          icon: Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _pink.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 18,
+              color: _pink,
+            ),
+          ),
           iconEnabledColor: _pink,
           style: const TextStyle(
-            color: Color(0xFF2D2D2D),
+            color: Color(0xFF1A1A1A),
             fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
@@ -434,9 +508,9 @@ class _LaporanPageState extends State<LaporanPage> {
               value: item,
               child: Row(
                 children: [
-                  Icon(icon, size: 15, color: _pink),
-                  const SizedBox(width: 6),
-                  Text(item),
+                  Icon(icon, size: 16, color: _pink),
+                  const SizedBox(width: 8),
+                  Text(item, style: const TextStyle(fontSize: 13)),
                 ],
               ),
             );
@@ -447,16 +521,83 @@ class _LaporanPageState extends State<LaporanPage> {
     );
   }
 
+  Widget _buildTableHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 4,
+              height: 18,
+              decoration: BoxDecoration(
+                color: _pink,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Data Pertumbuhan Anak',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: _pink.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '${_filteredData.length} data',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _pink,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDataTable() {
     if (_filteredData.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(40),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: const Center(
-          child: Text('Tidak ada data untuk bulan dan tahun yang dipilih'),
+        child: Column(
+          children: [
+            Icon(Icons.inbox_rounded, size: 48, color: Colors.grey.shade300),
+            const SizedBox(height: 12),
+            Text(
+              'Tidak ada data',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Untuk bulan $_selectedBulan $_selectedTahun',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            ),
+          ],
         ),
       );
     }
@@ -468,9 +609,10 @@ class _LaporanPageState extends State<LaporanPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
+            color: Colors.grey.withOpacity(0.06),
+            blurRadius: 16,
             offset: const Offset(0, 4),
+            spreadRadius: 1,
           ),
         ],
       ),
@@ -480,12 +622,18 @@ class _LaporanPageState extends State<LaporanPage> {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStateProperty.all(const Color(0xFFFCE4EC)),
-            headingRowHeight: 44,
-            dataRowMinHeight: 52,
-            dataRowMaxHeight: 56,
-            columnSpacing: 16,
+            headingRowHeight: 48,
+            dataRowMinHeight: 56,
+            dataRowMaxHeight: 60,
+            columnSpacing: 20,
             horizontalMargin: 16,
             dividerThickness: 0.5,
+            border: TableBorder(
+              horizontalInside: BorderSide(
+                color: Colors.grey.shade100,
+                width: 0.5,
+              ),
+            ),
             columns: const [
               DataColumn(
                 label: Text(
@@ -519,7 +667,7 @@ class _LaporanPageState extends State<LaporanPage> {
               ),
               DataColumn(
                 label: Text(
-                  'TB\n(cm)',
+                  'TB',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -529,7 +677,7 @@ class _LaporanPageState extends State<LaporanPage> {
               ),
               DataColumn(
                 label: Text(
-                  'BB\n(kg)',
+                  'BB',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -539,7 +687,7 @@ class _LaporanPageState extends State<LaporanPage> {
               ),
               DataColumn(
                 label: Text(
-                  'LK\n(cm)',
+                  'LK',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
@@ -592,41 +740,77 @@ class _LaporanPageState extends State<LaporanPage> {
                   DataCell(
                     Text(
                       '${index + 1}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                   DataCell(
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: item['jenis_kelamin'] == 'P'
-                              ? Colors.pink.shade50
-                              : Colors.blue.shade50,
-                          child: Text(
-                            (item['nama_anak'] as String)[0],
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: item['jenis_kelamin'] == 'P'
-                                  ? _pink
-                                  : Colors.blue,
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: item['jenis_kelamin'] == 'P'
+                                  ? [Colors.pink.shade100, Colors.pink.shade50]
+                                  : [Colors.blue.shade100, Colors.blue.shade50],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              (item['nama_anak'] as String)[0].toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: item['jenis_kelamin'] == 'P'
+                                    ? Colors.pink.shade700
+                                    : Colors.blue.shade700,
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Text(
                           item['nama_anak'],
-                          style: const TextStyle(fontSize: 13),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF1A1A1A),
+                          ),
                         ),
                       ],
                     ),
                   ),
                   DataCell(
-                    Text(
-                      item['jenis_kelamin'],
-                      style: const TextStyle(fontSize: 13),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: item['jenis_kelamin'] == 'P'
+                            ? Colors.pink.shade50
+                            : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        item['jenis_kelamin'],
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: item['jenis_kelamin'] == 'P'
+                              ? Colors.pink.shade700
+                              : Colors.blue.shade700,
+                        ),
+                      ),
                     ),
                   ),
                   DataCell(
@@ -651,7 +835,7 @@ class _LaporanPageState extends State<LaporanPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
-                        vertical: 4,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: statusBg,
@@ -662,7 +846,7 @@ class _LaporanPageState extends State<LaporanPage> {
                         children: [
                           Icon(
                             isNormal ? Icons.check_circle : Icons.warning,
-                            size: 11,
+                            size: 12,
                             color: statusColor,
                           ),
                           const SizedBox(width: 4),
@@ -681,8 +865,9 @@ class _LaporanPageState extends State<LaporanPage> {
                   DataCell(
                     Text(
                       item['nama_ortu'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
+                        color: Colors.grey.shade600,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -697,32 +882,57 @@ class _LaporanPageState extends State<LaporanPage> {
   }
 
   Widget _buildCetakButton() {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 52,
-      child: ElevatedButton.icon(
+      height: 54,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_pink, _pink.withOpacity(0.85)],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: _pink.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: _pink,
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
-          elevation: 4,
+          elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
         onPressed: _isExporting ? null : _handleCetak,
-        icon: _isExporting
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.file_download_rounded, size: 20),
-        label: Text(
-          _isExporting ? 'Membuat file...' : 'Cetak Laporan Excel',
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _isExporting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.file_download_rounded, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              _isExporting ? 'Membuat file...' : 'Cetak Laporan Excel',
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -732,41 +942,41 @@ class _LaporanPageState extends State<LaporanPage> {
     setState(() => _isExporting = true);
 
     try {
-      var excel = Excel.createExcel();
-      Sheet sheet = excel['Laporan Posyandu'];
+      var excelFile = excel.Excel.createExcel();
+      excel.Sheet sheet = excelFile['Laporan Posyandu'];
 
       sheet.appendRow([
-        TextCellValue('No'),
-        TextCellValue('Nama Anak'),
-        TextCellValue('Jenis Kelamin'),
-        TextCellValue('Tinggi Badan (cm)'),
-        TextCellValue('Berat Badan (kg)'),
-        TextCellValue('Lingkar Kepala (cm)'),
-        TextCellValue('Status Gizi'),
-        TextCellValue('Orang Tua'),
+        excel.TextCellValue('No'),
+        excel.TextCellValue('Nama Anak'),
+        excel.TextCellValue('Jenis Kelamin'),
+        excel.TextCellValue('Tinggi Badan (cm)'),
+        excel.TextCellValue('Berat Badan (kg)'),
+        excel.TextCellValue('Lingkar Kepala (cm)'),
+        excel.TextCellValue('Status Gizi'),
+        excel.TextCellValue('Orang Tua'),
       ]);
 
       if (_filteredData.isEmpty) {
-        sheet.appendRow([TextCellValue('Tidak ada data')]);
+        sheet.appendRow([excel.TextCellValue('Tidak ada data')]);
       } else {
         for (int i = 0; i < _filteredData.length; i++) {
           final item = _filteredData[i];
           sheet.appendRow([
-            TextCellValue((i + 1).toString()),
-            TextCellValue(item['nama_anak'] ?? '-'),
-            TextCellValue(
+            excel.TextCellValue((i + 1).toString()),
+            excel.TextCellValue(item['nama_anak'] ?? '-'),
+            excel.TextCellValue(
               item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
             ),
-            TextCellValue((item['tinggi_badan'] ?? 0).toString()),
-            TextCellValue((item['berat_badan'] ?? 0).toString()),
-            TextCellValue((item['lingkar_kepala'] ?? 0).toString()),
-            TextCellValue(item['status_gizi'] ?? 'Normal'),
-            TextCellValue(item['nama_ortu'] ?? '-'),
+            excel.TextCellValue((item['tinggi_badan'] ?? 0).toString()),
+            excel.TextCellValue((item['berat_badan'] ?? 0).toString()),
+            excel.TextCellValue((item['lingkar_kepala'] ?? 0).toString()),
+            excel.TextCellValue(item['status_gizi'] ?? 'Normal'),
+            excel.TextCellValue(item['nama_ortu'] ?? '-'),
           ]);
         }
       }
 
-      final bytes = excel.encode();
+      final bytes = excelFile.encode();
       if (bytes == null) throw Exception('Gagal membuat file Excel');
 
       String fileName =
@@ -802,10 +1012,24 @@ class _LaporanPageState extends State<LaporanPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✓ Laporan berhasil dibuat: $fileName'),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '✓ Laporan berhasil dibuat: $fileName',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -814,8 +1038,24 @@ class _LaporanPageState extends State<LaporanPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal membuat laporan: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Gagal membuat laporan: $e',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }
@@ -829,59 +1069,68 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final Color iconBg;
+  final Color color;
 
   const _StatCard({
     required this.icon,
     required this.label,
     required this.value,
-    required this.iconBg,
+    required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+              spreadRadius: 1,
             ),
           ],
+          border: Border.all(color: color.withOpacity(0.15), width: 1),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: iconBg.withOpacity(0.15),
+                color: color.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: iconBg, size: 18),
+              child: Icon(icon, color: color, size: 20),
             ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: iconBg,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[500],
-                fontWeight: FontWeight.w500,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

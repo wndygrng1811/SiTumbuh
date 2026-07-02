@@ -348,18 +348,42 @@ class _DataAnakPageState extends State<DataAnakPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Tambah Data Anak',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Isi data anak untuk pemantauan tumbuh kembang',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE85D75).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.person_add_rounded,
+                        color: Color(0xFFE85D75),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tambah Data Anak',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        Text(
+                          'Isi data anak untuk pemantauan',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 Flexible(
@@ -369,11 +393,11 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       key: formKey,
                       child: Column(
                         children: [
-                          // ===== DROPDOWN ORANG TUA PROFESIONAL =====
+                          // DROPDOWN ORANG TUA
                           Container(
                             decoration: BoxDecoration(
                               color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: Colors.grey.shade200,
                                 width: 0.5,
@@ -416,13 +440,13 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                         decoration: BoxDecoration(
                                           color: const Color(
                                             0xFFE85D75,
-                                          ).withValues(alpha: 0.1),
+                                          ).withOpacity(0.1),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: Icon(
+                                        child: const Icon(
                                           Icons.person_rounded,
                                           size: 16,
-                                          color: const Color(0xFFE85D75),
+                                          color: Color(0xFFE85D75),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
@@ -456,7 +480,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                 decoration: BoxDecoration(
                                   color: const Color(
                                     0xFFE85D75,
-                                  ).withValues(alpha: 0.1),
+                                  ).withOpacity(0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -471,9 +495,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // ===== NAMA ANAK =====
+                          // NAMA ANAK
                           _buildFormField(
                             label: 'Nama Anak',
                             hint: 'Masukkan nama anak',
@@ -483,13 +507,13 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                 ? 'Nama anak harus diisi'
                                 : null,
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // ===== JENIS KELAMIN (TOMBOOL) =====
+                          // JENIS KELAMIN
                           _buildGenderSelector(setSheetState),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // ===== TANGGAL LAHIR =====
+                          // TANGGAL LAHIR
                           _buildFormField(
                             label: 'Tanggal Lahir',
                             hint: 'Pilih tanggal lahir',
@@ -527,9 +551,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                 ? 'Tanggal lahir harus diisi'
                                 : null,
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // ===== BERAT & TINGGI =====
+                          // BERAT & TINGGI
                           Row(
                             children: [
                               Expanded(
@@ -553,9 +577,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 16),
 
-                          // ===== LINGKAR KEPALA =====
+                          // LINGKAR KEPALA
                           _buildFormField(
                             label: 'Lingkar Kepala Lahir',
                             hint: 'cm',
@@ -563,9 +587,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                             controller: _lkCtrl,
                             keyboardType: TextInputType.number,
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
 
-                          // ===== TOMBOL =====
+                          // TOMBOL
                           Row(
                             children: [
                               Expanded(
@@ -612,6 +636,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
+                                    elevation: 2,
                                   ),
                                   child: _isSubmitting
                                       ? const SizedBox(
@@ -646,7 +671,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  // ===== GENDER SELECTOR (TOMBOOL) =====
   Widget _buildGenderSelector(StateSetter setSheetState) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -669,7 +693,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
                     _selectedJk = 'Laki-laki';
                   });
                 },
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
                     color: _selectedJk == 'Laki-laki'
@@ -682,6 +707,15 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           : Colors.grey.shade200,
                       width: _selectedJk == 'Laki-laki' ? 1.5 : 0.5,
                     ),
+                    boxShadow: _selectedJk == 'Laki-laki'
+                        ? [
+                            BoxShadow(
+                              color: Colors.blue.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -728,7 +762,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
                     _selectedJk = 'Perempuan';
                   });
                 },
-                child: Container(
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
                     color: _selectedJk == 'Perempuan'
@@ -741,6 +776,15 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           : Colors.grey.shade200,
                       width: _selectedJk == 'Perempuan' ? 1.5 : 0.5,
                     ),
+                    boxShadow: _selectedJk == 'Perempuan'
+                        ? [
+                            BoxShadow(
+                              color: Colors.pink.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -824,9 +868,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
               hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
               prefixIcon: Icon(icon, color: const Color(0xFFE85D75), size: 20),
               suffixIcon: readOnly
-                  ? const Icon(
+                  ? Icon(
                       Icons.arrow_drop_down_rounded,
-                      color: Colors.grey,
+                      color: Colors.grey.shade400,
                     )
                   : null,
               border: InputBorder.none,
@@ -890,10 +934,11 @@ class _DataAnakPageState extends State<DataAnakPage> {
                   showDrawerIcon: true,
                   showNotificationIcon: true,
                 ),
+                const SizedBox(height: 8),
 
-                // ===== HEADER + SEARCH + TAMBAH =====
+                // HEADER SECTION
                 Container(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
                       Expanded(
@@ -903,110 +948,136 @@ class _DataAnakPageState extends State<DataAnakPage> {
                             const Text(
                               'Data Anak',
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: 24,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF1A1A1A),
                               ),
                             ),
-                            Text(
-                              '${filteredAnak.length} anak terdaftar',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey.shade500,
-                              ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFE85D75,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${filteredAnak.length} anak',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFE85D75),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 150,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: Colors.grey.shade200,
-                            width: 0.5,
+                      // Search & Add Button
+                      Row(
+                        children: [
+                          Container(
+                            width: 140,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.grey.shade200,
+                                width: 0.5,
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'Cari anak...',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 12,
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.search_rounded,
+                                  color: Colors.grey.shade400,
+                                  size: 18,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 0,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          style: const TextStyle(fontSize: 12),
-                          decoration: InputDecoration(
-                            hintText: 'Cari...',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
-                              fontSize: 11,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              color: Colors.grey.shade400,
-                              size: 16,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 0,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      GestureDetector(
-                        onTap: _showTambahForm,
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
+                          const SizedBox(width: 10),
+                          Material(
                             color: const Color(0xFFE85D75),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              onTap: _showTambahForm,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: const Icon(
+                                  Icons.add_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                              ),
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.add_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
                 ),
 
-                // ===== FILTER - DIPERBAIKI OVERFLOW =====
+                const SizedBox(height: 12),
+
+                // FILTER CHIPS
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      // Filter chips dengan Expanded
                       Expanded(
-                        child: Row(
-                          children: [
-                            _buildFilterChip(
-                              'Semua',
-                              'Semua',
-                              Icons.people_rounded,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              'Laki-laki',
-                              'Laki-laki',
-                              Icons.male_rounded,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildFilterChip(
-                              'Perempuan',
-                              'Perempuan',
-                              Icons.female_rounded,
-                            ),
-                          ],
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: [
+                              _buildFilterChip(
+                                'Semua',
+                                'Semua',
+                                Icons.people_rounded,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFilterChip(
+                                'Laki-laki',
+                                'Laki-laki',
+                                Icons.male_rounded,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildFilterChip(
+                                'Perempuan',
+                                'Perempuan',
+                                Icons.female_rounded,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      // Badge jumlah
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
+                          horizontal: 10,
+                          vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: Colors.grey.shade100,
@@ -1019,7 +1090,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               size: 12,
                               color: Colors.grey.shade600,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                             Text(
                               '${filteredAnak.length}',
                               style: TextStyle(
@@ -1037,17 +1108,25 @@ class _DataAnakPageState extends State<DataAnakPage> {
 
                 const SizedBox(height: 12),
 
-                // ===== LIST =====
+                // LIST
                 Expanded(
                   child: filteredAnak.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.child_care_rounded,
-                                size: 80,
-                                color: Colors.grey.shade300,
+                              Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade50,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.child_care_rounded,
+                                  size: 50,
+                                  color: Colors.grey.shade300,
+                                ),
                               ),
                               const SizedBox(height: 16),
                               Text(
@@ -1062,7 +1141,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Klik + untuk menambahkan',
+                                _searchQuery.isEmpty
+                                    ? 'Klik + untuk menambahkan'
+                                    : 'Coba dengan kata kunci lain',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.grey.shade400,
@@ -1073,6 +1154,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         )
                       : RefreshIndicator(
                           onRefresh: _loadData,
+                          color: const Color(0xFFE85D75),
                           child: ListView.builder(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -1094,45 +1176,46 @@ class _DataAnakPageState extends State<DataAnakPage> {
 
   Widget _buildFilterChip(String label, String value, IconData icon) {
     final isSelected = _filterGender == value;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _filterGender = value;
-          _applyFilters();
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE85D75) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFE85D75) : Colors.grey.shade300,
-            width: 0.5,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFE85D75).withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : [],
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFFE85D75) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isSelected ? const Color(0xFFE85D75) : Colors.grey.shade200,
+          width: 0.5,
         ),
+        boxShadow: isSelected
+            ? [
+                BoxShadow(
+                  color: const Color(0xFFE85D75).withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ]
+            : [],
+      ),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _filterGender = value;
+            _applyFilters();
+          });
+        },
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
-              size: 10,
+              size: 14,
               color: isSelected ? Colors.white : Colors.grey.shade600,
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? Colors.white : Colors.grey.shade600,
               ),
@@ -1155,9 +1238,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.grey.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+            spreadRadius: 1,
           ),
         ],
         border: Border.all(color: Colors.grey.shade100, width: 0.5),
@@ -1165,16 +1249,20 @@ class _DataAnakPageState extends State<DataAnakPage> {
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.2), color.withOpacity(0.05)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
               isMale ? Icons.male_rounded : Icons.female_rounded,
               color: color,
-              size: 28,
+              size: 30,
             ),
           ),
           const SizedBox(width: 14),
@@ -1190,6 +1278,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                     color: Color(0xFF1A1A1A),
                   ),
                 ),
+                const SizedBox(height: 2),
                 Row(
                   children: [
                     Icon(
@@ -1198,11 +1287,14 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       color: Colors.grey.shade400,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      anak['nama_ortu'],
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade500,
+                    Expanded(
+                      child: Text(
+                        anak['nama_ortu'],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1212,30 +1304,36 @@ class _DataAnakPageState extends State<DataAnakPage> {
           ),
           Row(
             children: [
-              IconButton(
-                onPressed: () => _showDetailAnak(anak),
-                icon: const Icon(Icons.visibility_rounded, size: 20),
-                color: const Color(0xFFE85D75),
-                style: IconButton.styleFrom(
-                  backgroundColor: const Color(
-                    0xFFE85D75,
-                  ).withValues(alpha: 0.08),
-                  padding: const EdgeInsets.all(6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              Material(
+                color: const Color(0xFFE85D75).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: () => _showDetailAnak(anak),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.visibility_rounded,
+                      size: 20,
+                      color: Color(0xFFE85D75),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 2),
-              IconButton(
-                onPressed: () => _hapusAnak(anak['anak_id'], anak['nama']),
-                icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                color: Colors.red.shade300,
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.red.shade50,
-                  padding: const EdgeInsets.all(6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              const SizedBox(width: 4),
+              Material(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: () => _hapusAnak(anak['anak_id'], anak['nama']),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 20,
+                      color: Colors.red.shade300,
+                    ),
                   ),
                 ),
               ),
@@ -1287,7 +1385,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                     height: 64,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color, color.withValues(alpha: 0.5)],
+                        colors: [color, color.withOpacity(0.5)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -1316,7 +1414,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         Text(
                           'Orang Tua: ${anak['nama_ortu']}',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: Colors.grey.shade500,
                           ),
                         ),
@@ -1329,13 +1427,13 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.1),
+                      color: color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       anak['jenis_kelamin'],
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: color,
                       ),
@@ -1414,7 +1512,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFFE85D75).withValues(alpha: 0.08),
+              color: const Color(0xFFE85D75).withOpacity(0.08),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 16, color: const Color(0xFFE85D75)),

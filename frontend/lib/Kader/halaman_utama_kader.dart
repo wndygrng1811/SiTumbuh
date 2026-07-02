@@ -169,6 +169,8 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildGreetingSection(),
+                    const SizedBox(height: 24),
                     _buildSectionLabel("Ringkasan Pemantauan"),
                     const SizedBox(height: 12),
                     _buildRingkasanCard(),
@@ -179,6 +181,126 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _buildGreetingSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE85D75), Color(0xFFD94A64)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE85D75).withOpacity(0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.25),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 2,
+              ),
+            ),
+            child: const Icon(
+              Icons.person_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "${_getGreeting()},",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _namaKader,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        color: Colors.white.withOpacity(0.9),
+                        size: 11,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          _jadwalTanggal != "Memuat..." &&
+                                  _jadwalTanggal != "Belum ada jadwal"
+                              ? "Jadwal: $_jadwalTanggal"
+                              : "Belum ada jadwal",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.star_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -198,11 +320,25 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1A1A1A),
             letterSpacing: 0.3,
           ),
+        ),
+        const Spacer(),
+        Text(
+          "Lihat Semua",
+          style: TextStyle(
+            fontSize: 12,
+            color: const Color(0xFFE85D75),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: 18,
+          color: const Color(0xFFE85D75),
         ),
       ],
     );
@@ -216,51 +352,79 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+            spreadRadius: 1,
           ),
         ],
       ),
       child: Column(
         children: [
-          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFDE2E7),
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFFDE2E7), Color(0xFFFCD5DC)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        "Total",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE85D75).withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.analytics_rounded,
+                              size: 16,
+                              color: Color(0xFFE85D75),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Total",
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$_jumlahPemantauan",
-                        style: const TextStyle(
-                          color: Color(0xFFE85D75),
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Pemantauan",
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "$_jumlahPemantauan",
+                            style: const TextStyle(
+                              color: Color(0xFFE85D75),
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              height: 0.9,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "pemantauan",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -271,36 +435,64 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F0FE),
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFFE8F0FE), Color(0xFFD6E4FD)],
+                    ),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        "Anak",
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4A9BFF).withOpacity(0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.people_rounded,
+                              size: 16,
+                              color: Color(0xFF4A9BFF),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "Anak",
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "$_jumlahAnak",
-                        style: const TextStyle(
-                          color: Color(0xFF4A9BFF),
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Terdaftar",
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "$_jumlahAnak",
+                            style: const TextStyle(
+                              color: Color(0xFF4A9BFF),
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              height: 0.9,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "terdaftar",
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -308,54 +500,93 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FFF7),
-              borderRadius: BorderRadius.circular(12),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFFF0FFF7), Color(0xFFE0F7EE)],
+              ),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text(
-                      "Kehadiran",
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF20C997).withOpacity(0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.checklist_rounded,
+                        size: 20,
+                        color: Color(0xFF20C997),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "$_jumlahKehadiran",
-                      style: const TextStyle(
-                        color: Color(0xFF20C997),
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Kehadiran",
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "$_jumlahKehadiran",
+                              style: const TextStyle(
+                                color: Color(0xFF20C997),
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                height: 0.9,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              "kali",
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                    horizontal: 14,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF20C997).withValues(alpha: 0.1),
+                    color: const Color(0xFF20C997).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF20C997).withOpacity(0.2),
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        Icons.check_circle,
+                        Icons.calendar_month_rounded,
                         color: const Color(0xFF20C997),
-                        size: 14,
+                        size: 13,
                       ),
                       const SizedBox(width: 4),
                       Text(
@@ -363,7 +594,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                         style: TextStyle(
                           color: const Color(0xFF20C997),
                           fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -385,38 +616,63 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 6),
+            spreadRadius: 1,
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE85D75).withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.event_available_rounded,
+                  size: 20,
+                  color: Color(0xFFE85D75),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                "Jadwal Posyandu Terdekat",
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A1A1A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
           _buildJadwalRow(
             icon: Icons.access_time_rounded,
             label: "Waktu",
             value: _jadwalWaktu,
+            color: const Color(0xFFFF6B6B),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-          ),
+          const SizedBox(height: 12),
           _buildJadwalRow(
             icon: Icons.location_on_rounded,
             label: "Lokasi",
             value: _jadwalLokasi,
+            color: const Color(0xFF4A9BFF),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
-            child: Divider(height: 1, color: Color(0xFFF0F0F0)),
-          ),
+          const SizedBox(height: 12),
           _buildJadwalRow(
             icon: Icons.event_note_rounded,
             label: "Kegiatan",
             value: _jadwalKegiatan,
+            color: const Color(0xFF20C997),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -424,9 +680,9 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 backgroundColor: const Color(0xFFE85D75),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               onPressed: () {
@@ -435,9 +691,16 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                   MaterialPageRoute(builder: (_) => const Jadwal()),
                 );
               },
-              child: const Text(
-                "Lihat Detail Jadwal",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Text(
+                    "Lihat Detail Jadwal",
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward_rounded, size: 18),
+                ],
               ),
             ),
           ),
@@ -450,20 +713,21 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     required IconData icon,
     required String label,
     required String value,
+    required Color color,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFE85D75).withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(8),
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 16, color: const Color(0xFFE85D75)),
+          child: Icon(icon, size: 18, color: color),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,16 +737,18 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                 style: TextStyle(
                   fontSize: 11,
                   color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF2D2D2D),
+                  fontSize: 14,
+                  color: Color(0xFF1A1A1A),
                   fontWeight: FontWeight.w500,
+                  height: 1.2,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
