@@ -142,14 +142,14 @@ class _SidebarMenuState extends State<SidebarMenu> {
                     Icons.dashboard_rounded,
                     "Halaman Utama",
                     0,
-                    () => _navigateTo(context, const CekPertumbuhanPage()),
+                    () => _navigateTo(context, const HalamanUtama()),
                   ),
 
                   _buildMenuItem(
                     Icons.favorite_border,
                     "Cek Pertumbuhan",
                     1,
-                    () => _navigateTo(context, const HalamanUtama()),
+                    () => _navigateTo(context, const CekPertumbuhanPage()),
                   ),
 
                   _buildMenuItem(
