@@ -76,7 +76,15 @@ class ProfilKaderController extends Controller
                     'no_telp' => $request->no_telp,
                 ]);
 
-            return response()->json([
+            // Update tabel users
+            DB::table('users')
+                ->where('user_id', $userId)
+                ->update([
+                    'nama' => $request->nama,
+                    'email' => $request->email,
+                    'updated_at' => now(),
+                ]);
+                        return response()->json([
                 'success' => true,
                 'message' => 'Profil berhasil diupdate',
                 'data' => [

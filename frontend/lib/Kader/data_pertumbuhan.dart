@@ -6,19 +6,95 @@ import '../widgets/bottom_navbar_kader.dart';
 import '../widgets/custom_app_bar.dart';
 
 class DataPengukuran {
+  final int? id;
   final DateTime tanggal;
   final int usiaBulan;
   final double beratBadan;
   final double tinggiBadan;
   final double? lingkarKepala;
+  final String? statusGizi;
 
   const DataPengukuran({
+    this.id,
     required this.tanggal,
     required this.usiaBulan,
     required this.beratBadan,
     required this.tinggiBadan,
     this.lingkarKepala,
+    this.statusGizi,
   });
+
+  factory DataPengukuran.fromJson(
+    Map<String, dynamic> json,
+    String tanggalLahir,
+  ) {
+    DateTime tanggal;
+    try {
+      if (json['created_at'] != null) {
+        String dateStr = json['created_at'].toString();
+        if (dateStr.contains(' ')) {
+          dateStr = dateStr.replaceFirst(' ', 'T');
+        }
+        tanggal = DateTime.parse(dateStr);
+      } else if (json['tanggal'] != null) {
+        tanggal = DateTime.parse(json['tanggal'].toString());
+      } else {
+        tanggal = DateTime.now();
+      }
+    } catch (e) {
+      print('Error parsing tanggal: $e');
+      tanggal = DateTime.now();
+    }
+
+    int usia = 0;
+    try {
+      if (tanggalLahir.isNotEmpty) {
+        final lahir = DateTime.parse(tanggalLahir);
+        usia = (tanggal.year - lahir.year) * 12 + tanggal.month - lahir.month;
+        if (tanggal.day < lahir.day) {
+          usia -= 1;
+        }
+        if (usia < 0) usia = 0;
+        if (usia > 60) usia = 60;
+      }
+    } catch (e) {
+      print('Error menghitung usia: $e');
+      usia = 0;
+    }
+
+    double beratBadan = _parseDoubleSafe(json['berat_badan']);
+    double tinggiBadan = _parseDoubleSafe(json['tinggi_badan']);
+    double? lingkarKepala;
+    if (json['lingkar_kepala'] != null) {
+      lingkarKepala = _parseDoubleSafe(json['lingkar_kepala']);
+    }
+
+    return DataPengukuran(
+      id: json['tumbuh_id'] ?? json['id'],
+      tanggal: tanggal,
+      usiaBulan: usia,
+      beratBadan: beratBadan,
+      tinggiBadan: tinggiBadan,
+      lingkarKepala: lingkarKepala,
+      statusGizi: json['status_gizi']?.toString(),
+    );
+  }
+
+  static double _parseDoubleSafe(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      if (value.isEmpty) return 0.0;
+      try {
+        return double.parse(value);
+      } catch (e) {
+        print('Error parsing double from string "$value": $e');
+        return 0.0;
+      }
+    }
+    return 0.0;
+  }
 }
 
 class StatusGizi {
@@ -47,114 +123,26 @@ class StatusGizi {
 
 class WHOZScore {
   static const List<double> _medTbUL = [
-    49.9,
-    54.7,
-    58.4,
-    61.4,
-    63.9,
-    65.9,
-    67.6,
-    69.2,
-    70.6,
-    72.0,
-    73.3,
-    74.5,
-    75.7,
-    76.9,
-    78.0,
-    79.1,
-    80.2,
-    81.2,
-    82.3,
-    83.2,
-    84.2,
-    85.1,
-    86.0,
-    87.1,
-    88.0,
+    49.9, 54.7, 58.4, 61.4, 63.9, 65.9, 67.6, 69.2, 70.6, 72.0,
+    73.3, 74.5, 75.7, 76.9, 78.0, 79.1, 80.2, 81.2, 82.3, 83.2,
+    84.2, 85.1, 86.0, 87.1, 88.0,
   ];
   static const List<double> _medTbUP = [
-    49.1,
-    53.7,
-    57.1,
-    59.8,
-    62.1,
-    64.0,
-    65.7,
-    67.3,
-    68.7,
-    70.1,
-    71.5,
-    72.8,
-    74.0,
-    75.2,
-    76.4,
-    77.5,
-    78.6,
-    79.7,
-    80.7,
-    81.7,
-    82.7,
-    83.7,
-    84.6,
-    85.5,
-    86.4,
+    49.1, 53.7, 57.1, 59.8, 62.1, 64.0, 65.7, 67.3, 68.7, 70.1,
+    71.5, 72.8, 74.0, 75.2, 76.4, 77.5, 78.6, 79.7, 80.7, 81.7,
+    82.7, 83.7, 84.6, 85.5, 86.4,
   ];
   static const double _sdTbU = 2.5;
 
   static const List<double> _medBbUL = [
-    3.3,
-    4.5,
-    5.6,
-    6.4,
-    7.0,
-    7.5,
-    7.9,
-    8.3,
-    8.6,
-    8.9,
-    9.2,
-    9.4,
-    9.6,
-    9.9,
-    10.1,
-    10.3,
-    10.5,
-    10.7,
-    10.9,
-    11.1,
-    11.3,
-    11.5,
-    11.8,
-    12.0,
-    12.2,
+    3.3, 4.5, 5.6, 6.4, 7.0, 7.5, 7.9, 8.3, 8.6, 8.9,
+    9.2, 9.4, 9.6, 9.9, 10.1, 10.3, 10.5, 10.7, 10.9, 11.1,
+    11.3, 11.5, 11.8, 12.0, 12.2,
   ];
   static const List<double> _medBbUP = [
-    3.2,
-    4.2,
-    5.1,
-    5.8,
-    6.4,
-    6.9,
-    7.3,
-    7.6,
-    7.9,
-    8.2,
-    8.5,
-    8.7,
-    8.9,
-    9.2,
-    9.4,
-    9.6,
-    9.8,
-    10.0,
-    10.2,
-    10.4,
-    10.6,
-    10.9,
-    11.1,
-    11.3,
-    11.5,
+    3.2, 4.2, 5.1, 5.8, 6.4, 6.9, 7.3, 7.6, 7.9, 8.2,
+    8.5, 8.7, 8.9, 9.2, 9.4, 9.6, 9.8, 10.0, 10.2, 10.4,
+    10.6, 10.9, 11.1, 11.3, 11.5,
   ];
   static const double _sdBbU = 1.2;
 
@@ -276,16 +264,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
   StatusGizi? _statusGizi;
   DataPengukuran? _pengukuranTerbaru;
 
-  double _safeParseDouble(dynamic value) {
-    if (value == null) return 0.0;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) {
-      return double.tryParse(value) ?? 0.0;
-    }
-    return 0.0;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -304,14 +282,12 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
   Future<void> _loadJadwal() async {
     try {
       final response = await ApiService.get('/kader/semua-jadwal');
+      print("Jadwal response: ${response.statusCode}");
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           setState(() {
             _listJadwal = data['data'] ?? [];
-            if (_listJadwal.isNotEmpty) {
-              _selectedJadwalId = _listJadwal.first['jadwal_id'];
-            }
           });
         }
       }
@@ -324,22 +300,30 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     setState(() => _isLoading = true);
     try {
       final response = await ApiService.get('/kader/semua-anak');
+      print("Anak response status: ${response.statusCode}");
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
           setState(() {
             _listAnak = data['data'] ?? [];
+            print("List anak: ${_listAnak.length}");
+
             if (_listAnak.isNotEmpty) {
               _selectedAnakId = _listAnak[0]['anak_id'];
               _namaAnak = _listAnak[0]['nama_anak'] ?? 'Anak';
               _jkAnak = _listAnak[0]['jenis_kelamin'] ?? 'L';
               _namaOrtu = _listAnak[0]['nama_ortu'] ?? '';
               _tanggalLahir = _listAnak[0]['tanggal_lahir'] ?? '';
+              print("Selected anak: $_namaAnak, tanggal lahir: $_tanggalLahir");
               _hitungUsiaOtomatis();
             }
             _isLoading = false;
           });
-          if (_selectedAnakId != null) await _loadRiwayat();
+
+          if (_selectedAnakId != null) {
+            await _loadRiwayat();
+          }
         } else {
           setState(() => _isLoading = false);
         }
@@ -354,83 +338,78 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
 
   void _hitungUsiaOtomatis() {
     if (_tanggalLahir.isEmpty) {
-      _usiaOtomatis = 12;
+      _usiaOtomatis = 0;
       return;
     }
     try {
       final lahir = DateTime.parse(_tanggalLahir);
       final now = DateTime.now();
       int bulan = (now.year - lahir.year) * 12 + now.month - lahir.month;
+      if (now.day < lahir.day) {
+        bulan -= 1;
+      }
       if (bulan < 0) bulan = 0;
       if (bulan > 60) bulan = 60;
       setState(() => _usiaOtomatis = bulan);
     } catch (e) {
-      _usiaOtomatis = 12;
+      _usiaOtomatis = 0;
     }
   }
 
   Future<void> _loadRiwayat() async {
-    if (_selectedAnakId == null) return;
+    if (_selectedAnakId == null) {
+      print("Selected anak ID is null");
+      return;
+    }
+
+    print("Loading riwayat for anak_id: $_selectedAnakId");
+
     try {
-      final response = await ApiService.get('/pertumbuhan/$_selectedAnakId');
+      final response = await ApiService.get(
+        '/kader/pertumbuhan/$_selectedAnakId',
+      );
+      print("Riwayat response status: ${response.statusCode}");
+      print("Riwayat response body: ${response.body}");
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print("Riwayat parsed data: $data");
+
         if (data['success'] == true) {
           final List<dynamic> riwayatData = data['data'] ?? [];
+          print("Riwayat data length: ${riwayatData.length}");
+
           final riwayatList = riwayatData.map((item) {
-            double berat = _safeParseDouble(item['berat_badan']);
-            double tinggi = _safeParseDouble(item['tinggi_badan']);
-            double? lk = item['lingkar_kepala'] != null
-                ? _safeParseDouble(item['lingkar_kepala'])
-                : null;
-            DateTime tanggal;
-            try {
-              tanggal = DateTime.parse(
-                item['created_at'] ?? DateTime.now().toString(),
-              );
-            } catch (e) {
-              tanggal = DateTime.now();
-            }
-            return DataPengukuran(
-              tanggal: tanggal,
-              usiaBulan: _hitungUsiaBulan(item['created_at']),
-              beratBadan: berat,
-              tinggiBadan: tinggi,
-              lingkarKepala: lk,
-            );
+            print("Processing item: $item");
+            return DataPengukuran.fromJson(item, _tanggalLahir);
           }).toList();
+
           setState(() {
             _riwayat = riwayatList;
+            print("Riwayat loaded: ${_riwayat.length} items");
           });
+        } else {
+          print("Riwayat success false: ${data['message']}");
         }
+      } else {
+        print("Riwayat error: ${response.statusCode}");
       }
     } catch (e) {
       print('Error load riwayat: $e');
-    }
-  }
-
-  int _hitungUsiaBulan(String? tanggalPengukuran) {
-    if (tanggalPengukuran == null) return 12;
-    try {
-      final selectedAnak = _listAnak.firstWhere(
-        (a) => a['anak_id'] == _selectedAnakId,
-        orElse: () => {},
-      );
-      final tanggalLahirStr = selectedAnak['tanggal_lahir'];
-      if (tanggalLahirStr == null) return 12;
-      final lahir = DateTime.parse(tanggalLahirStr);
-      final pengukuran = DateTime.parse(tanggalPengukuran);
-      int bulan =
-          (pengukuran.year - lahir.year) * 12 + pengukuran.month - lahir.month;
-      if (bulan < 0) bulan = 0;
-      return bulan;
-    } catch (e) {
-      return 12;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat riwayat: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   Future<void> _onAnakChanged(int? anakId) async {
     if (anakId == null) return;
+
     setState(() {
       _selectedAnakId = anakId;
       final selectedAnak = _listAnak.firstWhere((a) => a['anak_id'] == anakId);
@@ -442,7 +421,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
       _statusGizi = null;
       _pengukuranTerbaru = null;
       _hitungUsiaOtomatis();
+      print("Changed to anak: $_namaAnak, tanggal lahir: $_tanggalLahir");
     });
+
     await _loadRiwayat();
   }
 
@@ -454,29 +435,38 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     }
     if (_selectedJadwalId == null) {
       _showSnack(
-        'Silakan pilih jadwal posyandu terlebih dahulu',
+        'Tidak ada jadwal posyandu yang tersedia hari ini',
         Colors.orange,
       );
       return;
     }
+
     setState(() => _isSaving = true);
+
     final bb = double.parse(_ctrlBb.text.trim());
     final tb = double.parse(_ctrlTb.text.trim());
     final lk = _ctrlLk.text.trim().isNotEmpty
         ? double.tryParse(_ctrlLk.text.trim())
         : null;
+
     final status = WHOZScore.kalkulasi(
       usiaBulan: _usiaOtomatis,
       bb: bb,
       tb: tb,
       jk: _jkAnak,
     );
+
     try {
       final selectedAnak = _listAnak.firstWhere(
         (a) => a['anak_id'] == _selectedAnakId,
       );
       final int orangtuaId = selectedAnak['orangtua_id'] ?? 0;
-      final response = await ApiService.post('/pertumbuhan', {
+
+      print(
+        "Saving data - anak_id: $_selectedAnakId, orangtua_id: $orangtuaId, jadwal_id: $_selectedJadwalId",
+      );
+
+      final response = await ApiService.post('/kader/pertumbuhan', {
         'anak_id': _selectedAnakId,
         'orangtua_id': orangtuaId,
         'jadwal_id': _selectedJadwalId,
@@ -485,6 +475,10 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
         'lingkar_kepala': lk ?? 0,
         'status_gizi': status.labelBbTb,
       });
+
+      print("Save response status: ${response.statusCode}");
+      print("Save response body: ${response.body}");
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -494,17 +488,22 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
             beratBadan: bb,
             tinggiBadan: tb,
             lingkarKepala: lk,
+            statusGizi: status.labelBbTb,
           );
+
           setState(() {
             _riwayat.insert(0, pengukuran);
             _pengukuranTerbaru = pengukuran;
             _statusGizi = status;
             _isSaving = false;
           });
+
           _showSnack('Data berhasil disimpan', Colors.green);
           _ctrlBb.clear();
           _ctrlTb.clear();
           _ctrlLk.clear();
+
+          await _loadRiwayat();
         } else {
           throw Exception(data['message'] ?? 'Gagal menyimpan');
         }
@@ -513,7 +512,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
       }
     } catch (e) {
       setState(() => _isSaving = false);
-      _showSnack('Error: $e', Colors.red);
+      _showSnack('Error: ${e.toString()}', Colors.red);
     }
   }
 
@@ -543,47 +542,41 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
       bottomNavigationBar: const BottomNavbarKader(selectedIndex: 3),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: _primary))
-          : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ===== HEADER =====
-                  _buildHeader(),
-                  const SizedBox(height: 20),
-
-                  // ===== PILIH ANAK & JADWAL =====
-                  _buildSectionLabel('Pilih Anak & Jadwal'),
-                  const SizedBox(height: 10),
-                  _buildSelectionCard(),
-                  const SizedBox(height: 20),
-
-                  // ===== INPUT PENGUKURAN =====
-                  _buildSectionLabel('Input Pengukuran'),
-                  const SizedBox(height: 10),
-                  _buildFormCard(),
-                  const SizedBox(height: 20),
-
-                  // ===== STATUS GIZI =====
-                  if (_statusGizi != null) ...[
-                    _buildSectionLabel('Hasil Analisis Z-Score'),
-                    const SizedBox(height: 10),
-                    _buildStatusGiziCard(),
+          : RefreshIndicator(
+              color: _primary,
+              onRefresh: _loadRiwayat,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
                     const SizedBox(height: 20),
+                    _buildSectionLabel('Pilih Anak & Jadwal'),
+                    const SizedBox(height: 10),
+                    _buildSelectionCard(),
+                    const SizedBox(height: 20),
+                    _buildSectionLabel('Input Pengukuran'),
+                    const SizedBox(height: 10),
+                    _buildFormCard(),
+                    const SizedBox(height: 20),
+                    if (_statusGizi != null) ...[
+                      _buildSectionLabel('Hasil Analisis Z-Score'),
+                      const SizedBox(height: 10),
+                      _buildStatusGiziCard(),
+                      const SizedBox(height: 20),
+                    ],
+                    _buildSectionLabel('Riwayat Pengukuran'),
+                    const SizedBox(height: 10),
+                    _buildRiwayatCard(),
                   ],
-
-                  // ===== RIWAYAT =====
-                  _buildSectionLabel('Riwayat Pengukuran'),
-                  const SizedBox(height: 10),
-                  _buildRiwayatCard(),
-                ],
+                ),
               ),
             ),
     );
   }
 
-  // ===== HEADER =====
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
@@ -597,7 +590,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: _primary.withValues(alpha: 0.2),
+            color: _primary.withAlpha(51),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -608,7 +601,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withAlpha(38),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -633,7 +626,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
                 Text(
                   'Input pengukuran dan pantau status gizi',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withAlpha(204),
                     fontSize: 12,
                   ),
                 ),
@@ -643,7 +636,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.15),
+              color: Colors.white.withAlpha(38),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -660,7 +653,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     );
   }
 
-  // ===== SECTION LABEL =====
   Widget _buildSectionLabel(String label) {
     return Row(
       children: [
@@ -685,12 +677,62 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     );
   }
 
-  // ===== SELECTION CARD =====
   Widget _buildSelectionCard() {
+    // Filter jadwal yang tanggalnya >= hari ini
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    final List<dynamic> jadwalTersedia = _listJadwal.where((jadwal) {
+      try {
+        String tanggalStr = jadwal['tanggal'] ?? '';
+        if (tanggalStr.isEmpty) return false;
+
+        DateTime jadwalDate;
+        if (tanggalStr.contains('-')) {
+          List<String> parts = tanggalStr.split('-');
+          if (parts.length == 3) {
+            jadwalDate = DateTime(
+              int.parse(parts[0]),
+              int.parse(parts[1]),
+              int.parse(parts[2]),
+            );
+          } else {
+            return false;
+          }
+        } else if (tanggalStr.contains('/')) {
+          List<String> parts = tanggalStr.split('/');
+          if (parts.length == 3) {
+            jadwalDate = DateTime(
+              int.parse(parts[2]),
+              int.parse(parts[1]),
+              int.parse(parts[0]),
+            );
+          } else {
+            return false;
+          }
+        } else {
+          return false;
+        }
+
+        return jadwalDate.isAtSameMomentAs(today) || jadwalDate.isAfter(today);
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    // Update selectedJadwalId jika perlu
+    if (_selectedJadwalId != null) {
+      bool stillValid = jadwalTersedia.any((j) => j['jadwal_id'] == _selectedJadwalId);
+      if (!stillValid) {
+        _selectedJadwalId = jadwalTersedia.isNotEmpty ? jadwalTersedia.first['jadwal_id'] : null;
+      }
+    } else if (jadwalTersedia.isNotEmpty) {
+      _selectedJadwalId = jadwalTersedia.first['jadwal_id'];
+    }
+
     return _card(
       child: Column(
         children: [
-          // Dropdown Anak
           _buildDropdown(
             label: 'Pilih Anak',
             icon: Icons.child_care_rounded,
@@ -724,23 +766,60 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
           const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFFF0F0F0)),
           const SizedBox(height: 12),
-          // Dropdown Jadwal
-          _buildDropdown(
-            label: 'Pilih Jadwal Posyandu',
-            icon: Icons.calendar_month_rounded,
-            value: _selectedJadwalId,
-            items: _listJadwal.map((jadwal) {
-              return DropdownMenuItem<int>(
-                value: jadwal['jadwal_id'],
-                child: Text(
-                  '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              );
-            }).toList(),
-            onChanged: (v) => setState(() => _selectedJadwalId = v),
-          ),
+          if (jadwalTersedia.isNotEmpty)
+            _buildDropdown(
+              label: 'Pilih Jadwal Posyandu',
+              icon: Icons.calendar_month_rounded,
+              value: _selectedJadwalId,
+              items: jadwalTersedia.map((jadwal) {
+                return DropdownMenuItem<int>(
+                  value: jadwal['jadwal_id'],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.event_available_rounded,
+                        color: _primary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${jadwal['tanggal']} - ${jadwal['nama_posyandu'] ?? 'Posyandu'}',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) => setState(() => _selectedJadwalId = v),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Tidak ada jadwal posyandu yang tersedia hari ini',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -790,7 +869,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
               icon: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: _primary.withValues(alpha: 0.1),
+                  color: _primary.withAlpha(26),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -813,20 +892,18 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     );
   }
 
-  // ===== FORM CARD =====
   Widget _buildFormCard() {
     return _card(
       child: Form(
         key: _formKey,
         child: Column(
           children: [
-            // Info Usia Otomatis
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _primary.withValues(alpha: 0.05),
+                color: _primary.withAlpha(13),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _primary.withValues(alpha: 0.1)),
+                border: Border.all(color: _primary.withAlpha(26)),
               ),
               child: Row(
                 children: [
@@ -1007,7 +1084,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     );
   }
 
-  // ===== STATUS GIZI CARD =====
   Widget _buildStatusGiziCard() {
     final s = _statusGizi!;
     return _card(
@@ -1019,7 +1095,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: _primary.withValues(alpha: 0.1),
+                  color: _primary.withAlpha(26),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1083,9 +1159,9 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
-          color: warna.withValues(alpha: 0.07),
+          color: warna.withAlpha(18),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: warna.withValues(alpha: 0.2)),
+          border: Border.all(color: warna.withAlpha(51)),
         ),
         child: Column(
           children: [
@@ -1133,7 +1209,6 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
     );
   }
 
-  // ===== RIWAYAT CARD =====
   Widget _buildRiwayatCard() {
     return _card(
       padding: EdgeInsets.zero,
@@ -1159,7 +1234,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: _primary.withValues(alpha: 0.1),
+                    color: _primary.withAlpha(26),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -1180,11 +1255,11 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
-                _tableHeader('Tanggal', flex: 3),
-                _tableHeader('Usia', flex: 2),
-                _tableHeader('BB', flex: 2),
-                _tableHeader('TB', flex: 2),
-                _tableHeader('LK', flex: 2),
+                _tableHeader('Tanggal', flex: 2),
+                _tableHeader('Usia', flex: 1),
+                _tableHeader('BB', flex: 1),
+                _tableHeader('TB', flex: 1),
+                _tableHeader('Status', flex: 2),
               ],
             ),
           ),
@@ -1203,6 +1278,26 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
             ...List.generate(_riwayat.length, (i) {
               final item = _riwayat[i];
               final isEven = i % 2 == 0;
+
+              Color statusColor = Colors.grey;
+              String statusLabel = item.statusGizi ?? '-';
+              if (item.statusGizi != null) {
+                if (item.statusGizi!.contains('Normal') ||
+                    item.statusGizi!.contains('Tinggi')) {
+                  statusColor = Colors.green;
+                } else if (item.statusGizi!.contains('Stunted') ||
+                    item.statusGizi!.contains('Underweight') ||
+                    item.statusGizi!.contains('Wasted') ||
+                    item.statusGizi!.contains('Kurus') ||
+                    item.statusGizi!.contains('Berisiko')) {
+                  statusColor = Colors.orange;
+                } else if (item.statusGizi!.contains('Severely') ||
+                    item.statusGizi!.contains('Obese') ||
+                    item.statusGizi!.contains('Obesitas')) {
+                  statusColor = Colors.red;
+                }
+              }
+
               return Column(
                 children: [
                   Container(
@@ -1215,19 +1310,38 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
                       children: [
                         _tableCell(
                           '${item.tanggal.day}/${item.tanggal.month}/${item.tanggal.year}',
-                          flex: 3,
+                          flex: 2,
                         ),
-                        _tableCell('${item.usiaBulan}', flex: 2),
-                        _tableCell(item.beratBadan.toStringAsFixed(1), flex: 2),
+                        _tableCell('${item.usiaBulan} bln', flex: 1),
+                        _tableCell(item.beratBadan.toStringAsFixed(1), flex: 1),
                         _tableCell(
                           item.tinggiBadan.toStringAsFixed(1),
-                          flex: 2,
+                          flex: 1,
                         ),
-                        _tableCell(
-                          item.lingkarKepala != null
-                              ? item.lingkarKepala!.toStringAsFixed(1)
-                              : '-',
+                        Expanded(
                           flex: 2,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withAlpha(26),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: statusColor.withAlpha(51),
+                              ),
+                            ),
+                            child: Text(
+                              statusLabel,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1282,7 +1396,7 @@ class _DataPertumbuhanPageState extends State<DataPertumbuhanPage> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.06),
+            color: Colors.grey.withAlpha(15),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),

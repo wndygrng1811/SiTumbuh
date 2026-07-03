@@ -17,16 +17,13 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   final tbController = TextEditingController();
   final lkController = TextEditingController();
 
-  // Status hasil
   String statusUtama = "";
   String deskripsi = "";
   Color warnaUtama = Colors.pink;
   IconData iconUtama = Icons.health_and_safety;
 
-  // Kategori usia
   String kategoriUsia = "Anak (0-60 bulan)";
 
-  // Detail per kategori
   Map<String, dynamic> statusDetail = {
     'tb_usia': {
       'label': 'TB / Usia',
@@ -54,7 +51,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     },
   };
 
-  // ===== FUNGSI DETEKSI KATEGORI USIA =====
   String _getKategoriUsia(double usiaTahun) {
     if (usiaTahun < 5) return "Anak (0-60 bulan)";
     if (usiaTahun >= 5 && usiaTahun < 18) return "Remaja (5-17 tahun)";
@@ -62,10 +58,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return "Usia tidak valid";
   }
 
-  // ===== STANDAR WHO UNTUK ANAK 0-60 BULAN =====
-  // Berdasarkan WHO Child Growth Standards
-
-  // 1. TB/U - Height-for-age (Deteksi Stunting)
   String _getStatusTBUAnak(double usiaBulan, double tbCm) {
     if (tbCm <= 0 || usiaBulan < 0 || usiaBulan > 60) return 'Data tidak valid';
 
@@ -109,7 +101,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Usia tidak valid';
   }
 
-  // 2. BB/U - Weight-for-age (Deteksi Underweight & Overweight) untuk anak
   String _getStatusBBUAnak(double usiaBulan, double bbKg) {
     if (bbKg <= 0 || usiaBulan < 0 || usiaBulan > 60) return 'Data tidak valid';
 
@@ -153,7 +144,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Usia tidak valid';
   }
 
-  // 3. IMT/U - BMI-for-age untuk anak
   String _getStatusIMTUAnak(double usiaBulan, double imt) {
     if (imt <= 0 || usiaBulan < 0 || usiaBulan > 60) return 'Data tidak valid';
 
@@ -197,7 +187,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Usia tidak valid';
   }
 
-  // 4. LK/U - Lingkar Kepala untuk anak
   String _getStatusLKUAnak(double usiaBulan, double lkCm) {
     if (lkCm <= 0 || usiaBulan < 0 || usiaBulan > 60) return 'Data tidak valid';
 
@@ -235,13 +224,9 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Usia tidak valid';
   }
 
-  // ===== STANDAR WHO UNTUK REMAJA (5-17 TAHUN) =====
-  // Menggunakan IMT berdasarkan persentil WHO (disederhanakan)
   String _getStatusIMTRemaja(double usiaTahun, double imt) {
     if (imt <= 0 || usiaTahun < 5 || usiaTahun >= 18) return 'Data tidak valid';
 
-    // Nilai IMT berdasarkan persentil (disederhanakan)
-    // -2SD: underweight, +1SD: overweight, +2SD: obesity
     if (usiaTahun >= 5 && usiaTahun < 8) {
       if (imt < 12.5) return 'Sangat Kurus (Severe Thinness)';
       if (imt < 13.5) return 'Kurus (Underweight)';
@@ -270,8 +255,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Usia tidak valid';
   }
 
-  // ===== STANDAR WHO UNTUK DEWASA (≥18 TAHUN) =====
-  // Berdasarkan BMI WHO: https://apps.who.int/nutrition/landscape/help.aspx?menu=0&helpid=420
   String _getStatusIMTDewasa(double imt) {
     if (imt <= 0) return 'Data tidak valid';
 
@@ -285,7 +268,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     return 'Obesitas III (Severe)';
   }
 
-  // ===== STATUS UTAMA UNTUK ANAK =====
   Map<String, dynamic> _getStatusUtamaAnak(
     String statusTBU,
     String statusBBU,
@@ -294,7 +276,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   ) {
     List<String> statuses = [statusTBU, statusBBU, statusIMTU, statusLKU];
 
-    // Deteksi masalah berat
     bool severeStunting = statusTBU.contains('Severe Stunting');
     bool stunting = statusTBU.contains('Stunting');
     bool severeWasting = statusIMTU.contains('Severe Wasting');
@@ -365,7 +346,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     }
   }
 
-  // ===== STATUS UTAMA UNTUK REMAJA & DEWASA =====
   Map<String, dynamic> _getStatusUtamaDewasa(String statusIMT) {
     if (statusIMT.contains('Severe Thinness') || statusIMT.contains('Severe')) {
       return {
@@ -442,7 +422,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
   }
 
   void cekPertumbuhan() {
-    // Validasi input
     if (usiaController.text.isEmpty ||
         bbController.text.isEmpty ||
         tbController.text.isEmpty ||
@@ -461,7 +440,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     double tinggi = double.tryParse(tbController.text) ?? -1;
     double kepala = double.tryParse(lkController.text) ?? -1;
 
-    // Validasi range
     if (usiaTahun < 0 || usiaTahun > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -482,17 +460,14 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       return;
     }
 
-    // Hitung IMT
     double meter = tinggi / 100;
     double imt = berat / pow(meter, 2);
 
-    // Tentukan kategori usia
     String kategori = _getKategoriUsia(usiaTahun);
     setState(() {
       kategoriUsia = kategori;
     });
 
-    // Proses berdasarkan kategori
     if (kategori == "Anak (0-60 bulan)") {
       double usiaBulan = usiaTahun * 12;
       String statusTBU = _getStatusTBUAnak(usiaBulan, tinggi);
@@ -538,7 +513,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
         iconUtama = utama['icon'];
       });
     } else {
-      // Remaja atau Dewasa - hanya gunakan IMT
       String statusIMT;
       if (kategori == "Remaja (5-17 tahun)") {
         statusIMT = _getStatusIMTRemaja(usiaTahun, imt);
@@ -581,7 +555,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
     }
   }
 
-  // ===== WIDGET =====
   Widget _buildInputField(
     String label,
     TextEditingController controller, {
@@ -628,7 +601,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
 
   Widget _buildBadge(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
@@ -638,15 +611,13 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
         text,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
 
-  // ===== PERBAIKAN OVERFLOW: Menggunakan Expanded dan Flexible =====
   Widget _buildDetailRow(String title, Map<String, dynamic> data) {
     String status = data['status'] ?? '-';
     Color color = data['color'] ?? Colors.grey;
@@ -661,8 +632,8 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
         border: Border.all(color: Colors.grey.shade200, width: 0.5),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Icon - FIXED SIZE
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
@@ -672,13 +643,12 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
             child: Icon(icon, size: 16, color: color),
           ),
           const SizedBox(width: 10),
-          // Title - FLEXIBLE
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 80,
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF3A2A2D),
               ),
@@ -686,9 +656,7 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
             ),
           ),
           const SizedBox(width: 8),
-          // Badge - FLEXIBLE
-          Flexible(
-            flex: 1,
+          Expanded(
             child: Align(
               alignment: Alignment.centerRight,
               child: _buildBadge(_getStatusDisplay(status), color),
@@ -713,7 +681,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
       ),
       body: Column(
         children: [
-          // ===== HEADER =====
           Container(
             width: double.infinity,
             color: Colors.white,
@@ -783,7 +750,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  // ===== Sapa =====
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -831,7 +797,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
                   ),
                   const SizedBox(height: 18),
 
-                  // ===== STATUS UTAMA =====
                   if (statusUtama.isNotEmpty)
                     Container(
                       width: double.infinity,
@@ -897,7 +862,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
 
                   if (statusUtama.isNotEmpty) const SizedBox(height: 18),
 
-                  // ===== FORM =====
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -998,7 +962,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
 
                   const SizedBox(height: 18),
 
-                  // ===== DETAIL HASIL =====
                   if (statusDetail['imt']?['status'] != '-')
                     Container(
                       padding: const EdgeInsets.all(18),
@@ -1032,7 +995,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
                             ],
                           ),
                           const SizedBox(height: 10),
-                          // Hanya tampilkan yang relevan
                           if (kategoriUsia == "Anak (0-60 bulan)") ...[
                             _buildDetailRow(
                               'TB / Usia',
@@ -1050,7 +1012,6 @@ class _CekPertumbuhanPageState extends State<CekPertumbuhanPage> {
                           ] else ...[
                             _buildDetailRow('IMT', statusDetail['imt']!),
                           ],
-
                           const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.all(10),

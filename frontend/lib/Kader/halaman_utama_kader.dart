@@ -33,6 +33,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
   String _jadwalKegiatan = "Memuat...";
   bool _isLoading = true;
   int? _userId;
+  bool _hasSchedule = false;
 
   @override
   void initState() {
@@ -73,9 +74,19 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
         _loadJadwalPosyandu(),
         _loadProfilKader(),
       ]);
-      setState(() => _isLoading = false);
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -117,21 +128,89 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
   Future<void> _loadJadwalPosyandu() async {
     try {
       final response = await ApiService.get('/kader/jadwal-terdekat');
+      print("Response status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true) {
+        print("Parsed data: $data");
+
+        if (data['success'] == true && data['data'] != null) {
+          final jadwalData = data['data'];
+          print("Jadwal data: $jadwalData");
+
+          // Ambil data dari response
+          String? tanggal = jadwalData['tanggal']?.toString();
+          String? waktuMulai = jadwalData['waktu_mulai']?.toString();
+          String? waktuSelesai = jadwalData['waktu_selesai']?.toString();
+          String? lokasi = jadwalData['lokasi']?.toString();
+          String? kegiatan = jadwalData['kegiatan']?.toString();
+
+          print("Tanggal: $tanggal");
+          print("Waktu mulai: $waktuMulai");
+          print("Waktu selesai: $waktuSelesai");
+
+          // Cek apakah ada data jadwal
+          if (tanggal != null && tanggal.isNotEmpty && tanggal != "null") {
+            setState(() {
+              _hasSchedule = true;
+              _jadwalTanggal = tanggal;
+              _jadwalWaktu =
+                  (waktuMulai != null &&
+                      waktuMulai.isNotEmpty &&
+                      waktuMulai != "null" &&
+                      waktuSelesai != null &&
+                      waktuSelesai.isNotEmpty &&
+                      waktuSelesai != "null")
+                  ? "$waktuMulai - $waktuSelesai WIB"
+                  : "08:00 - 12:00 WIB";
+              _jadwalLokasi =
+                  (lokasi != null && lokasi.isNotEmpty && lokasi != "null")
+                  ? lokasi
+                  : "Posyandu Mawar";
+              _jadwalKegiatan =
+                  (kegiatan != null &&
+                      kegiatan.isNotEmpty &&
+                      kegiatan != "null")
+                  ? kegiatan
+                  : "Penimbangan, Pengukuran";
+            });
+          } else {
+            setState(() {
+              _hasSchedule = false;
+              _jadwalTanggal = "Belum ada jadwal";
+              _jadwalWaktu = "-";
+              _jadwalLokasi = "-";
+              _jadwalKegiatan = "-";
+            });
+          }
+        } else {
           setState(() {
-            _jadwalTanggal = data['data']['tanggal'] ?? "Belum ada jadwal";
-            _jadwalWaktu =
-                "${data['data']['waktu_mulai']} - ${data['data']['waktu_selesai']} WIB";
-            _jadwalLokasi = data['data']['lokasi'] ?? "Posyandu Mawar";
-            _jadwalKegiatan =
-                data['data']['kegiatan'] ?? "Penimbangan, Pengukuran";
+            _hasSchedule = false;
+            _jadwalTanggal = "Belum ada jadwal";
+            _jadwalWaktu = "-";
+            _jadwalLokasi = "-";
+            _jadwalKegiatan = "-";
           });
         }
+      } else {
+        setState(() {
+          _hasSchedule = false;
+          _jadwalTanggal = "Gagal memuat jadwal";
+          _jadwalWaktu = "-";
+          _jadwalLokasi = "-";
+          _jadwalKegiatan = "-";
+        });
       }
     } catch (e) {
       print("Error load jadwal: $e");
+      setState(() {
+        _hasSchedule = false;
+        _jadwalTanggal = "Error memuat jadwal";
+        _jadwalWaktu = "-";
+        _jadwalLokasi = "-";
+        _jadwalKegiatan = "-";
+      });
     }
   }
 
@@ -141,6 +220,174 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     if (hour < 15) return "Selamat Siang";
     if (hour < 18) return "Selamat Sore";
     return "Selamat Malam";
+  }
+
+  void _showStatistikDetail() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildStatistikDetailSheet(),
+    );
+  }
+
+  Widget _buildStatistikDetailSheet() {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle (garis di atas)
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Detail Statistik Pemantauan',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Ringkasan data pemantauan posyandu',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                  color: Colors.grey.shade600,
+                ),
+              ],
+            ),
+          ),
+          // Isi statistik dengan Expanded dan SingleChildScrollView
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  _buildDetailStatItem(
+                    icon: Icons.analytics_rounded,
+                    title: 'Total Pemantauan',
+                    value: _jumlahPemantauan,
+                    color: const Color(0xFFE85D75),
+                    gradient: const [Color(0xFFFDE2E7), Color(0xFFFCD5DC)],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDetailStatItem(
+                    icon: Icons.people_rounded,
+                    title: 'Total Anak Terdaftar',
+                    value: _jumlahAnak,
+                    color: const Color(0xFF4A9BFF),
+                    gradient: const [Color(0xFFE8F0FE), Color(0xFFD6E4FD)],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDetailStatItem(
+                    icon: Icons.family_restroom_rounded,
+                    title: 'Total Orang Tua',
+                    value: _jumlahOrangTua,
+                    color: const Color(0xFFFFB74D),
+                    gradient: const [Color(0xFFFFF3E0), Color(0xFFFFE0B2)],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDetailStatItem(
+                    icon: Icons.checklist_rounded,
+                    title: 'Total Kehadiran',
+                    value: _jumlahKehadiran,
+                    color: const Color(0xFF20C997),
+                    gradient: const [Color(0xFFF0FFF7), Color(0xFFE0F7EE)],
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailStatItem({
+    required IconData icon,
+    required String title,
+    required int value,
+    required Color color,
+    required List<Color> gradient,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradient,
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 24, color: color),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value.toString(),
+                  style: TextStyle(
+                    fontSize: 28,
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -171,11 +418,11 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                   children: [
                     _buildGreetingSection(),
                     const SizedBox(height: 24),
-                    _buildSectionLabel("Ringkasan Pemantauan"),
+                    _buildSectionLabel("Ringkasan Pemantauan", "statistik"),
                     const SizedBox(height: 12),
                     _buildRingkasanCard(),
                     const SizedBox(height: 24),
-                    _buildSectionLabel("Jadwal Terdekat"),
+                    _buildSectionLabel("Jadwal Terdekat", "jadwal"),
                     const SizedBox(height: 12),
                     _buildJadwalCard(),
                   ],
@@ -269,8 +516,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          _jadwalTanggal != "Memuat..." &&
-                                  _jadwalTanggal != "Belum ada jadwal"
+                          _hasSchedule && _jadwalTanggal != "Memuat..."
                               ? "Jadwal: $_jadwalTanggal"
                               : "Belum ada jadwal",
                           style: TextStyle(
@@ -305,7 +551,7 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
+  Widget _buildSectionLabel(String label, String type) {
     return Row(
       children: [
         Container(
@@ -327,18 +573,34 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
           ),
         ),
         const Spacer(),
-        Text(
-          "Lihat Semua",
-          style: TextStyle(
-            fontSize: 12,
-            color: const Color(0xFFE85D75),
-            fontWeight: FontWeight.w500,
+        GestureDetector(
+          onTap: () {
+            if (type == "statistik") {
+              _showStatistikDetail();
+            } else if (type == "jadwal") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Jadwal()),
+              );
+            }
+          },
+          child: Row(
+            children: [
+              Text(
+                "Lihat Semua",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFFE85D75),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: const Color(0xFFE85D75),
+              ),
+            ],
           ),
-        ),
-        Icon(
-          Icons.chevron_right_rounded,
-          size: 18,
-          color: const Color(0xFFE85D75),
         ),
       ],
     );
@@ -609,6 +871,14 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
   }
 
   Widget _buildJadwalCard() {
+    bool hasValidSchedule =
+        _hasSchedule &&
+        _jadwalTanggal != "Belum ada jadwal" &&
+        _jadwalTanggal != "Tidak ada jadwal mendatang" &&
+        _jadwalTanggal != "Gagal memuat jadwal" &&
+        _jadwalTanggal != "Error memuat jadwal" &&
+        _jadwalTanggal != "Memuat...";
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -631,47 +901,98 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE85D75).withOpacity(0.08),
+                  color: hasValidSchedule
+                      ? const Color(0xFFE85D75).withOpacity(0.08)
+                      : Colors.grey.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.event_available_rounded,
+                child: Icon(
+                  hasValidSchedule
+                      ? Icons.event_available_rounded
+                      : Icons.event_busy_rounded,
                   size: 20,
-                  color: Color(0xFFE85D75),
+                  color: hasValidSchedule
+                      ? const Color(0xFFE85D75)
+                      : Colors.grey.shade400,
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                "Jadwal Posyandu Terdekat",
+              Text(
+                hasValidSchedule
+                    ? "Jadwal Posyandu Terdekat"
+                    : "Tidak Ada Jadwal",
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: hasValidSchedule
+                      ? const Color(0xFF1A1A1A)
+                      : Colors.grey.shade500,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildJadwalRow(
-            icon: Icons.access_time_rounded,
-            label: "Waktu",
-            value: _jadwalWaktu,
-            color: const Color(0xFFFF6B6B),
-          ),
-          const SizedBox(height: 12),
-          _buildJadwalRow(
-            icon: Icons.location_on_rounded,
-            label: "Lokasi",
-            value: _jadwalLokasi,
-            color: const Color(0xFF4A9BFF),
-          ),
-          const SizedBox(height: 12),
-          _buildJadwalRow(
-            icon: Icons.event_note_rounded,
-            label: "Kegiatan",
-            value: _jadwalKegiatan,
-            color: const Color(0xFF20C997),
-          ),
+          if (!hasValidSchedule) ...[
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 40,
+                    color: Colors.grey.shade400,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _jadwalTanggal == "Memuat..."
+                        ? "Memuat jadwal..."
+                        : "Belum ada jadwal posyandu",
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (_jadwalTanggal != "Memuat...") ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      "Silakan cek kembali nanti",
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ] else ...[
+            _buildJadwalRow(
+              icon: Icons.access_time_rounded,
+              label: "Waktu",
+              value: _jadwalWaktu,
+              color: const Color(0xFFFF6B6B),
+            ),
+            const SizedBox(height: 12),
+            _buildJadwalRow(
+              icon: Icons.location_on_rounded,
+              label: "Lokasi",
+              value: _jadwalLokasi,
+              color: const Color(0xFF4A9BFF),
+            ),
+            const SizedBox(height: 12),
+            _buildJadwalRow(
+              icon: Icons.event_note_rounded,
+              label: "Kegiatan",
+              value: _jadwalKegiatan,
+              color: const Color(0xFF20C997),
+            ),
+          ],
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -693,13 +1014,18 @@ class _HalamanUtamaKaderState extends State<HalamanUtamaKader> {
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Text(
-                    "Lihat Detail Jadwal",
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    hasValidSchedule
+                        ? "Lihat Detail Jadwal"
+                        : "Lihat Semua Jadwal",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded, size: 18),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded, size: 18),
                 ],
               ),
             ),

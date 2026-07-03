@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
-import 'package:si_tumbuh/Kader/data_anak.dart';
+import 'dart:convert';
 import 'package:si_tumbuh/Kader/data_orangtua.dart';
 import 'package:si_tumbuh/Kader/data_pertumbuhan.dart';
 import 'package:si_tumbuh/Kader/kehadiran.dart';
 import 'package:si_tumbuh/Kader/edukasi_kader.dart';
 import 'package:si_tumbuh/Kader/laporan.dart';
-import 'package:si_tumbuh/Kader/profil.dart';
 import 'package:si_tumbuh/login.dart';
+import '../services/api_service.dart';
 
 class SidebarKader extends StatefulWidget {
-  const SidebarKader({super.key});
+  final int currentIndex;
+
+  const SidebarKader({super.key, this.currentIndex = 0});
 
   @override
   State<SidebarKader> createState() => _SidebarKaderState();
@@ -21,19 +22,87 @@ class _SidebarKaderState extends State<SidebarKader> {
   String _namaKader = 'Kader';
   String _emailKader = 'kader@email.com';
   int _selectedIndex = 0;
+  int? _userId;
+
+  // Mapping halaman ke index
+  static const Map<String, int> _pageIndexMap = {
+    'DataOrangTua': 0,
+    'DataPertumbuhan': 1,
+    'Kehadiran': 2,
+    'Edukasi': 3,
+    'Laporan': 4,
+  };
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.currentIndex;
     _loadKaderData();
+  }
+
+  @override
+  void didUpdateWidget(SidebarKader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentIndex != _selectedIndex) {
+      setState(() {
+        _selectedIndex = widget.currentIndex;
+      });
+    }
   }
 
   Future<void> _loadKaderData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    _userId = prefs.getInt('user_id');
+
     setState(() {
-      _namaKader = prefs.getString('nama') ?? 'Kader';
-      _emailKader = prefs.getString('email') ?? 'kader@email.com';
+      _namaKader =
+          prefs.getString('nama_kader') ?? prefs.getString('nama') ?? 'Kader';
+
+      _emailKader =
+          prefs.getString('email_kader') ??
+          prefs.getString('email') ??
+          'kader@email.com';
     });
+
+    if (_userId != null) {
+      await _loadProfilFromApi(_userId!);
+    }
+  }
+
+  Future<void> _loadProfilFromApi(int userId) async {
+    try {
+      final response = await ApiService.get('/kader/profil/$userId');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['success'] == true && data['data'] != null) {
+          final userData = data['data'];
+
+          String nama = userData['nama'] ?? '';
+          String email = userData['email'] ?? '';
+
+          if (nama.isNotEmpty) {
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+
+            await prefs.setString('nama_kader', nama);
+            await prefs.setString('email_kader', email);
+            await prefs.setString('nama', nama);
+            await prefs.setString('email', email);
+
+            if (mounted) {
+              setState(() {
+                _namaKader = nama;
+                _emailKader = email.isNotEmpty ? email : 'kader@email.com';
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('Error load profil kader: $e');
+    }
   }
 
   @override
@@ -54,7 +123,6 @@ class _SidebarKaderState extends State<SidebarKader> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===== HEADER PROFIL =====
             SafeArea(
               child: Container(
                 width: double.infinity,
@@ -66,12 +134,12 @@ class _SidebarKaderState extends State<SidebarKader> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.4),
+                          color: Colors.white.withAlpha(102),
                           width: 3,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: Colors.black.withAlpha(25),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -107,7 +175,7 @@ class _SidebarKaderState extends State<SidebarKader> {
                       children: [
                         Icon(
                           Icons.email_outlined,
-                          color: Colors.white.withValues(alpha: 0.7),
+                          color: Colors.white.withAlpha(179),
                           size: 14,
                         ),
                         const SizedBox(width: 6),
@@ -115,7 +183,7 @@ class _SidebarKaderState extends State<SidebarKader> {
                           child: Text(
                             _emailKader,
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
+                              color: Colors.white.withAlpha(179),
                               fontSize: 12,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -130,7 +198,7 @@ class _SidebarKaderState extends State<SidebarKader> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
+                        color: Colors.white.withAlpha(38),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -160,80 +228,61 @@ class _SidebarKaderState extends State<SidebarKader> {
 
             const SizedBox(height: 8),
 
-            // ===== MENU =====
             Expanded(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
                   _buildMenuItem(
                     context,
-                    Icons.dashboard_rounded,
-                    "Halaman Utama",
-                    const HalamanUtamaKader(),
-                    0,
-                  ),
-                  _buildMenuItem(
-                    context,
-                    Icons.people_rounded,
-                    "Data Anak",
-                    const DataAnakPage(),
-                    1,
-                  ),
-                  _buildMenuItem(
-                    context,
                     Icons.family_restroom_rounded,
                     "Data Orang Tua",
                     const KelolaDaftarOrangTuaPage(),
-                    2,
+                    0,
+                    'DataOrangTua',
                   ),
                   _buildMenuItem(
                     context,
                     Icons.show_chart_rounded,
                     "Data Pertumbuhan",
                     const DataPertumbuhanPage(),
-                    3,
+                    1,
+                    'DataPertumbuhan',
                   ),
                   _buildMenuItem(
                     context,
                     Icons.check_circle_rounded,
                     "Kehadiran",
                     const Kehadiran(),
-                    4,
+                    2,
+                    'Kehadiran',
                   ),
                   _buildMenuItem(
                     context,
                     Icons.book_rounded,
                     "Edukasi",
                     const EdukasiKaderPage(),
-                    5,
+                    3,
+                    'Edukasi',
                   ),
                   _buildMenuItem(
                     context,
                     Icons.assessment_rounded,
                     "Laporan",
                     const LaporanPage(),
-                    6,
-                  ),
-                  _buildMenuItem(
-                    context,
-                    Icons.person_outline_rounded,
-                    "Profil",
-                    const Profil(),
-                    7,
+                    4,
+                    'Laporan',
                   ),
                 ],
               ),
             ),
 
-            // ===== DIVIDER =====
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               height: 1,
-              color: Colors.white.withValues(alpha: 0.2),
+              color: Colors.white.withAlpha(51),
             ),
             const SizedBox(height: 8),
 
-            // ===== LOGOUT =====
             ListTile(
               leading: const Icon(Icons.logout_rounded, color: Colors.white),
               title: const Text(
@@ -246,7 +295,7 @@ class _SidebarKaderState extends State<SidebarKader> {
               ),
               trailing: Icon(
                 Icons.arrow_forward_ios_rounded,
-                color: Colors.white.withValues(alpha: 0.4),
+                color: Colors.white.withAlpha(102),
                 size: 16,
               ),
               onTap: () => _showLogoutDialog(context),
@@ -264,18 +313,18 @@ class _SidebarKaderState extends State<SidebarKader> {
     String title,
     Widget page,
     int index,
+    String routeName,
   ) {
-    final isSelected = _selectedIndex == index;
+    // Gunakan currentIndex dari widget, bukan _selectedIndex
+    final isSelected = widget.currentIndex == index;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       decoration: BoxDecoration(
-        color: isSelected
-            ? Colors.white.withValues(alpha: 0.2)
-            : Colors.transparent,
+        color: isSelected ? Colors.white.withAlpha(51) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: isSelected
-            ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 0.5)
+            ? Border.all(color: Colors.white.withAlpha(77), width: 0.5)
             : null,
       ),
       child: ListTile(
@@ -299,9 +348,6 @@ class _SidebarKaderState extends State<SidebarKader> {
               )
             : null,
         onTap: () {
-          setState(() {
-            _selectedIndex = index;
-          });
           Navigator.pop(context);
           Navigator.pushReplacement(
             context,
@@ -312,7 +358,6 @@ class _SidebarKaderState extends State<SidebarKader> {
     );
   }
 
-  // ========== LOGOUT ==========
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,

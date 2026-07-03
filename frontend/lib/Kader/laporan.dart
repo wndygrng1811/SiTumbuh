@@ -97,6 +97,9 @@ class _LaporanPageState extends State<LaporanPage> {
         '/kader/semua-pertumbuhan?bulan=$bulanAngka&tahun=$_selectedTahun',
       );
 
+      print("Laporan response status: ${response.statusCode}");
+      print("Laporan response body: ${response.body}");
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['success'] == true) {
@@ -108,9 +111,9 @@ class _LaporanPageState extends State<LaporanPage> {
                 'anak_id': item['anak_id'],
                 'nama_anak': item['nama_anak'] ?? 'Tidak diketahui',
                 'jenis_kelamin': item['jenis_kelamin'] == 'L' ? 'L' : 'P',
-                'tinggi_badan': item['tinggi_badan'] ?? 0,
-                'berat_badan': item['berat_badan'] ?? 0,
-                'lingkar_kepala': item['lingkar_kepala'] ?? 0,
+                'tinggi_badan': _parseDouble(item['tinggi_badan']),
+                'berat_badan': _parseDouble(item['berat_badan']),
+                'lingkar_kepala': _parseDouble(item['lingkar_kepala']),
                 'status_gizi': item['status_gizi'] ?? 'Normal',
                 'nama_ortu': item['nama_ortu'] ?? '-',
               };
@@ -138,20 +141,56 @@ class _LaporanPageState extends State<LaporanPage> {
     }
   }
 
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  // Fungsi untuk menentukan status gizi
+  String _getStatusGiziCategory(String status) {
+    final statusLower = status.toLowerCase();
+    if (statusLower.contains('normal') || statusLower.contains('tinggi')) {
+      return 'Normal';
+    } else if (statusLower.contains('stunted') ||
+        statusLower.contains('underweight') ||
+        statusLower.contains('wasted') ||
+        statusLower.contains('kurang') ||
+        statusLower.contains('berisiko')) {
+      return 'Kurang';
+    } else if (statusLower.contains('obese') ||
+        statusLower.contains('obesitas') ||
+        statusLower.contains('severely')) {
+      return 'Obesitas';
+    }
+    return 'Normal';
+  }
+
   int get _totalAnak => _filteredData.length;
-  int get _totalNormal =>
-      _filteredData.where((a) => a['status_gizi'] == 'Normal').length;
-  int get _totalKurang => _filteredData
-      .where(
-        (a) =>
-            a['status_gizi'] == 'Kurang' || a['status_gizi'] == 'Underweight',
-      )
-      .length;
-  int get _totalObesitas => _filteredData
-      .where(
-        (a) => a['status_gizi'] == 'Obese' || a['status_gizi'] == 'Obesitas',
-      )
-      .length;
+  int get _totalNormal {
+    return _filteredData.where((a) {
+      final status = a['status_gizi'] ?? 'Normal';
+      return _getStatusGiziCategory(status) == 'Normal';
+    }).length;
+  }
+
+  int get _totalKurang {
+    return _filteredData.where((a) {
+      final status = a['status_gizi'] ?? 'Normal';
+      return _getStatusGiziCategory(status) == 'Kurang';
+    }).length;
+  }
+
+  int get _totalObesitas {
+    return _filteredData.where((a) {
+      final status = a['status_gizi'] ?? 'Normal';
+      return _getStatusGiziCategory(status) == 'Obesitas';
+    }).length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -718,17 +757,16 @@ class _LaporanPageState extends State<LaporanPage> {
             ],
             rows: List.generate(_filteredData.length, (index) {
               final item = _filteredData[index];
-              final bool isNormal = item['status_gizi'] == 'Normal';
+              final statusCategory = _getStatusGiziCategory(
+                item['status_gizi'] ?? 'Normal',
+              );
+              final bool isNormal = statusCategory == 'Normal';
               final Color statusColor = isNormal
                   ? Colors.green
-                  : (item['status_gizi'] == 'Obese' ||
-                            item['status_gizi'] == 'Obesitas'
-                        ? Colors.red
-                        : Colors.orange);
+                  : (statusCategory == 'Obesitas' ? Colors.red : Colors.orange);
               final Color statusBg = isNormal
                   ? Colors.green.shade50
-                  : (item['status_gizi'] == 'Obese' ||
-                            item['status_gizi'] == 'Obesitas'
+                  : (statusCategory == 'Obesitas'
                         ? Colors.red.shade50
                         : Colors.orange.shade50);
 
@@ -815,19 +853,19 @@ class _LaporanPageState extends State<LaporanPage> {
                   ),
                   DataCell(
                     Text(
-                      '${item['tinggi_badan']}',
+                      item['tinggi_badan'].toString(),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   DataCell(
                     Text(
-                      '${item['berat_badan']}',
+                      item['berat_badan'].toString(),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
                   DataCell(
                     Text(
-                      '${item['lingkar_kepala']}',
+                      item['lingkar_kepala'].toString(),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -942,10 +980,39 @@ class _LaporanPageState extends State<LaporanPage> {
     setState(() => _isExporting = true);
 
     try {
-      var excelFile = excel.Excel.createExcel();
-      excel.Sheet sheet = excelFile['Laporan Posyandu'];
+      // Request permission untuk Android
+      if (Platform.isAndroid) {
+        PermissionStatus status = await Permission.manageExternalStorage
+            .request();
+        if (!status.isGranted) {
+          PermissionStatus storageStatus = await Permission.storage.request();
+          if (!storageStatus.isGranted) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Izin penyimpanan diperlukan untuk menyimpan file. '
+                    'Silakan berikan izin di pengaturan.',
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 5),
+                ),
+              );
+            }
+            setState(() => _isExporting = false);
+            return;
+          }
+        }
+      }
 
-      sheet.appendRow([
+      // Buat file Excel - cara yang benar untuk excel 4.0.6
+      var excelFile = excel.Excel.createExcel();
+
+      // Ambil sheet pertama yang sudah ada
+      excel.Sheet sheet = excelFile.sheets['Sheet1']!;
+
+      // Header
+      List<excel.CellValue> headerRow = [
         excel.TextCellValue('No'),
         excel.TextCellValue('Nama Anak'),
         excel.TextCellValue('Jenis Kelamin'),
@@ -954,8 +1021,11 @@ class _LaporanPageState extends State<LaporanPage> {
         excel.TextCellValue('Lingkar Kepala (cm)'),
         excel.TextCellValue('Status Gizi'),
         excel.TextCellValue('Orang Tua'),
-      ]);
+      ];
 
+      sheet.appendRow(headerRow);
+
+      // Data
       if (_filteredData.isEmpty) {
         sheet.appendRow([excel.TextCellValue('Tidak ada data')]);
       } else {
@@ -967,44 +1037,35 @@ class _LaporanPageState extends State<LaporanPage> {
             excel.TextCellValue(
               item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
             ),
-            excel.TextCellValue((item['tinggi_badan'] ?? 0).toString()),
-            excel.TextCellValue((item['berat_badan'] ?? 0).toString()),
-            excel.TextCellValue((item['lingkar_kepala'] ?? 0).toString()),
+            excel.TextCellValue((item['tinggi_badan'] ?? 0).toStringAsFixed(1)),
+            excel.TextCellValue((item['berat_badan'] ?? 0).toStringAsFixed(1)),
+            excel.TextCellValue(
+              (item['lingkar_kepala'] ?? 0).toStringAsFixed(1),
+            ),
             excel.TextCellValue(item['status_gizi'] ?? 'Normal'),
             excel.TextCellValue(item['nama_ortu'] ?? '-'),
           ]);
         }
       }
 
-      final bytes = excelFile.encode();
+      // Auto-fit column widths
+      for (int i = 0; i < headerRow.length; i++) {
+        sheet.setColumnWidth(i, 20);
+      }
+
+      final bytes = excelFile.save();
       if (bytes == null) throw Exception('Gagal membuat file Excel');
 
       String fileName =
           'laporan_posyandu_${_selectedBulan}_$_selectedTahun.xlsx';
 
-      if (Platform.isAndroid) {
-        PermissionStatus status = await Permission.storage.request();
-        if (!status.isGranted) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Izin penyimpanan diperlukan untuk menyimpan file',
-                ),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          setState(() => _isExporting = false);
-          return;
-        }
-      }
-
-      final Directory directory = await getApplicationDocumentsDirectory();
-      final String filePath = '${directory.path}/$fileName';
+      // Simpan ke temporary directory
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath = '${tempDir.path}/$fileName';
       final File file = File(filePath);
       await file.writeAsBytes(bytes);
 
+      // Share file
       await Share.shareXFiles([
         XFile(filePath),
       ], text: 'Laporan Posyandu $_selectedBulan $_selectedTahun');

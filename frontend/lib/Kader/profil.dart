@@ -125,7 +125,9 @@ class _ProfilState extends State<Profil> {
           content: Text(message),
           backgroundColor: color,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -134,7 +136,7 @@ class _ProfilState extends State<Profil> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const SidebarKader(),
+      drawer: const SidebarKader(currentIndex: 3),
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFE85D75),
@@ -152,11 +154,8 @@ class _ProfilState extends State<Profil> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 children: [
-                  // ===== HEADER PROFIL =====
                   _buildProfileHeader(),
                   const SizedBox(height: 24),
-
-                  // ===== INFO PROFIL =====
                   _buildSectionLabel('Informasi Profil'),
                   const SizedBox(height: 12),
                   _buildInfoCard(
@@ -179,10 +178,7 @@ class _ProfilState extends State<Profil> {
                     'Alamat',
                     alamat.isEmpty ? '-' : alamat,
                   ),
-
                   const SizedBox(height: 24),
-
-                  // ===== TOMBOL EDIT =====
                   _buildEditButton(),
                 ],
               ),
@@ -191,7 +187,6 @@ class _ProfilState extends State<Profil> {
     );
   }
 
-  // ===== HEADER PROFIL =====
   Widget _buildProfileHeader() {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -204,7 +199,7 @@ class _ProfilState extends State<Profil> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFE85D75).withValues(alpha: 0.25),
+            color: const Color(0xFFE85D75).withAlpha(64),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -212,16 +207,15 @@ class _ProfilState extends State<Profil> {
       ),
       child: Row(
         children: [
-          // Avatar
           Container(
             width: 72,
             height: 72,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 3),
+              border: Border.all(color: Colors.white.withAlpha(102), width: 3),
             ),
             child: CircleAvatar(
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
+              backgroundColor: Colors.white.withAlpha(51),
               child: Text(
                 nama.isNotEmpty ? nama[0].toUpperCase() : 'K',
                 style: const TextStyle(
@@ -251,14 +245,14 @@ class _ProfilState extends State<Profil> {
                   children: [
                     Icon(
                       Icons.verified_rounded,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withAlpha(179),
                       size: 14,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       'Kader Aktif',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: Colors.white.withAlpha(179),
                         fontSize: 12,
                       ),
                     ),
@@ -269,7 +263,7 @@ class _ProfilState extends State<Profil> {
                   children: [
                     Icon(
                       Icons.email_outlined,
-                      color: Colors.white.withValues(alpha: 0.6),
+                      color: Colors.white.withAlpha(153),
                       size: 12,
                     ),
                     const SizedBox(width: 4),
@@ -277,7 +271,7 @@ class _ProfilState extends State<Profil> {
                       child: Text(
                         email.isEmpty ? 'email@example.com' : email,
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
+                          color: Colors.white.withAlpha(153),
                           fontSize: 11,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -293,7 +287,6 @@ class _ProfilState extends State<Profil> {
     );
   }
 
-  // ===== SECTION LABEL =====
   Widget _buildSectionLabel(String label) {
     return Row(
       children: [
@@ -318,7 +311,6 @@ class _ProfilState extends State<Profil> {
     );
   }
 
-  // ===== INFO CARD =====
   Widget _buildInfoCard(IconData icon, String title, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -328,7 +320,7 @@ class _ProfilState extends State<Profil> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.04),
+            color: Colors.grey.withAlpha(10),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -341,7 +333,7 @@ class _ProfilState extends State<Profil> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFE85D75).withValues(alpha: 0.08),
+              color: const Color(0xFFE85D75).withAlpha(20),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: const Color(0xFFE85D75), size: 20),
@@ -373,17 +365,12 @@ class _ProfilState extends State<Profil> {
               ],
             ),
           ),
-          Icon(
-            Icons.edit_outlined,
-            color: Colors.grey.shade300,
-            size: 16,
-          ),
+          Icon(Icons.edit_outlined, color: Colors.grey.shade300, size: 16),
         ],
       ),
     );
   }
 
-  // ===== TOMBOL EDIT =====
   Widget _buildEditButton() {
     return SizedBox(
       width: double.infinity,
@@ -412,16 +399,12 @@ class _ProfilState extends State<Profil> {
             ? const Text('Menyimpan...')
             : const Text(
                 'Edit Profil',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
       ),
     );
   }
 
-  // ===== POPUP EDIT PROFIL YANG DIPERCANTIK =====
   void _showEditDialog(BuildContext context) {
     final namaC = TextEditingController(text: nama);
     final emailC = TextEditingController(text: email);
@@ -438,13 +421,16 @@ class _ProfilState extends State<Profil> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         child: Container(
-          width: MediaQuery.of(context).size.width * 0.9,
+          width: MediaQuery.of(context).size.width * 0.92,
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
+                color: Colors.black.withAlpha(38),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
               ),
@@ -453,7 +439,7 @@ class _ProfilState extends State<Profil> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ===== HEADER DIALOG =====
+              // HEADER
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                 decoration: const BoxDecoration(
@@ -472,7 +458,7 @@ class _ProfilState extends State<Profil> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withAlpha(51),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -509,7 +495,7 @@ class _ProfilState extends State<Profil> {
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
+                          color: Colors.white.withAlpha(51),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -523,10 +509,11 @@ class _ProfilState extends State<Profil> {
                 ),
               ),
 
-              // ===== BODY DIALOG =====
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+              // BODY - PAKAI Flexible + SingleChildScrollView
+              Flexible(
                 child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                  physics: const BouncingScrollPhysics(),
                   child: Form(
                     key: formKey,
                     child: Column(
@@ -540,7 +527,7 @@ class _ProfilState extends State<Profil> {
                           validator: (v) =>
                               v?.isEmpty ?? true ? 'Nama harus diisi' : null,
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _buildDialogField(
                           controller: emailC,
                           label: 'Email',
@@ -549,14 +536,15 @@ class _ProfilState extends State<Profil> {
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) {
                             if (v?.isEmpty ?? true) return 'Email harus diisi';
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                                .hasMatch(v!)) {
+                            if (!RegExp(
+                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                            ).hasMatch(v!)) {
                               return 'Format email tidak valid';
                             }
                             return null;
                           },
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _buildDialogField(
                           controller: telpC,
                           label: 'No Telepon',
@@ -564,12 +552,13 @@ class _ProfilState extends State<Profil> {
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
                           validator: (v) {
-                            if (v?.isEmpty ?? true) return 'No telepon harus diisi';
+                            if (v?.isEmpty ?? true)
+                              return 'No telepon harus diisi';
                             if (v!.length < 10) return 'Minimal 10 digit';
                             return null;
                           },
                         ),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _buildDialogField(
                           controller: alamatC,
                           label: 'Alamat',
@@ -579,13 +568,14 @@ class _ProfilState extends State<Profil> {
                           validator: (v) =>
                               v?.isEmpty ?? true ? 'Alamat harus diisi' : null,
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // ===== FOOTER DIALOG =====
+              // FOOTER
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
                 decoration: BoxDecoration(
@@ -653,7 +643,6 @@ class _ProfilState extends State<Profil> {
     );
   }
 
-  // ===== INPUT FIELD DIALOG =====
   Widget _buildDialogField({
     required TextEditingController controller,
     required String label,
