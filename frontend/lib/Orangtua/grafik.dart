@@ -285,8 +285,8 @@ class _GrafikPageState extends State<GrafikPage> {
   String _currentJenisKelamin = '';
   DateTime? _tanggalLahir;
 
-  String _selectedFilter = "Grafik KMS";
-  final List<String> _filterOptions = ["Grafik KMS", "Tinggi Badan"];
+  String _selectedFilter = "Berat Badan";
+  final List<String> _filterOptions = [" Berat Badan", "Tinggi Badan"];
 
   @override
   void initState() {
@@ -552,7 +552,7 @@ class _GrafikPageState extends State<GrafikPage> {
   }
 
   String _getBackgroundImage() {
-    if (_selectedFilter == "Grafik KMS") {
+    if (_selectedFilter == "Berat Badan") {
       return 'assets/tabel.png';
     } else {
       return 'assets/tabel1.png';
@@ -713,7 +713,7 @@ class _GrafikPageState extends State<GrafikPage> {
       ),
       child: Row(
         children: [
-          _buildChip("Grafik KMS"),
+          _buildChip("Berat Badan"),
           const SizedBox(width: 8),
           _buildChip("Tinggi Badan"),
         ],
@@ -776,7 +776,7 @@ class _GrafikPageState extends State<GrafikPage> {
       );
     }
 
-    int maxUmur = _selectedFilter == "Grafik KMS" ? 24 : 60;
+    int maxUmur = _selectedFilter == "Berat Badan" ? 24 : 60;
 
     List<FlSpot> dataAnakSpots = [];
 
@@ -1090,7 +1090,7 @@ class KMSPainter extends CustomPainter {
     final double canvasWidth = size.width;
     final double canvasHeight = size.height;
 
-    if (selectedFilter == "Grafik KMS") {
+    if (selectedFilter == "Berat Badan") {
       _drawKMS(canvas, canvasWidth, canvasHeight);
     } else if (selectedFilter == "Tinggi Badan") {
       _drawTinggi(canvas, canvasWidth, canvasHeight);

@@ -167,6 +167,7 @@ class _JadwalState extends State<Jadwal> {
     }
   }
 
+  // ==================== POSTER FULL ====================
   Widget _buildPosterWidgetFromJadwal(Map<String, dynamic> jadwal) {
     String templatePath = _getTemplateImage(jadwal['template']);
     String formattedDate = _formatTanggalUntukPesan(jadwal['tanggal']);
@@ -175,17 +176,19 @@ class _JadwalState extends State<Jadwal> {
     String namaPos = jadwal['nama_posyandu'] ?? 'Posyandu';
 
     return SizedBox(
-      width: 280,
+      width: 300,
+      height: 420,
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          Image.asset(templatePath, width: 340, fit: BoxFit.cover),
+          Image.asset(templatePath, width: 300, height: 420, fit: BoxFit.cover),
           Positioned(
-            top: 85,
+            top: 70,
             left: 15,
             right: 15,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.93),
+                color: Colors.white.withOpacity(0.92),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFF0D98A), width: 1.2),
               ),
@@ -319,6 +322,113 @@ class _JadwalState extends State<Jadwal> {
           ),
         ),
       ],
+    );
+  }
+
+  // ==================== POSTER MINI UNTUK CARD ====================
+  Widget _buildPosterMiniWidget(Map<String, dynamic> jadwal) {
+    String templatePath = _getTemplateImage(jadwal['template']);
+    String formattedDate = _formatTanggal(jadwal['tanggal']);
+    String waktu = jadwal['waktu'] ?? '';
+    String namaPos = jadwal['nama_posyandu'] ?? 'Posyandu';
+
+    return SizedBox(
+      width: 70,
+      height: 85,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(templatePath, width: 70, height: 85, fit: BoxFit.cover),
+          Positioned(
+            top: 10,
+            left: 4,
+            right: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.90),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFF0D98A), width: 0.5),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 7,
+                        color: const Color(0xFF5C6BC0),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          formattedDate.length > 10
+                              ? formattedDate.substring(0, 10) + '..'
+                              : formattedDate,
+                          style: const TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 7,
+                        color: const Color(0xFFF57C00),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        waktu,
+                        style: const TextStyle(
+                          fontSize: 6,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D2D2D),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 7,
+                        color: const Color(0xFFE53935),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          namaPos.length > 8
+                              ? namaPos.substring(0, 8) + '..'
+                              : namaPos,
+                          style: const TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,6 +640,129 @@ class _JadwalState extends State<Jadwal> {
     return template;
   }
 
+  // ==================== SHOW POSTER DIALOG ====================
+  void _showPosterDialog(Map<String, dynamic> jadwal) {
+    bool isSelesai = false;
+    try {
+      DateTime today = DateTime.now();
+      DateTime todayDate = DateTime(today.year, today.month, today.day);
+      DateTime tgl = DateTime.parse(jadwal['tanggal']);
+      isSelesai = tgl.isBefore(todayDate);
+    } catch (e) {}
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.85,
+          constraints: const BoxConstraints(maxHeight: 600),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE85D75),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isSelesai ? 'Poster Jadwal (Selesai)' : 'Poster Jadwal',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+              ),
+              // Poster
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Center(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: _buildPosterWidgetFromJadwal(jadwal),
+                    ),
+                  ),
+                ),
+              ),
+              // Tombol
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, size: 16),
+                        label: const Text('Tutup'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.grey.shade700,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (!isSelesai) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _showShareOptions(jadwal);
+                          },
+                          icon: const Icon(Icons.share, size: 16),
+                          label: const Text('Bagikan'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     int jumlahAkanDatang = _getJadwalAkanDatang().length;
@@ -593,7 +826,10 @@ class _JadwalState extends State<Jadwal> {
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: filteredJadwal.length,
                     itemBuilder: (context, index) {
                       return _buildJadwalCard(filteredJadwal[index]);
@@ -605,24 +841,16 @@ class _JadwalState extends State<Jadwal> {
     );
   }
 
+  // ==================== TEMPLATE SECTION ====================
   Widget _buildTemplateSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "Template Poster Posyandu",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              Text(
-                "Lihat semua",
-                style: TextStyle(color: Color(0xFFE85D75), fontSize: 12),
-              ),
-            ],
+          const Text(
+            "Template Poster Posyandu",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           const SizedBox(height: 10),
           Row(
@@ -660,13 +888,14 @@ class _JadwalState extends State<Jadwal> {
       ),
       child: Column(
         children: [
+          // TEMPLATE KOSONG (TANPA TEKS) - FULL TIDAK KEPOTONG
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Image.asset(
               imagePath,
-              height: 90,
+              height: 80,
               width: double.infinity,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
           ),
           const SizedBox(height: 8),
@@ -776,6 +1005,7 @@ class _JadwalState extends State<Jadwal> {
     );
   }
 
+  // ==================== CARD JADWAL ====================
   Widget _buildJadwalCard(Map<String, dynamic> jadwal) {
     bool isSelesai = false;
     try {
@@ -785,150 +1015,186 @@ class _JadwalState extends State<Jadwal> {
       isSelesai = tgl.isBefore(todayDate);
     } catch (e) {}
 
-    String templatePath = _getTemplateImage(jadwal['template']);
     String formattedDate = _formatTanggal(jadwal['tanggal']);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                templatePath,
-                width: 70,
-                height: 80,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 70,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE85D75).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey,
-                  ),
+    return GestureDetector(
+      onTap: () {
+        _showPosterDialog(jadwal);
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ========== POSTER MINI (SUDAH DIGENERATE DENGAN TEKS) ==========
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _buildPosterMiniWidget(jadwal),
+              ),
+              const SizedBox(width: 14),
+
+              // Informasi
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      jadwal['nama_posyandu'] ?? 'Posyandu',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            formattedDate,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          jadwal['waktu'] ?? '-',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            jadwal['alamat'] ?? '-',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    jadwal['nama_posyandu'] ?? 'Posyandu',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey[600],
+
+              // BAGIAN KANAN
+              if (!isSelesai)
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          formattedDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE85D75).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.visibility,
+                            color: Color(0xFFE85D75),
+                            size: 14,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          SizedBox(width: 4),
+                          Text(
+                            "Lihat",
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFFE85D75),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    ElevatedButton(
+                      onPressed: () {
+                        _showShareOptions(jadwal);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(70, 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
                         ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        jadwal['waktu'] ?? '-',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          jadwal['alamat'] ?? '-',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                      child: const Text(
+                        "Bagikan",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (!isSelesai)
-              Container(
-                margin: const EdgeInsets.only(left: 8),
-                child: ElevatedButton(
-                  onPressed: () => _showShareOptions(jadwal),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(65, 32),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
                     ),
+                  ],
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
-                    "Bagikan",
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                    "Selesai",
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  "Selesai",
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

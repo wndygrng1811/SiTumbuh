@@ -5,6 +5,8 @@ import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
 import '../services/api_service.dart';
 import 'edukasi_kader.dart';
+import '../models/edukasi_model.dart';
+import '../models/kategori_model.dart';
 
 class TambahEdukasiPage extends StatefulWidget {
   final bool isEdit;
@@ -182,7 +184,6 @@ class _TambahEdukasiPageState extends State<TambahEdukasiPage>
       drawer: const SidebarKader(),
       bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       backgroundColor: const Color(0xFFF5F5F5),
-      // ========== APP BAR DENGAN IKON KEMBALI DI SAMPING JUDUL HALAMAN ==========
       appBar: AppBar(
         backgroundColor: const Color(0xFFD05A7E),
         elevation: 0,
@@ -192,7 +193,6 @@ class _TambahEdukasiPageState extends State<TambahEdukasiPage>
         titleSpacing: 0,
         title: Row(
           children: [
-            // IKON KEMBALI DI SAMPING JUDUL HALAMAN
             IconButton(
               icon: const Icon(
                 Icons.arrow_back_ios,
@@ -702,7 +702,7 @@ class _TambahEdukasiPageState extends State<TambahEdukasiPage>
     }
 
     return DropdownButtonFormField<String>(
-      initialValue: _selectedKategoriId,
+      value: _selectedKategoriId,
       validator: (v) => v == null ? 'Pilih kategori' : null,
       onChanged: (v) => setState(() => _selectedKategoriId = v),
       decoration: InputDecoration(
@@ -726,8 +726,8 @@ class _TambahEdukasiPageState extends State<TambahEdukasiPage>
         ),
       ),
       items: widget.kategoriList.map((k) {
-        return DropdownMenuItem(
-          value: k.id,
+        return DropdownMenuItem<String>(
+          value: k.id.toString(),
           child: Text(k.nama, style: const TextStyle(fontSize: 13)),
         );
       }).toList(),

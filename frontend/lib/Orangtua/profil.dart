@@ -34,6 +34,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isRefreshing = false;
   String _errorMessage = '';
 
+  // ============ DATA ORANG TUA ============
   String namaOrangTua = '';
   String email = '';
   String noHp = '';
@@ -65,7 +66,7 @@ class _ProfilePageState extends State<ProfilePage> {
     });
 
     try {
-      await _loadUserData();
+      await _loadUserDataFromApi();
       await _loadListAnak();
 
       if (mounted) {
@@ -85,13 +86,102 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
-      _loadDataFromPrefs();
+      setState(() {
+        _errorMessage = 'Gagal memuat data: $e';
+        _isLoading = false;
+      });
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // ============ LOAD DARI API ============
+  Future<void> _loadUserDataFromApi() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      // ============ PAKAI ORANGTUA_ID ATAU USER_ID ============
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
+      int userId = prefs.getInt('user_id') ?? 0;
+      String? token = prefs.getString('token');
+
+      // ============ FALLBACK: PAKAI USER_ID JIKA ORANGTUA_ID 0 ============
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
+
+      if (idToUse == 0) {
+        setState(() {
+          _errorMessage = 'Session tidak valid, silakan login ulang';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      debugPrint(
+        'Loading user data with ID: $idToUse (menggunakan ${orangtuaId > 0 ? "orangtua_id" : "user_id"})',
+      );
+
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/orangtua/profile/$idToUse'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      debugPrint('Profile response status: ${response.statusCode}');
+      debugPrint('Profile response body: ${response.body}');
+
+      if (response.statusCode == 200 && mounted) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          final userData = data['data'];
+
+          String noHpValue = userData['no_hp']?.toString() ?? '';
+
+          // Simpan ke SharedPreferences
+          await prefs.setString(
+            'nama',
+            userData['nama_lengkap'] ?? userData['nama'] ?? '',
+          );
+          await prefs.setString('email', userData['email'] ?? '');
+          await prefs.setString('no_hp', noHpValue);
+          await prefs.setString('alamat', userData['alamat'] ?? '');
+
+          if (mounted) {
+            setState(() {
+              namaOrangTua = userData['nama_lengkap'] ?? userData['nama'] ?? '';
+              email = userData['email'] ?? '';
+              noHp = noHpValue;
+              alamat = userData['alamat'] ?? '';
+            });
+          }
+        } else {
+          setState(() {
+            _errorMessage = data['message'] ?? 'Gagal memuat data profil';
+            _isLoading = false;
+          });
+        }
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _errorMessage =
+              'Data profil tidak ditemukan. Silakan lengkapi data di menu "Profil Lengkap".';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = 'Gagal memuat data (${response.statusCode})';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Terjadi kesalahan: $e';
+        _isLoading = false;
+      });
     }
   }
 
@@ -116,10 +206,16 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      int orangtuaId = prefs.getInt('user_id') ?? 0;
+
+      // ============ PAKAI ORANGTUA_ID ATAU USER_ID ============
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
+      int userId = prefs.getInt('user_id') ?? 0;
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
+
+      if (idToUse == 0) return;
 
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/orangtua/$orangtuaId/anak'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/$idToUse/anak'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -244,6 +340,7 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
 
+    await _loadUserDataFromApi();
     await _loadListAnak();
     if (_selectedAnakId != 0) {
       await _loadDataAnakFromTableAnak(_selectedAnakId);
@@ -256,70 +353,14 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _loadDataFromPrefs() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        namaOrangTua = prefs.getString('nama') ?? 'Bunda';
-        email = prefs.getString('email') ?? 'bunda@gmail.com';
-        noHp = prefs.getString('no_hp') ?? '08123456789';
-        alamat = prefs.getString('alamat') ?? 'Batam';
-        _selectedNamaAnak = prefs.getString('nama_anak') ?? 'Raffi Ahmad';
-        _selectedJenisKelamin = prefs.getString('jenis_kelamin') ?? 'Laki-laki';
-        _selectedAnakId = prefs.getInt('anak_id') ?? 1;
-        tanggalLahir = '2025-01-01';
-        beratLahir = '3.5';
-        tinggiLahir = '50';
-        lingkarKepalaLahir = '34';
-        statusGiziLahir = 'Normal';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadUserData() async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      int userId = prefs.getInt('user_id') ?? 0;
-      String? token = prefs.getString('token');
-
-      if (userId == 0) {
-        debugPrint('User ID tidak ditemukan');
-        return;
-      }
-
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/orangtua/profile/$userId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200 && mounted) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['success'] == true && data['data'] != null) {
-          if (mounted) {
-            setState(() {
-              namaOrangTua =
-                  data['data']['nama_lengkap'] ?? data['data']['nama'] ?? '';
-              email = data['data']['email'] ?? '';
-              noHp = data['data']['no_hp']?.toString() ?? '';
-              alamat = data['data']['alamat'] ?? '';
-            });
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error load user data: $e');
-    }
-  }
-
   void _updateProfileFromLengkap(Map<String, dynamic> dataBaru) {
     if (mounted) {
       setState(() {
         if (dataBaru.containsKey('nama_lengkap')) {
           namaOrangTua = dataBaru['nama_lengkap'];
+        }
+        if (dataBaru.containsKey('nama')) {
+          namaOrangTua = dataBaru['nama'];
         }
         if (dataBaru.containsKey('email')) email = dataBaru['email'];
         if (dataBaru.containsKey('no_hp')) noHp = dataBaru['no_hp'];
@@ -332,7 +373,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const SidebarMenu(),
-      backgroundColor: const Color(0xFFFFF5F7),
+      backgroundColor: Colors.white,
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFE85D75),
         iconColor: Colors.white,
@@ -342,13 +383,40 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
+          : _errorMessage.isNotEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red.shade300,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadAllData,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE85D75),
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            )
           : RefreshIndicator(
               onRefresh: _refreshData,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
                   children: [
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     _buildProfileHeader(),
                     const SizedBox(height: 20),
                     _buildAnakProfile(),
@@ -367,84 +435,156 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ============ BUILD PROFILE HEADER ============
   Widget _buildProfileHeader() {
-    return Column(
-      children: [
-        const Center(
-          child: CircleAvatar(
-            radius: 50,
-            backgroundColor: Color(0xFF7A1C2E),
-            child: Icon(Icons.person, size: 50, color: Colors.white),
-          ),
+    String initial = '';
+    if (namaOrangTua.isNotEmpty) {
+      List<String> names = namaOrangTua.split(' ');
+      if (names.isNotEmpty) {
+        initial = names[0][0].toUpperCase();
+        if (names.length > 1) {
+          initial += names[1][0].toUpperCase();
+        }
+      }
+    }
+    if (initial.isEmpty) initial = '👤';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE85D75), Color(0xFFD05A7E)],
         ),
-        const SizedBox(height: 12),
-        Text(
-          namaOrangTua.isNotEmpty ? namaOrangTua : "Orang Tua",
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Color(0xFF5A2A2A),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFE85D75).withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
-        ),
-        const SizedBox(height: 6),
-        InkWell(
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Email berhasil disalin"),
-                duration: Duration(seconds: 1),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 48,
+              backgroundColor: Colors.white,
+              child: Text(
+                initial,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFE85D75),
+                ),
               ),
-            );
-          },
-          child: Text(
-            email.isNotEmpty ? email : "email@example.com",
-            style: const TextStyle(
-              color: Color(0xFFD86487),
-              decoration: TextDecoration.none,
-              fontWeight: FontWeight.normal,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "No Hp : ${noHp.isNotEmpty ? noHp : '-'}",
-          style: const TextStyle(
-            color: Color(0xFF7A1C2E),
-            fontWeight: FontWeight.w500,
+          const SizedBox(height: 14),
+          Text(
+            namaOrangTua.isNotEmpty ? namaOrangTua : '',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.white,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.email_outlined,
+                color: Colors.white.withOpacity(0.8),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: () {
+                  if (email.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Email berhasil disalin"),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+                child: Text(
+                  email.isNotEmpty ? email : '',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.phone_outlined,
+                color: Colors.white.withOpacity(0.8),
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                noHp.isNotEmpty ? noHp : '',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildAnakProfile() {
-    final displayNama = _selectedNamaAnak.isNotEmpty
-        ? _selectedNamaAnak
-        : "Raffi Ahmad";
+    final displayNama = _selectedNamaAnak.isNotEmpty ? _selectedNamaAnak : '';
     final displayJk = _selectedJenisKelamin.isNotEmpty
         ? _selectedJenisKelamin
-        : "Laki-laki";
+        : '';
     final displayTglLahir = tanggalLahir.isNotEmpty && tanggalLahir != '-'
         ? tanggalLahir
-        : "2025-01-01";
+        : '';
     final displayBerat =
         beratLahir.isNotEmpty && beratLahir != '-' && beratLahir != 'null'
         ? '$beratLahir kg'
-        : '- kg';
+        : '-';
     final displayTinggi =
         tinggiLahir.isNotEmpty && tinggiLahir != '-' && tinggiLahir != 'null'
         ? '$tinggiLahir cm'
-        : '- cm';
+        : '-';
     final displayLingkar =
         lingkarKepalaLahir.isNotEmpty &&
             lingkarKepalaLahir != '-' &&
             lingkarKepalaLahir != 'null'
         ? '$lingkarKepalaLahir cm'
-        : '- cm';
+        : '-';
     final displayStatus =
         statusGiziLahir.isNotEmpty && statusGiziLahir != 'null'
         ? statusGiziLahir
-        : "Normal";
+        : '';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -477,52 +617,54 @@ class _ProfilePageState extends State<ProfilePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildNamaAnakDropdown(displayNama),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: displayStatus == 'Normal'
-                      ? Colors.green.shade100
-                      : displayStatus == 'Kurang'
-                      ? Colors.orange.shade100
-                      : displayStatus == 'Stunting'
-                      ? Colors.red.shade100
-                      : Colors.orange.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
+              if (displayStatus.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
                     color: displayStatus == 'Normal'
-                        ? Colors.green.shade300
+                        ? Colors.green.shade100
                         : displayStatus == 'Kurang'
-                        ? Colors.orange.shade300
+                        ? Colors.orange.shade100
                         : displayStatus == 'Stunting'
-                        ? Colors.red.shade300
-                        : Colors.orange.shade300,
-                    width: 0.5,
+                        ? Colors.red.shade100
+                        : Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: displayStatus == 'Normal'
+                          ? Colors.green.shade300
+                          : displayStatus == 'Kurang'
+                          ? Colors.orange.shade300
+                          : displayStatus == 'Stunting'
+                          ? Colors.red.shade300
+                          : Colors.orange.shade300,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    displayStatus,
+                    style: TextStyle(
+                      color: displayStatus == 'Normal'
+                          ? Colors.green.shade700
+                          : displayStatus == 'Kurang'
+                          ? Colors.orange.shade700
+                          : displayStatus == 'Stunting'
+                          ? Colors.red.shade700
+                          : Colors.orange.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                child: Text(
-                  displayStatus,
-                  style: TextStyle(
-                    color: displayStatus == 'Normal'
-                        ? Colors.green.shade700
-                        : displayStatus == 'Kurang'
-                        ? Colors.orange.shade700
-                        : displayStatus == 'Stunting'
-                        ? Colors.red.shade700
-                        : Colors.orange.shade700,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            displayJk,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
-          ),
+          if (displayJk.isNotEmpty)
+            Text(
+              displayJk,
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
+            ),
           const SizedBox(height: 12),
           _buildInfoRow("Tanggal lahir", displayTglLahir),
           const SizedBox(height: 8),
@@ -594,7 +736,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            value,
+            value.isNotEmpty ? value : '-',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
           ),
         ),
@@ -665,7 +807,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 BoxShadow(
                   color: Colors.black12,
                   blurRadius: 4,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -753,7 +895,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ========== LOGOUT YANG BENAR-BENAR KELUAR ==========
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -785,14 +926,11 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // Hapus SEMUA data SharedPreferences
                 SharedPreferences prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
 
                 if (mounted) {
-                  Navigator.pop(context); // Tutup dialog
-
-                  // Hapus semua halaman dalam stack dan arahkan ke login
+                  Navigator.pop(context);
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(builder: (context) => const LoginPage()),

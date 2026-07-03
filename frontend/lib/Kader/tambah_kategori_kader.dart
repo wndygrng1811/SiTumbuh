@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/api_service.dart';
 import 'edukasi_kader.dart';
+import '../models/kategori_model.dart';
 
 class TambahKategoriKaderPage extends StatefulWidget {
   final bool isEdit;
   final KategoriModel? data;
 
   const TambahKategoriKaderPage({super.key, this.isEdit = false, this.data});
-
   @override
   State<TambahKategoriKaderPage> createState() =>
       _TambahKategoriKaderPageState();
@@ -72,32 +72,63 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
       };
 
       http.Response response;
-      if (widget.isEdit) {
+
+      // Cek apakah ini edit atau tambah
+      if (widget.isEdit && widget.data != null) {
+        // Untuk edit, gunakan PUT
         response = await ApiService.put('/kategori/${widget.data!.id}', data);
       } else {
+        // Untuk tambah, gunakan POST
         response = await ApiService.post('/kategori', data);
       }
 
+      // Debug: print response
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      // Cek status code
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final result = json.decode(response.body);
-        if (result['success'] == true) {
-          if (!mounted) return;
-          _showSnackbar(
-            widget.isEdit
-                ? 'Kategori berhasil diupdate'
-                : 'Kategori berhasil ditambahkan',
-            Colors.green,
-          );
-          Navigator.pop(context, true);
-        } else {
-          throw Exception(result['message'] ?? 'Gagal menyimpan');
+        try {
+          final result = json.decode(response.body);
+          if (result['success'] == true) {
+            if (!mounted) return;
+            _showSnackbar(
+              widget.isEdit
+                  ? 'Kategori berhasil diupdate'
+                  : 'Kategori berhasil ditambahkan',
+              Colors.green,
+            );
+            Navigator.pop(context, true);
+          } else {
+            // Jika success false, tampilkan pesan error dari server
+            final errorMsg = result['message'] ?? 'Gagal menyimpan kategori';
+            setState(() => _errorMessage = errorMsg);
+            _showSnackbar(errorMsg, Colors.red);
+          }
+        } catch (e) {
+          // Jika response bukan JSON yang valid
+          setState(() => _errorMessage = 'Format response tidak valid');
+          _showSnackbar('Format response tidak valid', Colors.red);
         }
       } else {
-        throw Exception('Gagal menyimpan data (${response.statusCode})');
+        // Status code bukan 200/201
+        String errorMsg = 'Gagal menyimpan data (${response.statusCode})';
+        try {
+          final errorData = json.decode(response.body);
+          if (errorData['message'] != null) {
+            errorMsg = errorData['message'];
+          }
+        } catch (e) {
+          // Jika response bukan JSON
+          errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
+        }
+        setState(() => _errorMessage = errorMsg);
+        _showSnackbar(errorMsg, Colors.red);
       }
     } catch (e) {
+      print('Error: $e');
       setState(() => _errorMessage = e.toString());
-      _showSnackbar('Error: $e', Colors.red);
+      _showSnackbar('Terjadi kesalahan: $e', Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -111,7 +142,7 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }

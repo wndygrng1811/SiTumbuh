@@ -284,7 +284,6 @@ class _DashboardContentState extends State<DashboardContent> {
             try {
               setState(() {
                 _tanggalLahir = DateTime.parse(anakData['tanggal_lahir']);
-                print('Tanggal lahir: $_tanggalLahir');
               });
             } catch (e) {
               print('Error parsing tanggal lahir: $e');
@@ -364,19 +363,12 @@ class _DashboardContentState extends State<DashboardContent> {
                 b['tanggal'] as DateTime,
               ),
             );
-
-            print('Data pertumbuhan loaded: ${_dataPertumbuhan.length} items');
           });
         } else {
           setState(() {
             _isLoading = false;
             _hasData = false;
             _dataPertumbuhan = [];
-            beratTerbaru = 0;
-            tinggiTerbaru = 0;
-            lingkarKepalaTerbaru = 0;
-            statusGizi = '';
-            tglPemeriksaan = '';
           });
         }
       } else {
@@ -583,6 +575,45 @@ class _DashboardContentState extends State<DashboardContent> {
     return 'assets/images/stunting.jpg';
   }
 
+  String _getTemplateImage(String? template) {
+    if (template == null || template.isEmpty) {
+      return 'assets/templatekuning.jpg';
+    }
+    return template;
+  }
+
+  String _formatTanggalForDisplay(String dateStr) {
+    try {
+      final date = DateTime.parse(dateStr);
+      final months = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember',
+      ];
+      final days = [
+        'Senin',
+        'Selasa',
+        'Rabu',
+        'Kamis',
+        'Jumat',
+        'Sabtu',
+        'Minggu',
+      ];
+      return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
   void _startAutoSlide() {
     Future.delayed(const Duration(seconds: 3), () {
       if (!mounted) return;
@@ -704,7 +735,6 @@ class _DashboardContentState extends State<DashboardContent> {
     return 0;
   }
 
-  // ==================== GRAFIK - SAMA SEPERTI DI GRAFIK PAGE ====================
   List<FlSpot> _buildStandarMedian() {
     String gender = _currentJenisKelamin == 'Perempuan'
         ? 'Perempuan'
@@ -712,9 +742,7 @@ class _DashboardContentState extends State<DashboardContent> {
     List<FlSpot> spots = [];
     for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender);
-      if (nilai > 0) {
-        spots.add(FlSpot(umur.toDouble(), nilai));
-      }
+      if (nilai > 0) spots.add(FlSpot(umur.toDouble(), nilai));
     }
     return spots;
   }
@@ -726,9 +754,7 @@ class _DashboardContentState extends State<DashboardContent> {
     List<FlSpot> spots = [];
     for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender) * 1.15;
-      if (nilai > 0) {
-        spots.add(FlSpot(umur.toDouble(), nilai));
-      }
+      if (nilai > 0) spots.add(FlSpot(umur.toDouble(), nilai));
     }
     return spots;
   }
@@ -740,9 +766,7 @@ class _DashboardContentState extends State<DashboardContent> {
     List<FlSpot> spots = [];
     for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender) * 1.07;
-      if (nilai > 0) {
-        spots.add(FlSpot(umur.toDouble(), nilai));
-      }
+      if (nilai > 0) spots.add(FlSpot(umur.toDouble(), nilai));
     }
     return spots;
   }
@@ -754,9 +778,7 @@ class _DashboardContentState extends State<DashboardContent> {
     List<FlSpot> spots = [];
     for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender) * 0.93;
-      if (nilai > 0) {
-        spots.add(FlSpot(umur.toDouble(), nilai));
-      }
+      if (nilai > 0) spots.add(FlSpot(umur.toDouble(), nilai));
     }
     return spots;
   }
@@ -768,53 +790,138 @@ class _DashboardContentState extends State<DashboardContent> {
     List<FlSpot> spots = [];
     for (int umur = 0; umur <= 24; umur++) {
       double nilai = _getStandardValue(umur, gender) * 0.85;
-      if (nilai > 0) {
-        spots.add(FlSpot(umur.toDouble(), nilai));
-      }
+      if (nilai > 0) spots.add(FlSpot(umur.toDouble(), nilai));
     }
     return spots;
   }
 
-  // ==================== DATA ANAK UNTUK GRAFIK (FIX) ====================
   List<FlSpot> _buildDataAnakSpotsKMS() {
     List<FlSpot> spots = [];
-
-    if (_tanggalLahir == null) {
-      print('Tanggal lahir null, tidak bisa buat grafik');
-      return spots;
-    }
-
-    print('=== BUILDING GRAFIK UTAMA ===');
-    print('Tanggal lahir: $_tanggalLahir');
-    print('Jumlah data: ${_dataPertumbuhan.length}');
+    if (_tanggalLahir == null) return spots;
 
     for (var data in _dataPertumbuhan) {
       DateTime tanggal = data['tanggal'] as DateTime;
       double berat = data['berat'] as double;
 
-      // Hitung umur dalam bulan (sama seperti di grafik_page.dart)
       int bulan = (tanggal.year - _tanggalLahir!.year) * 12;
       bulan += tanggal.month - _tanggalLahir!.month;
       int hari = tanggal.day - _tanggalLahir!.day;
       double umurBulan = bulan.toDouble() + (hari / 30.0);
-
       if (umurBulan < 0) umurBulan = 0;
-
-      print(
-        'Data: tanggal=$tanggal, umur=${umurBulan.toStringAsFixed(2)}, berat=$berat',
-      );
 
       if (berat > 0 && umurBulan >= 0 && umurBulan <= 24) {
         spots.add(FlSpot(umurBulan, berat));
-        print('Point added: (${umurBulan.toStringAsFixed(2)}, $berat)');
       }
     }
-
-    // Urutkan berdasarkan umur
     spots.sort((a, b) => a.x.compareTo(b.x));
-
-    print('Total points: ${spots.length}');
     return spots;
+  }
+
+  // ============ BUILD POSTER MINI DENGAN TEKS ============
+  Widget _buildPosterMiniWidget(Map<String, dynamic> jadwal) {
+    String templatePath = _getTemplateImage(jadwal['template']);
+    String formattedDate = _formatTanggalForDisplay(jadwal['tanggal']);
+    String waktu = jadwal['waktu'] ?? '';
+    String namaPos = jadwal['nama_posyandu'] ?? 'Posyandu';
+
+    return SizedBox(
+      width: 80,
+      height: 95,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(templatePath, width: 80, height: 95, fit: BoxFit.cover),
+          Positioned(
+            top: 8,
+            left: 4,
+            right: 4,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.88),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFF0D98A), width: 0.5),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 7,
+                        color: const Color(0xFF5C6BC0),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          formattedDate.length > 10
+                              ? formattedDate.substring(0, 10) + '..'
+                              : formattedDate,
+                          style: const TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 7,
+                        color: const Color(0xFFF57C00),
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        waktu,
+                        style: const TextStyle(
+                          fontSize: 6,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF2D2D2D),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 7,
+                        color: const Color(0xFFE53935),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          namaPos.length > 8
+                              ? namaPos.substring(0, 8) + '..'
+                              : namaPos,
+                          style: const TextStyle(
+                            fontSize: 6,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2D2D2D),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -839,15 +946,15 @@ class _DashboardContentState extends State<DashboardContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBannerCarousel(),
-            const SizedBox(height: 20),
-            _buildGreetingSection(),
             const SizedBox(height: 16),
+            _buildGreetingSection(),
+            const SizedBox(height: 14),
             _buildAnakDataCard(displayNama),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             _buildGrowthChartSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             _buildJadwalCard(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
             _buildEdukasiSection(),
             const SizedBox(height: 10),
           ],
@@ -856,6 +963,7 @@ class _DashboardContentState extends State<DashboardContent> {
     );
   }
 
+  // ============ BANNER CAROUSEL ============
   Widget _buildBannerCarousel() {
     return SizedBox(
       height: 120,
@@ -863,31 +971,25 @@ class _DashboardContentState extends State<DashboardContent> {
         controller: _pageController,
         itemCount: _bannerImages.length,
         itemBuilder: (context, index) {
-          return _buildBannerCard(_bannerImages[index]);
-        },
-      ),
-    );
-  }
-
-  Widget _buildBannerCard(String imagePath) {
-    return GestureDetector(
-      onTap: () => _navigateToEdukasi(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Image.asset(
-            imagePath,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            errorBuilder: (context, error, stackTrace) => Container(
-              color: Colors.grey[300],
-              child: const Center(
-                child: Icon(Icons.image_not_supported, color: Colors.grey),
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                _bannerImages[index],
+                width: double.infinity,
+                height: 120,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFFD86487).withOpacity(0.2),
+                  child: const Center(
+                    child: Icon(Icons.image_not_supported, color: Colors.grey),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -900,7 +1002,7 @@ class _DashboardContentState extends State<DashboardContent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Hallo, $displayName!",
+          "Hallo, $displayName! 👋",
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -922,18 +1024,12 @@ class _DashboardContentState extends State<DashboardContent> {
         decoration: BoxDecoration(
           color: const Color(0xFFFDE2E7),
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
         ),
         child: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_hasData && beratTerbaru > 0) {
-      final displayBerat = "${beratTerbaru.toStringAsFixed(1)} kg";
-      final displayTinggi = "${tinggiTerbaru.toStringAsFixed(1)} cm";
-      final displayLingkar = "${lingkarKepalaTerbaru.toStringAsFixed(1)} cm";
-      final displayStatus = statusGizi;
-
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -957,11 +1053,14 @@ class _DashboardContentState extends State<DashboardContent> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  InfoItem("Berat", displayBerat),
+                  InfoItem("Berat", "${beratTerbaru.toStringAsFixed(1)} kg"),
                   const VerticalDivider(color: Color(0xFF8B1E3F), thickness: 1),
-                  InfoItem("Tinggi", displayTinggi),
+                  InfoItem("Tinggi", "${tinggiTerbaru.toStringAsFixed(1)} cm"),
                   const VerticalDivider(color: Color(0xFF8B1E3F), thickness: 1),
-                  InfoItem("L. Kepala", displayLingkar),
+                  InfoItem(
+                    "L. Kepala",
+                    "${lingkarKepalaTerbaru.toStringAsFixed(1)} cm",
+                  ),
                 ],
               ),
             ),
@@ -980,13 +1079,12 @@ class _DashboardContentState extends State<DashboardContent> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Status pertumbuhan anak",
+                const Text(
+                  "Cek Pertumbuhan",
                   style: TextStyle(
-                    fontSize: 13,
-                    color: displayStatus == 'Normal'
-                        ? Colors.green
-                        : const Color(0xFFDB5C7A),
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF8B1E3F),
                   ),
                 ),
                 ElevatedButton(
@@ -1002,8 +1100,8 @@ class _DashboardContentState extends State<DashboardContent> {
                   ),
                   onPressed: () => _navigateToGrafik(),
                   child: const Text(
-                    "Cek disini",
-                    style: TextStyle(color: Colors.white, fontSize: 13),
+                    "Lihat Grafik",
+                    style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ],
@@ -1018,7 +1116,6 @@ class _DashboardContentState extends State<DashboardContent> {
       decoration: BoxDecoration(
         color: const Color(0xFFFDE2E7),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1089,9 +1186,6 @@ class _DashboardContentState extends State<DashboardContent> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 4),
-              ],
             ),
             child: const Center(child: CircularProgressIndicator()),
           ),
@@ -1120,9 +1214,6 @@ class _DashboardContentState extends State<DashboardContent> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 4),
-                ],
               ),
               child: const Center(
                 child: Column(
@@ -1180,9 +1271,6 @@ class _DashboardContentState extends State<DashboardContent> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: const [
-                BoxShadow(color: Colors.black12, blurRadius: 4),
-              ],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -1247,6 +1335,7 @@ class _DashboardContentState extends State<DashboardContent> {
     );
   }
 
+  // ============ JADWAL DENGAN POSTER DIGENERATE ============
   Widget _buildJadwalCard() {
     if (_isLoadingJadwal) {
       return Container(
@@ -1292,57 +1381,55 @@ class _DashboardContentState extends State<DashboardContent> {
       );
     }
 
-    final jadwalTerdekat = _jadwalList.first;
-    final tanggal = jadwalTerdekat['tanggal'] ?? 'Belum ada jadwal';
-    final waktu = jadwalTerdekat['waktu'] ?? '';
-    final namaPosyandu = jadwalTerdekat['nama_posyandu'] ?? 'Posyandu';
-    final alamat = jadwalTerdekat['alamat'] ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Jadwal Posyandu Terdekat",
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: Color(0xFF8B1E3F),
+          ),
+        ),
+        const SizedBox(height: 10),
+        ..._jadwalList.take(2).map((jadwal) => _buildJadwalItem(jadwal)),
+        if (_jadwalList.length > 2)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {},
+              child: const Text(
+                "Lihat semua →",
+                style: TextStyle(color: Color(0xFF8B1E3F), fontSize: 12),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
-    String displayTanggal = tanggal;
-    try {
-      DateTime tgl = DateTime.parse(tanggal);
-      final days = [
-        'Senin',
-        'Selasa',
-        'Rabu',
-        'Kamis',
-        'Jumat',
-        'Sabtu',
-        'Minggu',
-      ];
-      final months = [
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember',
-      ];
-      displayTanggal =
-          '${days[tgl.weekday - 1]}, ${tgl.day} ${months[tgl.month - 1]} ${tgl.year}';
-    } catch (e) {}
-
-    String displayText = displayTanggal;
-    if (waktu.isNotEmpty) {
-      displayText = '$displayTanggal, $waktu';
-    }
+  Widget _buildJadwalItem(Map<String, dynamic> jadwal) {
+    final namaPosyandu = jadwal['nama_posyandu'] ?? 'Posyandu';
+    final waktu = jadwal['waktu'] ?? '';
+    final alamat = jadwal['alamat'] ?? '';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDE2E7),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today, color: Color(0xFF8B1E3F)),
-          const SizedBox(width: 10),
+          // POSTER YANG SUDAH DIGENERATE (DENGAN TEKS)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: _buildPosterMiniWidget(jadwal),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1352,26 +1439,83 @@ class _DashboardContentState extends State<DashboardContent> {
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
+                    color: Color(0xFF2D2D2D),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  displayText,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 12,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatTanggalForDisplay(jadwal['tanggal']),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
                 ),
+                if (waktu.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.access_time,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        waktu,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 if (alamat.isNotEmpty)
-                  Text(
-                    alamat,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          alamat,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
               ],
             ),
           ),
-          const Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: Color(0xFF8B1E3F),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD86487).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text(
+              'Akan Datang',
+              style: TextStyle(
+                fontSize: 9,
+                color: Color(0xFFD86487),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -1713,14 +1857,14 @@ class GrafikKMSPainter extends CustomPainter {
       final double y = yPos(bottomCurve[i].y, canvasWidth, canvasHeight);
       path.lineTo(x, y);
     }
-
     path.close();
 
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
   }
 
   void _drawCurve(
@@ -1735,7 +1879,6 @@ class GrafikKMSPainter extends CustomPainter {
 
     final Path path = Path();
     bool hasStarted = false;
-
     for (int i = 0; i < data.length; i++) {
       final double x = xPos(data[i].x.toInt(), canvasWidth, canvasHeight);
       final double y = yPos(data[i].y, canvasWidth, canvasHeight);
@@ -1746,17 +1889,17 @@ class GrafikKMSPainter extends CustomPainter {
         path.lineTo(x, y);
       }
     }
-
     if (!hasStarted) return;
 
-    final Paint paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(path, paint);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = width
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
   }
 
   void _drawDataAnak(Canvas canvas, double canvasWidth, double canvasHeight) {
@@ -1770,7 +1913,6 @@ class GrafikKMSPainter extends CustomPainter {
       double y = yPos(spot.y, canvasWidth, canvasHeight);
       validPoints.add(Offset(x, y));
     }
-
     if (validPoints.isEmpty) return;
 
     if (validPoints.length >= 2) {
@@ -1779,35 +1921,35 @@ class GrafikKMSPainter extends CustomPainter {
       for (int i = 1; i < validPoints.length; i++) {
         path.lineTo(validPoints[i].dx, validPoints[i].dy);
       }
-
-      final Paint linePaint = Paint()
-        ..color = Colors.red.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-
-      canvas.drawPath(path, linePaint);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.red.withOpacity(0.8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
     }
 
     final Paint dotPaint = Paint()
       ..color = Colors.red.withOpacity(0.9)
       ..style = PaintingStyle.fill;
-
     for (var point in validPoints) {
       canvas.drawCircle(point, 6, dotPaint);
-      final Paint borderPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2;
-      canvas.drawCircle(point, 6, borderPaint);
+      canvas.drawCircle(
+        point,
+        6,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return true;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class InfoItem extends StatelessWidget {

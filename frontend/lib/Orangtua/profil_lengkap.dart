@@ -25,6 +25,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   bool _isEditing = false;
   String _errorMessage = '';
 
+  // ============ DATA DARI DATABASE ============
   String namaLengkap = '';
   String email = '';
   String noHp = '';
@@ -58,6 +59,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     super.dispose();
   }
 
+  // ============ LOAD DATA DARI API ============
   Future<void> _loadProfile() async {
     setState(() {
       _isLoading = true;
@@ -67,9 +69,13 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
+
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
       int userId = prefs.getInt('user_id') ?? 0;
 
-      if (userId == 0) {
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
+
+      if (idToUse == 0) {
         setState(() {
           _errorMessage = 'Session tidak valid, silakan login ulang';
           _isLoading = false;
@@ -78,7 +84,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       }
 
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/orangtua/$userId/profile-lengkap'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/${idToUse}/profile-lengkap'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -88,11 +94,21 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         if (data['success'] == true && data['data'] != null) {
+          final userData = data['data'];
+
+          await prefs.setString(
+            'nama',
+            userData['nama_lengkap'] ?? userData['nama'] ?? '',
+          );
+          await prefs.setString('email', userData['email'] ?? '');
+          await prefs.setString('no_hp', userData['no_hp']?.toString() ?? '');
+          await prefs.setString('alamat', userData['alamat'] ?? '');
+
           setState(() {
-            namaLengkap = data['data']['nama_lengkap'] ?? '';
-            email = data['data']['email'] ?? '';
-            noHp = data['data']['no_hp']?.toString() ?? '';
-            alamat = data['data']['alamat'] ?? '';
+            namaLengkap = userData['nama_lengkap'] ?? userData['nama'] ?? '';
+            email = userData['email'] ?? '';
+            noHp = userData['no_hp']?.toString() ?? '';
+            alamat = userData['alamat'] ?? '';
 
             _namaController.text = namaLengkap;
             _emailController.text = email;
@@ -107,6 +123,13 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
             _isLoading = false;
           });
         }
+      } else if (response.statusCode == 404) {
+        setState(() {
+          _errorMessage =
+              'Data profil tidak ditemukan. Silakan isi data diri Anda.';
+          _isLoading = false;
+          _isEditing = true;
+        });
       } else if (response.statusCode == 401) {
         setState(() {
           _errorMessage = 'Session habis, silakan login ulang';
@@ -119,7 +142,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         });
       }
     } catch (e) {
-      debugPrint('Error load profile: $e');
+      print('Error load profile: $e');
       setState(() {
         _errorMessage = 'Terjadi kesalahan: $e';
         _isLoading = false;
@@ -127,37 +150,58 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     }
   }
 
+  // ============ VALIDASI EMAIL ============
   bool _isValidEmail(String email) {
     if (email.isEmpty) return false;
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
     return emailRegex.hasMatch(email);
   }
 
+  // ============ VALIDASI NO HP ============
   bool _isValidPhone(String phone) {
-    if (phone.isEmpty) return true;
+    if (phone.isEmpty) return false;
     final phoneRegex = RegExp(r'^[0-9]{10,13}$');
-    return phoneRegex.hasMatch(phone);
+    if (!phoneRegex.hasMatch(phone)) return false;
+
+    if (!phone.startsWith('08') &&
+        !phone.startsWith('62') &&
+        !phone.startsWith('+62')) {
+      return false;
+    }
+    return true;
   }
 
+  // ============ UPDATE DATA ============
   Future<void> _updateProfile() async {
     if (_namaController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Nama lengkap wajib diisi')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nama lengkap wajib diisi'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
-    if (_emailController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Email wajib diisi')));
+    String emailValue = _emailController.text.trim();
+    if (emailValue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email wajib diisi'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
-
-    if (!_isValidEmail(_emailController.text.trim())) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Format email tidak valid')));
+    if (!_isValidEmail(emailValue)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Format email tidak valid (contoh: nama@domain.com)'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -165,7 +209,10 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     if (noHpValue.isNotEmpty && !_isValidPhone(noHpValue)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Nomor HP harus berupa angka (10-13 digit)'),
+          content: Text(
+            'Nomor HP harus 10-13 digit dan diawali 08, 62, atau +62',
+          ),
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -177,13 +224,19 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     if (password.isNotEmpty || confirmPassword.isNotEmpty) {
       if (password.length < 6) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password minimal 6 karakter')),
+          const SnackBar(
+            content: Text('Password minimal 6 karakter'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
       if (password != confirmPassword) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password dan konfirmasi tidak sesuai')),
+          const SnackBar(
+            content: Text('Password dan konfirmasi tidak sesuai'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
       }
@@ -196,12 +249,15 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
+
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
       int userId = prefs.getInt('user_id') ?? 0;
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
 
       Map<String, dynamic> requestBody = {
         'nama_lengkap': _namaController.text.trim(),
-        'email': _emailController.text.trim(),
-        'no_hp': _noHpController.text.trim(),
+        'email': emailValue,
+        'no_hp': noHpValue,
         'alamat': _alamatController.text.trim(),
       };
 
@@ -210,7 +266,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
       }
 
       final response = await http.put(
-        Uri.parse('${ApiService.baseUrl}/orangtua/$userId/profile-lengkap'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/${idToUse}/profile-lengkap'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -218,19 +274,21 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         body: json.encode(requestBody),
       );
 
+      print('Update profile response: ${response.body}');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
 
         if (responseData['success'] == true) {
           await prefs.setString('nama', _namaController.text.trim());
-          await prefs.setString('email', _emailController.text.trim());
-          await prefs.setString('no_hp', _noHpController.text.trim());
+          await prefs.setString('email', emailValue);
+          await prefs.setString('no_hp', noHpValue);
           await prefs.setString('alamat', _alamatController.text.trim());
 
           setState(() {
             namaLengkap = _namaController.text.trim();
-            email = _emailController.text.trim();
-            noHp = _noHpController.text.trim();
+            email = emailValue;
+            noHp = noHpValue;
             alamat = _alamatController.text.trim();
             _isEditing = false;
             _isSaving = false;
@@ -252,19 +310,44 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
             ),
           );
         } else {
-          throw Exception(responseData['message'] ?? 'Gagal mengupdate profil');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                responseData['message'] ?? 'Gagal mengupdate profil',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       } else {
-        throw Exception('HTTP ${response.statusCode}');
+        final errorData = json.decode(response.body);
+        String errorMsg =
+            errorData['message'] ??
+            'Gagal mengupdate profil (${response.statusCode})';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       }
     } catch (e) {
-      debugPrint('Error update profile: $e');
-      setState(() {
-        _isSaving = false;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      print('Error update profile: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -372,7 +455,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    namaLengkap.isNotEmpty ? namaLengkap : "Orang Tua",
+                    namaLengkap.isNotEmpty ? namaLengkap : "",
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -450,16 +533,13 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
   Widget _buildInfoView() {
     return Column(
       children: [
-        _infoItem(
-          "Nama Lengkap",
-          namaLengkap.isNotEmpty ? namaLengkap : "Belum diisi",
-        ),
+        _infoItem("Nama Lengkap", namaLengkap.isNotEmpty ? namaLengkap : ""),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _infoItem("Email", email.isNotEmpty ? email : "Belum diisi"),
+        _infoItem("Email", email.isNotEmpty ? email : ""),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _infoItem("Nomor HP", noHp.isNotEmpty ? noHp : "Belum diisi"),
+        _infoItem("Nomor HP", noHp.isNotEmpty ? noHp : ""),
         const Divider(height: 1, thickness: 0.5, color: Colors.grey),
-        _infoItem("Alamat", alamat.isNotEmpty ? alamat : "Belum diisi"),
+        _infoItem("Alamat", alamat.isNotEmpty ? alamat : ""),
       ],
     );
   }
@@ -476,13 +556,13 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
               style: const TextStyle(
                 fontWeight: FontWeight.w500,
                 fontSize: 13,
-                color: Colors.grey,
+                color: Colors.black87,
               ),
             ),
           ),
           Expanded(
             child: Text(
-              value,
+              value.isNotEmpty ? value : '-',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -546,13 +626,13 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
           prefixIcon: Icon(icon, size: 18, color: const Color(0xFFE85D75)),
           border: InputBorder.none,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 4),
         ),
-        style: const TextStyle(fontSize: 14),
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
       ),
     );
   }
@@ -565,7 +645,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         keyboardType: TextInputType.emailAddress,
         decoration: InputDecoration(
           labelText: 'Email',
-          labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
           prefixIcon: const Icon(
             Icons.email,
             size: 18,
@@ -581,7 +661,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
               : null,
           errorStyle: const TextStyle(fontSize: 10),
         ),
-        style: const TextStyle(fontSize: 14),
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
         onChanged: (value) {
           setState(() {});
         },
@@ -598,7 +678,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         decoration: InputDecoration(
           labelText: 'Nomor HP',
-          labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+          labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
           prefixIcon: const Icon(
             Icons.phone,
             size: 18,
@@ -610,11 +690,11 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
           errorText:
               _noHpController.text.isNotEmpty &&
                   !_isValidPhone(_noHpController.text)
-              ? 'Harus angka (10-13 digit)'
+              ? 'Harus angka (10-13 digit), diawali 08, 62, atau +62'
               : null,
           errorStyle: const TextStyle(fontSize: 10),
         ),
-        style: const TextStyle(fontSize: 14),
+        style: const TextStyle(fontSize: 14, color: Colors.black87),
         onChanged: (value) {
           setState(() {});
         },
@@ -632,17 +712,22 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
             obscureText: !_showPassword,
             decoration: InputDecoration(
               labelText: 'Password Baru',
-              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+              labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
               prefixIcon: const Icon(
                 Icons.lock,
                 size: 18,
                 color: Color(0xFFE85D75),
               ),
+              // ============ IKON MATA YANG BENAR ============
               suffixIcon: IconButton(
                 icon: Icon(
-                  _showPassword ? Icons.visibility_off : Icons.visibility,
-                  size: 18,
+                  _showPassword
+                      ? Icons
+                            .visibility // Password terlihat → mata normal 👁️
+                      : Icons
+                            .visibility_off, // Password tersembunyi → mata dicoret 👁️‍🗨️
                   color: Colors.grey,
+                  size: 20,
                 ),
                 onPressed: () {
                   setState(() {
@@ -658,7 +743,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
               hintText: 'Minimal 6 karakter',
               hintStyle: const TextStyle(fontSize: 11, color: Colors.grey),
             ),
-            style: const TextStyle(fontSize: 14),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
           const SizedBox(height: 6),
           TextField(
@@ -666,19 +751,22 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
             obscureText: !_showConfirmPassword,
             decoration: InputDecoration(
               labelText: 'Konfirmasi Password',
-              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+              labelStyle: const TextStyle(fontSize: 12, color: Colors.black87),
               prefixIcon: const Icon(
                 Icons.lock_outline,
                 size: 18,
                 color: Color(0xFFE85D75),
               ),
+              // ============ IKON MATA YANG BENAR ============
               suffixIcon: IconButton(
                 icon: Icon(
                   _showConfirmPassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  size: 18,
+                      ? Icons
+                            .visibility // Password terlihat → mata normal 👁️
+                      : Icons
+                            .visibility_off, // Password tersembunyi → mata dicoret 👁️‍🗨️
                   color: Colors.grey,
+                  size: 20,
                 ),
                 onPressed: () {
                   setState(() {
@@ -692,7 +780,7 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 4),
             ),
-            style: const TextStyle(fontSize: 14),
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
           ),
         ],
       ),

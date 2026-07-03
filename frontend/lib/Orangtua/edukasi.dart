@@ -27,17 +27,13 @@ class EdukasiPage extends StatefulWidget {
 
 class _EdukasiPageState extends State<EdukasiPage> {
   String selectedTab = "Semua";
-  final List<String> mainTabs = ["Semua", "Nutrisi", "Stunting"];
-  final List<String> moreTabs = [
-    "Imunisasi",
-    "Tumbuh Kembang",
-    "Kesehatan Umum",
-  ];
-
+  List<String> _kategoriList = ['Semua'];
   List<Map<String, dynamic>> _artikelList = [];
   bool _isLoading = true;
   int _highlightedIndex = -1;
   final ScrollController _scrollController = ScrollController();
+
+  final List<String> _mainTabs = ['Semua', 'Nutrisi', 'Stunting'];
 
   final Map<int, String> _kategoriMapping = {
     1: 'Stunting',
@@ -45,6 +41,7 @@ class _EdukasiPageState extends State<EdukasiPage> {
     3: 'Imunisasi',
     4: 'Tumbuh Kembang',
     5: 'Kesehatan Umum',
+    7: 'Makanan', // ← Tambahkan Makanan
   };
 
   @override
@@ -75,10 +72,12 @@ class _EdukasiPageState extends State<EdukasiPage> {
       String? cachedData = prefs.getString('edukasi_cache_ortu');
 
       if (cachedData != null && mounted) {
+        final Map<String, dynamic> cache = json.decode(cachedData);
         setState(() {
           _artikelList = List<Map<String, dynamic>>.from(
-            json.decode(cachedData),
+            cache['artikel'] ?? [],
           );
+          _kategoriList = List<String>.from(cache['kategori'] ?? ['Semua']);
           _isLoading = false;
         });
       }
@@ -153,64 +152,97 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   Future<void> _fetchDataFromApi() async {
     try {
-      final List<dynamic> data = await ApiService.getEdukasi();
+      // ============ 1. AMBIL DATA EDUKASI ============
+      final List<dynamic> edukasiData = await ApiService.getEdukasi();
 
-      if (data.isNotEmpty && mounted) {
-        List<Map<String, dynamic>> artikelBaru = [];
+      // ============ 2. AMBIL DATA KATEGORI DARI API ============
+      final kategoriResponse = await ApiService.get('/kategori');
+      List<String> allPublishedKategori = [];
 
-        for (var item in data) {
-          if (item['status'] != 'Dipublikasikan') {
-            continue;
+      if (kategoriResponse.statusCode == 200) {
+        final kategoriData = json.decode(kategoriResponse.body);
+        if (kategoriData['success'] == true && kategoriData['data'] != null) {
+          List<dynamic> kategoriItems = kategoriData['data'];
+          for (var k in kategoriItems) {
+            if (k['status'] == 'Dipublikasikan') {
+              allPublishedKategori.add(k['nama'] ?? '');
+            }
           }
+        }
+      }
 
-          int kategoriId = item['kategori_id'] ?? 1;
-          String kategori = _kategoriMapping[kategoriId] ?? 'Lainnya';
-          String isi = item['desc'] ?? item['isi'] ?? '';
-          String youtubeUrl = item['youtube_url'] ?? '';
-          String imageUrl = item['image'] ?? '';
-          String jenisKonten = item['jenis_konten'] ?? 'artikel';
+      // ============ 3. BUILD DATA EDUKASI ============
+      List<Map<String, dynamic>> artikelBaru = [];
 
-          if (youtubeUrl.isNotEmpty) {
-            jenisKonten = 'video';
-          }
-
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          String cacheKey = 'img_${isi.hashCode}';
-          String? cachedImage = prefs.getString(cacheKey);
-
-          artikelBaru.add({
-            'edukasi_id': item['id'] ?? 0,
-            'judul': item['title'] ?? item['judul'] ?? 'Konten Edukasi',
-            'isi': isi,
-            'youtube_url': youtubeUrl,
-            'kategori': kategori,
-            'kategori_id': kategoriId,
-            'gambar': imageUrl.isNotEmpty
-                ? imageUrl
-                : (cachedImage ?? 'assets/images/stunting.jpg'),
-            'jenis_konten': jenisKonten,
-          });
+      for (var item in edukasiData) {
+        if (item['status'] != 'Dipublikasikan') {
+          continue;
         }
 
-        setState(() {
-          _artikelList = artikelBaru;
-          _isLoading = false;
-        });
+        int kategoriId = item['kategori_id'] ?? 0;
+        String kategori = _kategoriMapping[kategoriId] ?? 'Lainnya';
+
+        String isi = item['desc'] ?? item['isi'] ?? '';
+        String youtubeUrl = item['youtube_url'] ?? '';
+        String imageUrl = item['image'] ?? '';
+        String jenisKonten = item['jenis_konten'] ?? 'artikel';
+
+        if (youtubeUrl.isNotEmpty) {
+          jenisKonten = 'video';
+        }
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('edukasi_cache_ortu', json.encode(artikelBaru));
+        String cacheKey = 'img_${isi.hashCode}';
+        String? cachedImage = prefs.getString(cacheKey);
 
-        _fetchAllImagesInBackground(data);
-
-        if (widget.fromNotification &&
-            widget.edukasiId != null &&
-            widget.edukasiId!.isNotEmpty) {
-          _scrollToEdukasi(widget.edukasiId!);
-        }
-      } else if (mounted && _artikelList.isEmpty) {
-        setState(() {
-          _isLoading = false;
+        artikelBaru.add({
+          'edukasi_id': item['id'] ?? 0,
+          'judul': item['title'] ?? item['judul'] ?? 'Konten Edukasi',
+          'isi': isi,
+          'youtube_url': youtubeUrl,
+          'kategori': kategori,
+          'kategori_id': kategoriId,
+          'gambar': imageUrl.isNotEmpty
+              ? imageUrl
+              : (cachedImage ?? 'assets/images/stunting.jpg'),
+          'jenis_konten': jenisKonten,
         });
+      }
+
+      // ============ 4. SEMUA KATEGORI DIPUBLIKASIKAN TETAP MUNCUL ============
+      List<String> sortedKategori = ['Semua'];
+
+      // Tambahkan semua kategori yang Dipublikasikan dari API
+      for (var kategori in allPublishedKategori) {
+        if (!sortedKategori.contains(kategori) && kategori.isNotEmpty) {
+          sortedKategori.add(kategori);
+        }
+      }
+
+      // Urutkan abjad (tapi 'Semua' tetap di atas)
+      List<String> withoutSemua =
+          sortedKategori.where((k) => k != 'Semua').toList()..sort();
+      sortedKategori = ['Semua', ...withoutSemua];
+
+      setState(() {
+        _artikelList = artikelBaru;
+        _kategoriList = sortedKategori;
+        _isLoading = false;
+      });
+
+      // ============ 5. SIMPAN CACHE ============
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'edukasi_cache_ortu',
+        json.encode({'artikel': artikelBaru, 'kategori': sortedKategori}),
+      );
+
+      _fetchAllImagesInBackground(edukasiData);
+
+      if (widget.fromNotification &&
+          widget.edukasiId != null &&
+          widget.edukasiId!.isNotEmpty) {
+        _scrollToEdukasi(widget.edukasiId!);
       }
     } catch (e) {
       debugPrint('Error fetch edukasi: $e');
@@ -255,7 +287,10 @@ class _EdukasiPageState extends State<EdukasiPage> {
         });
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('edukasi_cache_ortu', json.encode(_artikelList));
+        await prefs.setString(
+          'edukasi_cache_ortu',
+          json.encode({'artikel': _artikelList, 'kategori': _kategoriList}),
+        );
       }
     }
   }
@@ -268,6 +303,10 @@ class _EdukasiPageState extends State<EdukasiPage> {
   }
 
   void _showMoreMenu(BuildContext context) {
+    final moreTabs = _kategoriList
+        .where((tab) => !_mainTabs.contains(tab) && tab != 'Semua')
+        .toList();
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -288,24 +327,36 @@ class _EdukasiPageState extends State<EdukasiPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              ...moreTabs.map((tab) {
-                return ListTile(
-                  leading: Icon(
-                    _getCategoryIcon(tab),
-                    color: const Color(0xFF8B1E3F),
+              if (moreTabs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Text(
+                    'Tidak ada kategori lain',
+                    style: TextStyle(color: Colors.grey),
                   ),
-                  title: Text(tab),
-                  trailing: selectedTab == tab
-                      ? const Icon(Icons.check_circle, color: Color(0xFF8B1E3F))
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      selectedTab = tab;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }),
+                )
+              else
+                ...moreTabs.map((tab) {
+                  return ListTile(
+                    leading: Icon(
+                      _getCategoryIcon(tab),
+                      color: const Color(0xFF8B1E3F),
+                    ),
+                    title: Text(tab),
+                    trailing: selectedTab == tab
+                        ? const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF8B1E3F),
+                          )
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        selectedTab = tab;
+                      });
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
               const SizedBox(height: 8),
             ],
           ),
@@ -322,6 +373,12 @@ class _EdukasiPageState extends State<EdukasiPage> {
         return Icons.timeline;
       case 'Kesehatan Umum':
         return Icons.health_and_safety;
+      case 'Nutrisi':
+        return Icons.restaurant;
+      case 'Stunting':
+        return Icons.height;
+      case 'Makanan':
+        return Icons.fastfood;
       default:
         return Icons.menu_book;
     }
@@ -361,7 +418,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   void _openContent(Map<String, dynamic> data) {
     if (data['jenis_konten'] == 'video' && data['youtube_url'].isNotEmpty) {
-      // PAKAI YOUTUBE PLAYER (tanpa komentar)
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -373,7 +429,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
       );
     } else if (data['isi'].isNotEmpty) {
       final isi = data['isi'] ?? '';
-      // CEK APAKAH ISI ADALAH LINK YOUTUBE
       if (_isYoutubeUrl(isi)) {
         final youtubeUrl = _extractYoutubeUrl(isi);
         Navigator.push(
@@ -384,7 +439,6 @@ class _EdukasiPageState extends State<EdukasiPage> {
           ),
         );
       } else {
-        // SELAIN ITU PAKAI WEBVIEW
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -407,9 +461,19 @@ class _EdukasiPageState extends State<EdukasiPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ============ TAB UTAMA (HANYA YANG ADA DATA) ============
+    final mainTabsWithData = _mainTabs.where((tab) {
+      if (tab == 'Semua') return true;
+      return _artikelList.any((e) => e['kategori'] == tab);
+    }).toList();
+
+    final hasMoreTabs = _kategoriList
+        .where((tab) => !_mainTabs.contains(tab) && tab != 'Semua')
+        .isNotEmpty;
+
     return Scaffold(
       drawer: const SidebarMenu(),
-      backgroundColor: const Color(0xFFF4EDEE),
+      backgroundColor: Colors.white,
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFD86487),
         iconColor: Colors.white,
@@ -424,8 +488,8 @@ class _EdukasiPageState extends State<EdukasiPage> {
             : Column(
                 children: [
                   const SizedBox(height: 10),
-                  _buildTabFilter(),
-                  const SizedBox(height: 16),
+                  _buildTabFilter(mainTabsWithData, hasMoreTabs),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: _filteredArtikel.isEmpty
                         ? _buildEmptyState()
@@ -438,18 +502,24 @@ class _EdukasiPageState extends State<EdukasiPage> {
     );
   }
 
-  Widget _buildTabFilter() {
+  Widget _buildTabFilter(List<String> mainTabsWithData, bool hasMoreTabs) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          ...mainTabs.map((tab) {
+          ...mainTabsWithData.map((tab) {
             final active = tab == selectedTab;
             return GestureDetector(
               onTap: () => setState(() => selectedTab = tab),
@@ -479,14 +549,26 @@ class _EdukasiPageState extends State<EdukasiPage> {
             child: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: moreTabs.contains(selectedTab)
+                color:
+                    _kategoriList
+                        .where(
+                          (tab) => !_mainTabs.contains(tab) && tab != 'Semua',
+                        )
+                        .toList()
+                        .contains(selectedTab)
                     ? const Color(0xFF8B1E3F)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
                 Icons.more_horiz,
-                color: moreTabs.contains(selectedTab)
+                color:
+                    _kategoriList
+                        .where(
+                          (tab) => !_mainTabs.contains(tab) && tab != 'Semua',
+                        )
+                        .toList()
+                        .contains(selectedTab)
                     ? Colors.white
                     : Colors.grey.shade600,
               ),
@@ -583,11 +665,11 @@ class EduCard extends StatelessWidget {
           border: isHighlighted
               ? Border.all(color: const Color(0xFFE85D75), width: 3)
               : null,
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: Colors.black12,
-              blurRadius: 2,
-              offset: Offset(0, 1),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -595,13 +677,13 @@ class EduCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(10),
-                  ),
-                  child: isNetworkImage
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+              ),
+              child: Stack(
+                children: [
+                  isNetworkImage
                       ? Image.network(
                           gambar,
                           height: 100,
@@ -622,58 +704,62 @@ class EduCard extends StatelessWidget {
                           errorBuilder: (context, error, stackTrace) =>
                               _buildImagePlaceholder(),
                         ),
-                ),
-                if (isVideo)
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.play_arrow, size: 10, color: Colors.white),
-                          SizedBox(width: 2),
-                          Text(
-                            'Video',
-                            style: TextStyle(
-                              fontSize: 8,
+                  if (isVideo)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.play_arrow,
+                              size: 10,
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                        ],
+                            SizedBox(width: 2),
+                            Text(
+                              'Video',
+                              style: TextStyle(
+                                fontSize: 8,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                if (isHighlighted)
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE85D75),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.check,
-                        size: 12,
-                        color: Colors.white,
+                  if (isHighlighted)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE85D75),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check,
+                          size: 12,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -688,7 +774,7 @@ class EduCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      data['kategori'],
+                      data['kategori'] ?? 'Lainnya',
                       style: const TextStyle(
                         fontSize: 8,
                         color: Color(0xFFD86487),
@@ -767,6 +853,31 @@ class EduCard extends StatelessWidget {
   }
 }
 
+Widget _buildImagePlaceholder({bool loading = false}) {
+  return Container(
+    height: 100,
+    color: const Color(0xFFFDE2E7),
+    child: loading
+        ? const Center(
+            child: SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Color(0xFFD86487),
+              ),
+            ),
+          )
+        : const Center(
+            child: Icon(
+              Icons.image_not_supported,
+              color: Color(0xFFD86487),
+              size: 32,
+            ),
+          ),
+  );
+}
+
 // ==================== WEBVIEW UNTUK ARTIKEL ====================
 class WebViewArtikelPage extends StatefulWidget {
   final String title;
@@ -797,7 +908,7 @@ class _WebViewArtikelPageState extends State<WebViewArtikelPage> {
   void _initWebView() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF4EDEE))
+      ..setBackgroundColor(Colors.white)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -833,7 +944,7 @@ class _WebViewArtikelPageState extends State<WebViewArtikelPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4EDEE),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Row(
           children: [

@@ -37,7 +37,6 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::get('/orangtua/profile/{userId}', [ProfileController::class, 'getProfile']);
 Route::get('/orangtua/{userId}/profile-lengkap', [ProfileController::class, 'getProfileLengkap']);
 Route::put('/orangtua/{userId}/profile-lengkap', [ProfileController::class, 'updateProfileLengkap']);
-
 // =============================================
 // ORANG TUA - ANAK
 // =============================================

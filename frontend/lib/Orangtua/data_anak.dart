@@ -26,6 +26,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     _loadDataAnak();
   }
 
+  // ============ LOAD DATA ANAK ============
   Future<void> _loadDataAnak() async {
     setState(() {
       _isLoading = true;
@@ -35,9 +36,13 @@ class _DataAnakPageState extends State<DataAnakPage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      int orangtuaId = prefs.getInt('user_id') ?? 0;
 
-      if (orangtuaId == 0) {
+      // ============ PAKAI ORANGTUA_ID ============
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
+      int userId = prefs.getInt('user_id') ?? 0;
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
+
+      if (idToUse == 0) {
         setState(() {
           _errorMessage = 'Session tidak valid, silakan login ulang';
           _isLoading = false;
@@ -45,14 +50,19 @@ class _DataAnakPageState extends State<DataAnakPage> {
         return;
       }
 
+      debugPrint('Loading data anak with orangtua_id: $idToUse');
+
       final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/orangtua/$orangtuaId/anak'),
+        Uri.parse('${ApiService.baseUrl}/orangtua/$idToUse/anak'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
       );
+
+      debugPrint('Data anak response status: ${response.statusCode}');
+      debugPrint('Data anak response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
@@ -98,6 +108,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
+  // ============ CREATE ANAK ============
   Future<void> _createAnak(Map<String, dynamic> data) async {
     setState(() {
       _isSaving = true;
@@ -106,18 +117,22 @@ class _DataAnakPageState extends State<DataAnakPage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
-      int orangtuaId = prefs.getInt('user_id') ?? 0;
+      int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
+      int userId = prefs.getInt('user_id') ?? 0;
+      int idToUse = orangtuaId > 0 ? orangtuaId : userId;
 
       final requestBody = {
-        'orangtua_id': orangtuaId,
+        'orangtua_id': idToUse,
         'nama': data['nama'] ?? '',
         'jenis_kelamin': data['jk'] ?? 'Laki-laki',
         'tanggal_lahir': data['tgl'] ?? '',
         'berat_badan': double.tryParse(data['berat'] ?? '0') ?? 0,
         'tinggi_badan': double.tryParse(data['tinggi'] ?? '0') ?? 0,
         'lingkar_kepala': double.tryParse(data['lk'] ?? '0') ?? 0,
-        'status_gizi': data['status'] ?? 'Normal',
+        'status_gizi': 'Normal', // Default untuk orang tua
       };
+
+      debugPrint('Create anak request: $requestBody');
 
       final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/anak'),
@@ -129,6 +144,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
         body: json.encode(requestBody),
       );
 
+      debugPrint('Create anak response: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _loadDataAnak();
         if (widget.onDataChanged != null) {
@@ -136,7 +153,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Anak berhasil ditambahkan')),
+            const SnackBar(
+              content: Text('Anak berhasil ditambahkan'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } else {
@@ -147,7 +167,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
       debugPrint('Error create anak: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: ${e.toString()}')),
+          SnackBar(
+            content: Text('Terjadi kesalahan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -159,6 +182,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
+  // ============ UPDATE ANAK ============
   Future<void> _updateAnak(int anakId, Map<String, dynamic> data) async {
     setState(() {
       _isSaving = true;
@@ -182,10 +206,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
         'status_gizi': data['status'] ?? 'Normal',
       };
 
-      final url = '${ApiService.baseUrl}/anak/$anakId';
-
       final response = await http.put(
-        Uri.parse(url),
+        Uri.parse('${ApiService.baseUrl}/anak/$anakId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -193,6 +215,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
         },
         body: json.encode(requestBody),
       );
+
+      debugPrint('Update anak response: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
@@ -203,7 +227,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
           }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Data anak berhasil diupdate')),
+              const SnackBar(
+                content: Text('Data anak berhasil diupdate'),
+                backgroundColor: Colors.green,
+              ),
             );
           }
         } else {
@@ -220,7 +247,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
       debugPrint('Error update anak: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: ${e.toString()}')),
+          SnackBar(
+            content: Text('Terjadi kesalahan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -232,6 +262,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
+  // ============ DELETE ANAK ============
   Future<void> _deleteAnak(int anakId, int index) async {
     bool? confirm = await showDialog(
       context: context,
@@ -281,7 +312,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Data anak berhasil dihapus')),
+            const SnackBar(
+              content: Text('Data anak berhasil dihapus'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
         if (anakId == widget.anakId && mounted) {
@@ -295,7 +329,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
       debugPrint('Error delete anak: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: ${e.toString()}')),
+          SnackBar(
+            content: Text('Terjadi kesalahan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -307,6 +344,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
+  // ============ TAMBAH ANAK FORM ============
   void _showTambahAnakForm() async {
     TextEditingController namaController = TextEditingController();
     TextEditingController tglController = TextEditingController();
@@ -314,15 +352,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
     TextEditingController tinggiController = TextEditingController();
     TextEditingController lkController = TextEditingController();
     String selectedJk = 'Laki-laki';
-    String selectedStatus = 'Normal';
-
-    final List<String> statusOptions = [
-      'Normal',
-      'Stunting',
-      'Kurang',
-      'Gizi Buruk',
-      'Overweight',
-    ];
 
     await showDialog(
       context: context,
@@ -437,13 +466,32 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         ),
                       ),
                       onTap: () async {
+                        // ============ MAX DATE = HARI INI ============
+                        DateTime maxDate = DateTime.now();
+                        // ============ MIN DATE = 10 TAHUN YANG LALU ============
+                        DateTime minDate = DateTime.now().subtract(
+                          const Duration(days: 365 * 10),
+                        );
+
                         DateTime? pickedDate = await showDatePicker(
                           context: context,
-                          initialDate: DateTime.now().subtract(
-                            const Duration(days: 365 * 5),
+                          initialDate: maxDate.subtract(
+                            const Duration(days: 365 * 1),
                           ),
-                          firstDate: DateTime(2015),
-                          lastDate: DateTime.now(),
+                          firstDate: minDate,
+                          lastDate: maxDate,
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: Color(0xFFD86487),
+                                  onPrimary: Colors.white,
+                                  onSurface: Color(0xFF333333),
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
                         );
 
                         if (pickedDate != null) {
@@ -531,39 +579,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      "Status Gizi",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedStatus,
-                          isExpanded: true,
-                          items: statusOptions.map((status) {
-                            return DropdownMenuItem<String>(
-                              value: status,
-                              child: Text(status),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            setStateDialog(() {
-                              selectedStatus = value!;
-                            });
-                          },
-                        ),
-                      ),
-                    ),
+                    // ============ STATUS GIZI DIHAPUS ============
                   ],
                 ),
               ),
@@ -585,7 +601,10 @@ class _DataAnakPageState extends State<DataAnakPage> {
                   onPressed: () async {
                     if (namaController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Nama anak wajib diisi')),
+                        const SnackBar(
+                          content: Text('Nama anak wajib diisi'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                       return;
                     }
@@ -593,6 +612,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Tanggal lahir wajib diisi'),
+                          backgroundColor: Colors.red,
                         ),
                       );
                       return;
@@ -613,7 +633,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       'lk': lkController.text.trim().isEmpty
                           ? '0'
                           : lkController.text.trim(),
-                      'status': selectedStatus,
                     });
                   },
                   child: _isSaving
@@ -638,13 +657,13 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
+  // ============ EDIT ANAK FORM ============
   void _showEditAnakForm(int index) async {
     final anak = dataAnak[index];
     TextEditingController tglController = TextEditingController(
       text: anak['tgl'] ?? '',
     );
 
-    // Data yang hanya bisa DILIHAT (read only) - tidak bisa diubah
     final String beratLahir =
         anak['berat_lahir'] != '-' && anak['berat_lahir'] != null
         ? "${anak['berat_lahir']} kg"
@@ -859,44 +878,24 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    TextField(
-                      controller: tglController,
-                      readOnly: true,
-                      decoration: InputDecoration(
-                        hintText: "Pilih tanggal lahir",
-                        suffixIcon: const Icon(Icons.calendar_month),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.grey),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                    // ============ TANGGAL LAHIR READ ONLY (TIDAK BISA DIUBAH) ============
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      onTap: () async {
-                        DateTime initialDate = DateTime.now().subtract(
-                          const Duration(days: 365 * 5),
-                        );
-                        if (tglController.text.isNotEmpty) {
-                          try {
-                            initialDate = DateTime.parse(tglController.text);
-                          } catch (_) {}
-                        }
-
-                        DateTime? pickedDate = await showDatePicker(
-                          context: context,
-                          initialDate: initialDate,
-                          firstDate: DateTime(2015),
-                          lastDate: DateTime.now(),
-                        );
-
-                        if (pickedDate != null) {
-                          tglController.text =
-                              "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
-                          setStateDialog(() {});
-                        }
-                      },
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        tglController.text.isNotEmpty
+                            ? tglController.text
+                            : 'Belum ada data',
+                        style: const TextStyle(color: Colors.black87),
+                      ),
                     ),
                   ],
                 ),
@@ -905,63 +904,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
                 TextButton(
                   onPressed: () => Navigator.pop(context),
                   child: const Text(
-                    "Batal",
-                    style: TextStyle(color: Colors.red, fontSize: 14),
+                    "Tutup",
+                    style: TextStyle(color: Color(0xFFD86487), fontSize: 14),
                   ),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD86487),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: () async {
-                    if (tglController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tanggal lahir wajib diisi'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    Navigator.pop(context);
-
-                    // Hanya update tanggal lahir, karena hanya itu yang boleh diubah
-                    await _updateAnak(anak['anak_id'], {
-                      'nama': anak['nama'] ?? '',
-                      'jk': anak['jk'] ?? 'Laki-laki',
-                      'tgl': tglController.text,
-                      'berat':
-                          anak['berat_lahir'] != '-' &&
-                              anak['berat_lahir'] != null
-                          ? anak['berat_lahir']
-                          : '0',
-                      'tinggi':
-                          anak['tinggi_lahir'] != '-' &&
-                              anak['tinggi_lahir'] != null
-                          ? anak['tinggi_lahir']
-                          : '0',
-                      'lk': anak['lk_lahir'] != '-' && anak['lk_lahir'] != null
-                          ? anak['lk_lahir']
-                          : '0',
-                      'status': anak['status'] ?? 'Normal',
-                    });
-                  },
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          "Simpan",
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
                 ),
               ],
             );
@@ -1018,18 +963,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       backgroundColor: const Color(0xFFD86487),
                     ),
                     child: const Text('Coba Lagi'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () async {
-                      SharedPreferences prefs =
-                          await SharedPreferences.getInstance();
-                      await prefs.clear();
-                      if (mounted) {
-                        Navigator.pushReplacementNamed(context, '/login');
-                      }
-                    },
-                    child: const Text('Login Ulang'),
                   ),
                 ],
               ),
@@ -1106,7 +1039,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                                         children: [
                                           IconButton(
                                             icon: const Icon(
-                                              Icons.edit,
+                                              Icons.visibility,
                                               color: Color(0xFFD86487),
                                             ),
                                             onPressed: () =>

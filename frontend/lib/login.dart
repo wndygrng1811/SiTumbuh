@@ -76,6 +76,30 @@ class _LoginPageState extends State<LoginPage> {
     if (result['success'] == true) {
       _showSnackbar('Login berhasil!', Colors.green);
 
+      // ============ SIMPAN DATA KE SHAREDPREFERENCES ============
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      // Simpan data user
+      await prefs.setInt('user_id', result['user_id'] ?? 0);
+      await prefs.setString('nama', result['nama'] ?? '');
+      await prefs.setString('email', result['email'] ?? '');
+      await prefs.setString('role', result['role'] ?? '');
+      await prefs.setString('token', result['token'] ?? '');
+
+      // ============ SIMPAN ORANGTUA_ID ============
+      int orangtuaId = result['orangtua_id'] ?? 0;
+      await prefs.setInt('orangtua_id', orangtuaId);
+
+      debugPrint('=== LOGIN SUCCESS ===');
+      debugPrint('user_id: ${result['user_id']}');
+      debugPrint('orangtua_id: $orangtuaId');
+      debugPrint('role: ${result['role']}');
+
+      // Simpan data anak
+      await prefs.setInt('anak_id', result['anak_id'] ?? 0);
+      await prefs.setString('nama_anak', result['nama_anak'] ?? '');
+      await prefs.setString('jenis_kelamin', result['jenis_kelamin'] ?? '');
+
       if (result['role'] == 'orang_tua') {
         Navigator.pushReplacement(
           context,
@@ -169,7 +193,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                // CARD - Hanya bagian ini yang diubah
                 Container(
                   width: double.infinity,
                   margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -188,7 +211,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Column(
                     children: [
-                      // Email Field dengan icon di luar
+                      // Email Field
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -254,7 +277,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Password Field dengan icon di luar
+                      // Password Field
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

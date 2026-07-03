@@ -6,65 +6,125 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
+    /**
+     * Login user
+     */
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required'
-        ]);
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required'
+            ]);
 
-        $user = DB::table('users')
-            ->where('email', $request->email)
-            ->first();
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Email tidak ditemukan'
-            ], 401);
-        }
-
-        if (!Hash::check($request->password, $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Password salah'
-            ], 401);
-        }
-
-        $responseData = [
-            'success' => true,
-            'message' => 'Login berhasil',
-            'user_id' => $user->user_id,
-            'nama' => $user->nama,
-            'email' => $user->email,
-            'role' => $user->role,
-            'token' => 'login-token-' . $user->user_id
-        ];
-
-        if ($user->role == 'orang_tua') {
-            $orangTua = DB::table('orang_tua')
-                ->where('user_id', $user->user_id)
+            $user = DB::table('users')
+                ->where('email', $request->email)
                 ->first();
 
-            if ($orangTua) {
-                $anak = DB::table('anak')
-                    ->where('orangtua_id', $orangTua->orangtua_id)
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email tidak ditemukan'
+                ], 401);
+            }
+
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password salah'
+                ], 401);
+            }
+
+            // ============ DATA DASAR RESPONSE ============
+            $responseData = [
+                'success' => true,
+                'message' => 'Login berhasil',
+                'user_id' => $user->user_id,
+                'nama' => $user->nama,
+                'email' => $user->email,
+                'role' => $user->role,
+                'token' => 'login-token-' . $user->user_id . '-' . time()
+            ];
+
+            // ============ JIKA ROLE ORANG TUA ============
+            if ($user->role == 'orang_tua') {
+                $orangTua = DB::table('orang_tua')
+                    ->where('user_id', $user->user_id)
                     ->first();
 
-                if ($anak) {
-                    $responseData['anak_id'] = $anak->anak_id;
-                    $responseData['nama_anak'] = $anak->nama;
-                    $responseData['jenis_kelamin'] = $anak->jenis_kelamin;
+                if ($orangTua) {
+                    // ============ KIRIM ORANGTUA_ID ============
+                    $responseData['orangtua_id'] = $orangTua->orangtua_id;
+                    
+                    // Cari data anak
+                    $anak = DB::table('anak')
+                        ->where('orangtua_id', $orangTua->orangtua_id)
+                        ->first();
+
+                    if ($anak) {
+                        $responseData['anak_id'] = $anak->anak_id;
+                        $responseData['nama_anak'] = $anak->nama;
+                        $responseData['jenis_kelamin'] = $anak->jenis_kelamin;
+                    } else {
+                        $responseData['anak_id'] = 0;
+                        $responseData['nama_anak'] = '';
+                        $responseData['jenis_kelamin'] = '';
+                    }
+                } else {
+                    // Jika orang tua tidak ditemukan di tabel orang_tua
+                    $responseData['orangtua_id'] = 0;
+                    $responseData['anak_id'] = 0;
+                    $responseData['nama_anak'] = '';
+                    $responseData['jenis_kelamin'] = '';
                 }
             }
-        }
 
-        return response()->json($responseData);
+            // ============ JIKA ROLE KADER ============
+            if ($user->role == 'kader') {
+                $kader = DB::table('kader')
+                    ->where('user_id', $user->user_id)
+                    ->first();
+
+                if ($kader) {
+                    $responseData['kader_id'] = $kader->kader_id ?? 0;
+                    $responseData['nama_kader'] = $kader->nama ?? $user->nama;
+                } else {
+                    $responseData['kader_id'] = 0;
+                    $responseData['nama_kader'] = $user->nama;
+                }
+            }
+
+            // Log login sukses
+            Log::info('Login berhasil', [
+                'user_id' => $user->user_id,
+                'email' => $user->email,
+                'role' => $user->role
+            ]);
+
+            return response()->json($responseData);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Login error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
+    /**
+     * Register user (orang tua) - DENGAN VALIDASI LENGKAP
+     */
     public function register(Request $request)
     {
         try {
@@ -166,36 +226,53 @@ class AuthController extends Controller
                 $jk = 'P';
             }
 
+            // ============ INSERT USER ============
             $userId = DB::table('users')->insertGetId([
                 'nama' => $request->nama_orangtua,
                 'email' => $request->email,
                 'password' => bcrypt($request->password),
                 'role' => 'orang_tua',
-                'created_at' => now()
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
+            // ============ INSERT ORANG TUA ============
             $orangTuaId = DB::table('orang_tua')->insertGetId([
                 'nama' => $request->nama_orangtua,
                 'email' => $request->email,
                 'alamat' => $request->alamat,
                 'no_telp' => $request->no_telp,
                 'user_id' => $userId,
-                'created_at' => now()
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
+            // ============ INSERT ANAK ============
             DB::table('anak')->insert([
                 'orangtua_id' => $orangTuaId,
                 'nama' => $request->nama_anak,
                 'jenis_kelamin' => $jk,
                 'tanggal_lahir' => $request->tanggal_lahir,
-                'created_at' => now()
+                'created_at' => now(),
+                'updated_at' => now()
             ]);
 
             DB::commit();
 
+            Log::info('Registrasi berhasil', [
+                'user_id' => $userId,
+                'email' => $request->email
+            ]);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Registrasi berhasil! Silakan login.'
+                'message' => 'Registrasi berhasil! Silakan login.',
+                'data' => [
+                    'user_id' => $userId,
+                    'orangtua_id' => $orangTuaId,
+                    'nama' => $request->nama_orangtua,
+                    'email' => $request->email
+                ]
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -206,6 +283,7 @@ class AuthController extends Controller
             ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Register error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -213,11 +291,191 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * Logout user
+     */
     public function logout(Request $request)
     {
-        return response()->json([
-            'success' => true,
-            'message' => 'Logout berhasil'
-        ]);
+        try {
+            Log::info('Logout berhasil', [
+                'user_id' => $request->user_id ?? 'unknown'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Logout berhasil'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Logout error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Cek status login (untuk validasi token)
+     */
+    public function checkLogin(Request $request)
+    {
+        try {
+            $token = $request->bearerToken();
+            
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token tidak ditemukan'
+                ], 401);
+            }
+
+            // Parse token untuk mendapatkan user_id
+            $parts = explode('-', $token);
+            if (count($parts) >= 4 && $parts[0] == 'login' && $parts[1] == 'token') {
+                $userId = (int) $parts[2];
+                
+                $user = DB::table('users')
+                    ->where('user_id', $userId)
+                    ->first();
+
+                if ($user) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Token valid',
+                        'data' => [
+                            'user_id' => $user->user_id,
+                            'nama' => $user->nama,
+                            'email' => $user->email,
+                            'role' => $user->role
+                        ]
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Token tidak valid'
+            ], 401);
+        } catch (\Exception $e) {
+            Log::error('Check login error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Ganti password
+     */
+    public function changePassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'user_id' => 'required|integer',
+                'old_password' => 'required',
+                'new_password' => 'required|min:6'
+            ]);
+
+            $user = DB::table('users')
+                ->where('user_id', $request->user_id)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User tidak ditemukan'
+                ], 404);
+            }
+
+            if (!Hash::check($request->old_password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Password lama salah'
+                ], 401);
+            }
+
+            DB::table('users')
+                ->where('user_id', $request->user_id)
+                ->update([
+                    'password' => bcrypt($request->new_password),
+                    'updated_at' => now()
+                ]);
+
+            Log::info('Password berhasil diubah', [
+                'user_id' => $request->user_id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password berhasil diubah'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Change password error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset password (lupa password)
+     */
+    public function resetPassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'new_password' => 'required|min:6'
+            ]);
+
+            $user = DB::table('users')
+                ->where('email', $request->email)
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email tidak ditemukan'
+                ], 404);
+            }
+
+            DB::table('users')
+                ->where('email', $request->email)
+                ->update([
+                    'password' => bcrypt($request->new_password),
+                    'updated_at' => now()
+                ]);
+
+            Log::info('Password berhasil direset', [
+                'email' => $request->email
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password berhasil direset. Silakan login dengan password baru.'
+            ]);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Reset password error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

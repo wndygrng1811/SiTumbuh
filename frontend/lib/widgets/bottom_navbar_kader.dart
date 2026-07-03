@@ -4,134 +4,110 @@ import 'package:si_tumbuh/Kader/halaman_utama_kader.dart';
 import 'package:si_tumbuh/Kader/jadwal.dart';
 import 'package:si_tumbuh/Kader/profil.dart';
 
-class BottomNavbarKader extends StatefulWidget {
+class BottomNavbarKader extends StatelessWidget {
   final int selectedIndex;
 
   const BottomNavbarKader({super.key, required this.selectedIndex});
 
-  @override
-  State<BottomNavbarKader> createState() => _BottomNavbarKaderState();
-}
-
-class _BottomNavbarKaderState extends State<BottomNavbarKader> {
-  static const Color _maroon = Color(0xFF76172D);
-  static const Color _pink = Color(0xFF76172D);
-  static const Color _background = Colors.white;
-
-  final List<_NavItemData> _navItems = const [
-    _NavItemData(icon: Icons.home_rounded, label: "Beranda"),
-    _NavItemData(icon: Icons.people_rounded, label: "Data Anak"),
-    _NavItemData(icon: Icons.calendar_month_rounded, label: "Posyandu"),
-    _NavItemData(icon: Icons.person_rounded, label: "Profil"),
+  final List<Map<String, dynamic>> _navItems = const [
+    {'icon': Icons.home_rounded, 'label': 'Beranda'},
+    {'icon': Icons.people_rounded, 'label': 'Data Anak'},
+    {'icon': Icons.calendar_month_rounded, 'label': 'Posyandu'},
+    {'icon': Icons.person_rounded, 'label': 'Profil'},
   ];
 
   void _navigate(BuildContext context, int index) {
-    if (index == widget.selectedIndex) return;
+    if (index == selectedIndex) return;
 
-    Widget page;
+    final pages = [
+      const HalamanUtamaKader(),
+      const DataAnakPage(),
+      const Jadwal(),
+      const Profil(),
+    ];
 
-    switch (index) {
-      case 0:
-        page = const HalamanUtamaKader();
-        break;
-      case 1:
-        page = const DataAnakPage();
-        break;
-      case 2:
-        page = const Jadwal();
-        break;
-      case 3:
-        page = const Profil();
-        break;
-      default:
-        page = const HalamanUtamaKader();
-    }
-
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => page));
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => pages[index],
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 250),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: _background,
-      elevation: 12,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      clipBehavior: Clip.none,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 78,
-          child: Row(
-            children: List.generate(_navItems.length, (index) {
-              final isActive = widget.selectedIndex == index;
-              final item = _navItems[index];
+    final activeColor = const Color(0xFFD05A7E);
+    final inactiveColor = const Color(0xFF76172D);
 
-              return Expanded(
-                child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: BottomAppBar(
+          color: Colors.white,
+          elevation: 0,
+          height: 64,
+          padding: EdgeInsets.zero,
+          child: SafeArea(
+            top: false,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(_navItems.length, (index) {
+                final isActive = selectedIndex == index;
+                final item = _navItems[index];
+
+                return GestureDetector(
                   onTap: () => _navigate(context, index),
-                  borderRadius: BorderRadius.circular(20),
+                  behavior: HitTestBehavior.opaque,
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        transform: Matrix4.translationValues(
-                          0,
-                          isActive ? -12 : 0,
-                          0,
-                        ),
-                        width: isActive ? 50 : 26,
-                        height: isActive ? 50 : 26,
-                        decoration: BoxDecoration(
-                          color: isActive ? _pink : Colors.transparent,
-                          shape: BoxShape.circle,
-                          boxShadow: isActive
-                              ? [
-                                  BoxShadow(
-                                    color: _pink.withOpacity(0.35),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : [],
-                        ),
-                        child: Icon(
-                          item.icon,
-                          color: isActive ? Colors.white : _maroon,
-                          size: 24,
-                        ),
+                      Icon(
+                        item['icon'] as IconData,
+                        color: isActive ? activeColor : inactiveColor,
+                        size: 24,
                       ),
                       const SizedBox(height: 4),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
+                      Text(
+                        item['label'] as String,
                         style: TextStyle(
-                          color: _maroon, // selalu maroon
+                          color: isActive ? activeColor : inactiveColor,
                           fontSize: 11,
                           fontWeight: isActive
                               ? FontWeight.w600
-                              : FontWeight.w500,
+                              : FontWeight.w400,
                         ),
-                        child: Transform.translate(
-                          offset: Offset(0, isActive ? -8 : 0),
-                          child: Text(item.label),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        width: isActive ? 24 : 0,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: activeColor,
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ],
                   ),
-                ),
-              );
-            }),
+                );
+              }),
+            ),
           ),
         ),
       ),
     );
   }
-}
-
-class _NavItemData {
-  final IconData icon;
-  final String label;
-
-  const _NavItemData({required this.icon, required this.label});
 }

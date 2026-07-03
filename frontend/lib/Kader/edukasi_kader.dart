@@ -4,91 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/sidebar_kader.dart';
 import '../widgets/bottom_navbar_kader.dart';
-import '../widgets/custom_app_bar.dart'; // ← IMPORT CUSTOM APP BAR
+import '../widgets/custom_app_bar.dart';
 import '../services/api_service.dart';
 import 'tambah_edukasi_kader.dart';
 import 'kategori_kader.dart';
-
-// ─────────────────────────────────────────────
-// SHARED MODELS
-// ─────────────────────────────────────────────
-
-class KategoriModel {
-  String id, nama, deskripsi, image, status;
-
-  KategoriModel({
-    required this.id,
-    required this.nama,
-    required this.deskripsi,
-    required this.image,
-    required this.status,
-  });
-
-  factory KategoriModel.fromJson(Map<String, dynamic> json) {
-    return KategoriModel(
-      id: json['id'].toString(),
-      nama: json['nama'] ?? '',
-      deskripsi: json['deskripsi'] ?? '',
-      image: json['image'] ?? '',
-      status: json['status'] ?? 'Draft',
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'nama': nama,
-      'deskripsi': deskripsi,
-      'image': image,
-      'status': status,
-    };
-  }
-}
-
-class EdukasiModel {
-  String id, title, kategoriId, desc, status, youtubeUrl, jenisKonten;
-  String? image;
-
-  EdukasiModel({
-    required this.id,
-    required this.title,
-    required this.kategoriId,
-    required this.desc,
-    required this.status,
-    this.youtubeUrl = '',
-    this.jenisKonten = 'artikel',
-    this.image,
-  });
-
-  factory EdukasiModel.fromJson(Map<String, dynamic> json) {
-    return EdukasiModel(
-      id: json['id'].toString(),
-      title: json['title'] ?? '',
-      kategoriId: json['kategori_id'].toString(),
-      desc: json['desc'] ?? '',
-      status: json['status'] ?? 'Draft',
-      youtubeUrl: json['youtube_url'] ?? '',
-      jenisKonten: json['jenis_konten'] ?? 'artikel',
-      image: json['image'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'kategori_id': kategoriId,
-      'desc': desc,
-      'status': status,
-      'youtube_url': youtubeUrl,
-      'jenis_konten': jenisKonten,
-    };
-  }
-}
-
-// ─────────────────────────────────────────────
-// EDUKASI KADER PAGE
-// ─────────────────────────────────────────────
+import '../models/kategori_model.dart';
+import '../models/edukasi_model.dart';
 
 class EdukasiKaderPage extends StatefulWidget {
   const EdukasiKaderPage({super.key});
@@ -328,7 +249,7 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
 
   String _namaKategori(String id) {
     try {
-      return _kategoriList.firstWhere((k) => k.id == id).nama;
+      return _kategoriList.firstWhere((k) => k.id.toString() == id).nama;
     } catch (_) {
       return id;
     }
@@ -414,9 +335,11 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       MaterialPageRoute(
         builder: (_) => KategoriKaderPage(
           kategoriList: _kategoriList,
-          onKategoriChanged: (list) async {
-            await _loadKategori();
-            await _loadEdukasi();
+          onKategoriChanged: (list) {
+            setState(() {
+              _kategoriList = list;
+            });
+            _loadEdukasi();
           },
         ),
       ),
@@ -453,7 +376,6 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
       drawer: const SidebarKader(),
       bottomNavigationBar: const BottomNavbarKader(selectedIndex: 0),
       backgroundColor: const Color(0xFFF5F5F5),
-      // ========== MENGGUNAKAN CUSTOM APP BAR ==========
       appBar: CustomAppBar(
         backgroundColor: const Color(0xFFD86487),
         iconColor: Colors.white,
@@ -570,7 +492,7 @@ class _EdukasiKaderPageState extends State<EdukasiKaderPage>
                               _kategoriChip('semua', 'Semua', Icons.grid_view),
                               ..._kategoriList.map(
                                 (k) => _kategoriChip(
-                                  k.id,
+                                  k.id.toString(),
                                   k.nama,
                                   Icons.label_outline,
                                 ),
