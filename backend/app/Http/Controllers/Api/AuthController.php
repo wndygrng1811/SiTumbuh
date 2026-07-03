@@ -39,7 +39,7 @@ class AuthController extends Controller
             'message' => 'Login berhasil',
             'user_id' => $user->user_id,
             'nama' => $user->nama,
-            'email' => $user->email,  // ← PASTIKAN INI ADA
+            'email' => $user->email,
             'role' => $user->role,
             'token' => 'login-token-' . $user->user_id
         ];
@@ -65,19 +65,96 @@ class AuthController extends Controller
         return response()->json($responseData);
     }
 
-    // ============ REGISTER ============
     public function register(Request $request)
     {
         try {
             $validated = $request->validate([
-                'nama_orangtua' => 'required|string|max:255',
-                'email' => 'required|email|unique:users,email',
-                'password' => 'required|min:6',
-                'alamat' => 'required|string',
-                'no_telp' => 'required|string|max:15',
-                'nama_anak' => 'required|string|max:255',
+                'nama_orangtua' => [
+                    'required',
+                    'string',
+                    'min:3',
+                    'max:100',
+                    'regex:/^[A-Za-z\s]+$/'
+                ],
+
+                'email' => [
+                    'required',
+                    'email:rfc,dns',
+                    'max:100',
+                    'unique:users,email'
+                ],
+
+                'password' => [
+                    'required',
+                    'string',
+                    'min:8',
+                    'max:20',
+                    'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/'
+                ],
+
+                'alamat' => [
+                    'required',
+                    'string',
+                    'min:10',
+                    'max:255'
+                ],
+
+                'no_telp' => [
+                    'required',
+                    'digits_between:10,15',
+                    'regex:/^08[0-9]+$/'
+                ],
+
+                'nama_anak' => [
+                    'required',
+                    'string',
+                    'min:2',
+                    'max:100',
+                    'regex:/^[A-Za-z\s]+$/'
+                ],
+
                 'jenis_kelamin' => 'required|in:Laki-laki,Perempuan,L,P',
-                'tanggal_lahir' => 'required|date'
+
+                'tanggal_lahir' => [
+                    'required',
+                    'date',
+                    'before:today'
+                ],
+            ], [
+                'nama_orangtua.required' => 'Nama orang tua harus diisi.',
+                'nama_orangtua.regex' => 'Nama orang tua hanya boleh berisi huruf.',
+                'nama_orangtua.min' => 'Nama orang tua minimal 3 karakter.',
+                'nama_orangtua.max' => 'Nama orang tua maksimal 100 karakter.',
+
+                'email.required' => 'Email harus diisi.',
+                'email.email' => 'Format email tidak valid.',
+                'email.unique' => 'Email sudah terdaftar.',
+                'email.max' => 'Email maksimal 100 karakter.',
+
+                'password.required' => 'Password harus diisi.',
+                'password.min' => 'Password minimal 8 karakter.',
+                'password.max' => 'Password maksimal 20 karakter.',
+                'password.regex' => 'Password harus mengandung huruf besar, huruf kecil, dan angka.',
+
+                'alamat.required' => 'Alamat harus diisi.',
+                'alamat.min' => 'Alamat minimal 10 karakter.',
+                'alamat.max' => 'Alamat maksimal 255 karakter.',
+
+                'no_telp.required' => 'Nomor telepon harus diisi.',
+                'no_telp.digits_between' => 'Nomor telepon harus terdiri dari 10 sampai 15 digit.',
+                'no_telp.regex' => 'Nomor telepon harus diawali dengan 08.',
+
+                'nama_anak.required' => 'Nama anak harus diisi.',
+                'nama_anak.regex' => 'Nama anak hanya boleh berisi huruf.',
+                'nama_anak.min' => 'Nama anak minimal 2 karakter.',
+                'nama_anak.max' => 'Nama anak maksimal 100 karakter.',
+
+                'jenis_kelamin.required' => 'Jenis kelamin harus dipilih.',
+                'jenis_kelamin.in' => 'Jenis kelamin tidak valid.',
+
+                'tanggal_lahir.required' => 'Tanggal lahir harus diisi.',
+                'tanggal_lahir.date' => 'Format tanggal lahir tidak valid.',
+                'tanggal_lahir.before' => 'Tanggal lahir harus sebelum hari ini.',
             ]);
 
             DB::beginTransaction();
@@ -134,5 +211,13 @@ class AuthController extends Controller
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function logout(Request $request)
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout berhasil'
+        ]);
     }
 }

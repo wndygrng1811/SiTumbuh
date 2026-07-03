@@ -16,6 +16,7 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
   DateTime? tanggalLahir;
   String gender = "";
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   final namaController = TextEditingController();
   final emailController = TextEditingController();
@@ -25,31 +26,108 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
 
   final namaAnakController = TextEditingController();
 
-  // ===== VALIDATION =====
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) return 'Email harus diisi';
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Format email tidak valid';
+  final _formKey1 = GlobalKey<FormState>();
+  final _formKey2 = GlobalKey<FormState>();
+
+  // ===== VALIDASI =====
+
+  String? _validateName(String? value, String fieldName) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName harus diisi';
     }
     return null;
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Email harus diisi';
+    }
+
+    // Cek format email sederhana: harus ada @ dan domain
+    if (!value.contains('@') || !value.contains('.')) {
+      return 'Format email tidak valid (contoh: email@domain.com)';
+    }
+
+    // Cek apakah ada karakter setelah @ dan setelah .
+    final emailParts = value.trim().split('@');
+    if (emailParts.length != 2) {
+      return 'Format email tidak valid';
+    }
+
+    final localPart = emailParts[0];
+    final domainPart = emailParts[1];
+
+    if (localPart.isEmpty) {
+      return 'Bagian sebelum @ tidak boleh kosong';
+    }
+
+    if (domainPart.isEmpty || !domainPart.contains('.')) {
+      return 'Domain email tidak valid (contoh: .com, .co.id)';
+    }
+
+    final domainParts = domainPart.split('.');
+    if (domainParts.length < 2) {
+      return 'Domain email tidak valid (contoh: .com, .co.id)';
+    }
+
+    final tld = domainParts.last;
+    if (tld.length < 2) {
+      return 'Domain email tidak valid';
+    }
+
+    return null;
+  }
+
   String? _validatePhone(String? value) {
-    if (value == null || value.isEmpty) return 'No telepon harus diisi';
-    if (value.length < 10 || value.length > 15) {
-      return 'No telepon harus 10-15 digit';
+    if (value == null || value.isEmpty) {
+      return 'Nomor telepon harus diisi';
+    }
+    if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+      return 'Nomor telepon hanya boleh berisi angka';
+    }
+    if (value.length < 10) {
+      return 'Nomor telepon minimal 10 digit';
+    }
+    if (!value.startsWith('08')) {
+      return 'Nomor telepon harus diawali dengan 08';
     }
     return null;
   }
 
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Kata sandi harus diisi';
-    if (value.length < 6) return 'Kata sandi minimal 6 karakter';
+    if (value == null || value.isEmpty) {
+      return 'Kata sandi harus diisi';
+    }
+    if (value.length < 6) {
+      return 'Kata sandi minimal 6 karakter';
+    }
+    return null;
+  }
+
+  String? _validateAlamat(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Alamat harus diisi';
+    }
+    return null;
+  }
+
+  String? _validateTanggalLahir(DateTime? value) {
+    if (value == null) {
+      return 'Tanggal lahir harus diisi';
+    }
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (value.isAfter(today)) {
+      return 'Tanggal lahir tidak boleh melebihi hari ini';
+    }
     return null;
   }
 
   Future<void> register() async {
-    // Validasi sebelum register
+    if (!_formKey2.currentState!.validate()) {
+      return;
+    }
+
     if (tanggalLahir == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -76,12 +154,12 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
 
     try {
       final response = await ApiService.post('/register', {
-        "nama_orangtua": namaController.text,
-        "email": emailController.text,
+        "nama_orangtua": namaController.text.trim(),
+        "email": emailController.text.trim(),
         "password": passwordController.text,
-        "alamat": alamatController.text,
-        "no_telp": telpController.text,
-        "nama_anak": namaAnakController.text,
+        "alamat": alamatController.text.trim(),
+        "no_telp": telpController.text.trim(),
+        "nama_anak": namaAnakController.text.trim(),
         "tanggal_lahir": tanggalLahir!.toIso8601String().split('T').first,
         "jenis_kelamin": gender,
       });
@@ -256,269 +334,332 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
 
   // ===== STEP 1: DATA ORANG TUA =====
   Widget _buildStep1() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Data Orang Tua",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Color(0xFF3A2A2D),
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          "Isi data diri Anda sebagai orang tua",
-          style: TextStyle(color: Colors.grey, fontSize: 13),
-        ),
-        const SizedBox(height: 20),
-
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildInputField(
-                  controller: namaController,
-                  icon: Icons.person_outline,
-                  label: "Nama Lengkap",
-                  hint: "Masukkan nama lengkap Anda",
-                  validator: (v) =>
-                      v?.isEmpty ?? true ? 'Nama harus diisi' : null,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  controller: emailController,
-                  icon: Icons.email_outlined,
-                  label: "Email",
-                  hint: "contoh@email.com",
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  controller: telpController,
-                  icon: Icons.phone_outlined,
-                  label: "No Telepon",
-                  hint: "081234567890",
-                  keyboardType: TextInputType.phone,
-                  validator: _validatePhone,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  controller: passwordController,
-                  icon: Icons.lock_outline,
-                  label: "Kata Sandi",
-                  hint: "Minimal 6 karakter",
-                  obscure: true,
-                  validator: _validatePassword,
-                ),
-                const SizedBox(height: 16),
-                _buildInputField(
-                  controller: alamatController,
-                  icon: Icons.location_on_outlined,
-                  label: "Alamat",
-                  hint: "Masukkan alamat lengkap",
-                  maxLines: 2,
-                  validator: (v) =>
-                      v?.isEmpty ?? true ? 'Alamat harus diisi' : null,
-                ),
-                const SizedBox(height: 20),
-              ],
+    return Form(
+      key: _formKey1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Data Orang Tua",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Color(0xFF3A2A2D),
             ),
           ),
-        ),
+          const SizedBox(height: 4),
+          const Text(
+            "Isi data diri Anda sebagai orang tua",
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
 
-        // ===== BUTTON =====
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE85D75),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildInputField(
+                    controller: namaController,
+                    icon: Icons.person_outline,
+                    label: "Nama Lengkap",
+                    hint: "Masukkan nama lengkap Anda",
+                    validator: (v) => _validateName(v, 'Nama orang tua'),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInputField(
+                    controller: emailController,
+                    icon: Icons.email_outlined,
+                    label: "Email",
+                    hint: "contoh@email.com",
+                    keyboardType: TextInputType.emailAddress,
+                    validator: _validateEmail,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInputField(
+                    controller: telpController,
+                    icon: Icons.phone_outlined,
+                    label: "No Telepon",
+                    hint: "081234567890",
+                    keyboardType: TextInputType.phone,
+                    validator: _validatePhone,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInputField(
+                    controller: passwordController,
+                    icon: Icons.lock_outline,
+                    label: "Kata Sandi",
+                    hint: "Minimal 6 karakter",
+                    obscure: _obscurePassword,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off_rounded
+                            : Icons.visibility_rounded,
+                        color: Colors.grey.shade400,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                    validator: _validatePassword,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInputField(
+                    controller: alamatController,
+                    icon: Icons.location_on_outlined,
+                    label: "Alamat",
+                    hint: "Masukkan alamat lengkap",
+                    maxLines: 2,
+                    validator: _validateAlamat,
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-            onPressed: () {
-              // Validasi sederhana
-              if (namaController.text.isEmpty ||
-                  emailController.text.isEmpty ||
-                  passwordController.text.isEmpty ||
-                  alamatController.text.isEmpty ||
-                  telpController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Semua data orang tua harus diisi!'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
-              setState(() {
-                step = 2;
-              });
-            },
-            child: const Text(
-              "Lanjut",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+
+          // ===== BUTTON =====
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE85D75),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () {
+                if (_formKey1.currentState!.validate()) {
+                  setState(() {
+                    step = 2;
+                  });
+                }
+              },
+              child: const Text(
+                "Lanjut",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        _buildLoginLink(),
-      ],
+          const SizedBox(height: 16),
+          _buildLoginLink(),
+        ],
+      ),
     );
   }
 
   // ===== STEP 2: DATA ANAK =====
   Widget _buildStep2() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Data Anak",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-            color: Color(0xFF3A2A2D),
-          ),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          "Isi data anak Anda untuk pemantauan tumbuh kembang",
-          style: TextStyle(color: Colors.grey, fontSize: 13),
-        ),
-        const SizedBox(height: 20),
-
-        Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildInputField(
-                  controller: namaAnakController,
-                  icon: Icons.child_care_outlined,
-                  label: "Nama Anak",
-                  hint: "Masukkan nama anak Anda",
-                  validator: (v) =>
-                      v?.isEmpty ?? true ? 'Nama anak harus diisi' : null,
+    return Form(
+      key: _formKey2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
+                  color: Color(0xFFE85D75),
+                  size: 20,
                 ),
-                const SizedBox(height: 16),
-
-                // ===== DATE PICKER =====
-                _buildDatePicker(),
-                const SizedBox(height: 16),
-
-                // ===== GENDER SELECTOR =====
-                _buildGenderSelector(),
-                const SizedBox(height: 20),
-              ],
-            ),
+                onPressed: () {
+                  setState(() {
+                    step = 1;
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                "Data Anak",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF3A2A2D),
+                ),
+              ),
+            ],
           ),
-        ),
+          const SizedBox(height: 4),
+          const Text(
+            "Isi data anak Anda untuk pemantauan tumbuh kembang",
+            style: TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
 
-        // ===== BUTTON =====
-        SizedBox(
-          width: double.infinity,
-          height: 50,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE85D75),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildInputField(
+                    controller: namaAnakController,
+                    icon: Icons.child_care_outlined,
+                    label: "Nama Anak",
+                    hint: "Masukkan nama anak Anda",
+                    validator: (v) => _validateName(v, 'Nama anak'),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ===== DATE PICKER =====
+                  _buildDatePicker(),
+                  const SizedBox(height: 16),
+
+                  // ===== GENDER SELECTOR =====
+                  _buildGenderSelector(),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-            onPressed: _isLoading ? null : register,
-            child: _isLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    "Daftar",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
           ),
-        ),
-        const SizedBox(height: 16),
-        _buildLoginLink(),
-      ],
+
+          // ===== BUTTON =====
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE85D75),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _isLoading ? null : register,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      "Daftar",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildLoginLink(),
+        ],
+      ),
     );
   }
 
   // ===== DATE PICKER =====
   Widget _buildDatePicker() {
-    return GestureDetector(
-      onTap: () async {
-        DateTime? picked = await showDatePicker(
-          context: context,
-          initialDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
-          firstDate: DateTime(2018),
-          lastDate: DateTime.now(),
-          builder: (ctx, child) => Theme(
-            data: Theme.of(ctx).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: Color(0xFFE85D75),
-                onPrimary: Colors.white,
-                onSurface: Color(0xFF3A2A2D),
-              ), dialogTheme: DialogThemeData(backgroundColor: Colors.white),
-            ),
-            child: child!,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Tanggal Lahir",
+          style: TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            color: Color(0xFF3A2A2D),
           ),
-        );
-        if (picked != null) {
-          setState(() {
-            tanggalLahir = picked;
-          });
-        }
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300, width: 1.5),
-          borderRadius: BorderRadius.circular(14),
         ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.calendar_today_outlined,
-              color: Color(0xFFE85D75),
-              size: 22,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                tanggalLahir == null
-                    ? "Pilih Tanggal Lahir Anak"
-                    : _formatDate(tanggalLahir!),
-                style: TextStyle(
-                  color: tanggalLahir == null
-                      ? Colors.grey.shade500
-                      : Colors.black87,
-                  fontSize: 15,
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: () async {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+
+            DateTime? picked = await showDatePicker(
+              context: context,
+              initialDate: today.subtract(const Duration(days: 365 * 2)),
+              firstDate: DateTime(2018),
+              lastDate: today,
+              builder: (ctx, child) => Theme(
+                data: Theme.of(ctx).copyWith(
+                  colorScheme: const ColorScheme.light(
+                    primary: Color(0xFFE85D75),
+                    onPrimary: Colors.white,
+                    onSurface: Color(0xFF3A2A2D),
+                  ),
+                  dialogTheme: const DialogThemeData(
+                    backgroundColor: Colors.white,
+                  ),
                 ),
+                child: child!,
               ),
+            );
+            if (picked != null) {
+              setState(() {
+                tanggalLahir = picked;
+              });
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: tanggalLahir == null
+                    ? Colors.grey.shade300
+                    : const Color(0xFFE85D75),
+                width: tanggalLahir == null ? 1.5 : 2,
+              ),
+              borderRadius: BorderRadius.circular(14),
             ),
-            if (tanggalLahir != null)
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    tanggalLahir = null;
-                  });
-                },
-                child: const Icon(Icons.close, color: Colors.grey, size: 20),
-              ),
-          ],
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  color: Color(0xFFE85D75),
+                  size: 22,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    tanggalLahir == null
+                        ? "Pilih Tanggal Lahir Anak"
+                        : _formatDate(tanggalLahir!),
+                    style: TextStyle(
+                      color: tanggalLahir == null
+                          ? Colors.grey.shade500
+                          : Colors.black87,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                if (tanggalLahir != null)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        tanggalLahir = null;
+                      });
+                    },
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.grey,
+                      size: 20,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (tanggalLahir != null && _validateTanggalLahir(tanggalLahir) != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              _validateTanggalLahir(tanggalLahir)!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 
@@ -565,6 +706,14 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
             ),
           ],
         ),
+        if (gender.isEmpty && step == 2)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 4),
+            child: const Text(
+              'Silakan pilih jenis kelamin',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -572,49 +721,51 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
   Widget _genderButton(String text, IconData icon, Color color) {
     bool selected = gender == text;
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          gender = text;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.1) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? color : Colors.grey.shade300,
-            width: selected ? 2 : 1.5,
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            gender = text;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? color.withValues(alpha: 0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? color : Colors.grey.shade300,
+              width: selected ? 2 : 1.5,
+            ),
           ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: selected ? color : Colors.grey.shade500,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              text,
-              style: TextStyle(
-                color: selected ? color : Colors.grey.shade700,
-                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 15,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: selected ? color : Colors.grey.shade500,
+                size: 18,
               ),
-            ),
-            if (selected)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(
-                  Icons.check_circle,
-                  color: Color(0xFFE85D75),
-                  size: 18,
+              const SizedBox(width: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: selected ? color : Colors.grey.shade700,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 13,
                 ),
               ),
-          ],
+              if (selected)
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: Color(0xFFE85D75),
+                    size: 16,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -629,6 +780,7 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
     bool obscure = false,
     TextInputType? keyboardType,
     int maxLines = 1,
+    Widget? suffixIcon,
     String? Function(String?)? validator,
   }) {
     return Column(
@@ -648,8 +800,10 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
           obscureText: obscure,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          validator: validator,
           decoration: InputDecoration(
             prefixIcon: Icon(icon, color: const Color(0xFFE85D75), size: 20),
+            suffixIcon: suffixIcon,
             hintText: hint,
             hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
             filled: true,
@@ -678,7 +832,6 @@ class _DaftarAkunPageState extends State<DaftarAkunPage> {
               borderSide: const BorderSide(color: Colors.red, width: 1.5),
             ),
           ),
-          validator: validator,
         ),
       ],
     );
