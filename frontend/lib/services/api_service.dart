@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.1.7:8000/api';
+  static const String baseUrl = 'http://192.168.100.29:8000/api';
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -92,7 +92,7 @@ class ApiService {
     }
   }
 
-  // ============ AUTH (LOGIN) ============
+  // ============ AUTH (LOGIN) - DENGAN ORANGTUA_ID ============
   static Future<Map<String, dynamic>> login(
     String email,
     String password,
@@ -145,19 +145,37 @@ class ApiService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (data['success'] == true) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
+
+          // ============ SIMPAN SEMUA DATA ============
           await prefs.setString('token', data['token'] ?? '');
           await prefs.setInt('user_id', data['user_id'] ?? 0);
           await prefs.setString('role', data['role'] ?? '');
           await prefs.setString('nama', data['nama'] ?? '');
           await prefs.setString('email', data['email'] ?? '');
+
+          // ============ SIMPAN ORANGTUA_ID ============
+          if (data['orangtua_id'] != null) {
+            await prefs.setInt('orangtua_id', data['orangtua_id']);
+          }
+
           await prefs.setInt('anak_id', data['anak_id'] ?? 0);
           await prefs.setString('nama_anak', data['nama_anak'] ?? '');
           await prefs.setString('jenis_kelamin', data['jenis_kelamin'] ?? '');
 
           print('Login berhasil. Role: ${data['role']}');
+          print('orangtua_id: ${data['orangtua_id']}');
+
           return {
             'success': true,
             'role': data['role'] ?? '',
+            'user_id': data['user_id'] ?? 0,
+            'orangtua_id': data['orangtua_id'] ?? 0,
+            'nama': data['nama'] ?? '',
+            'email': data['email'] ?? '',
+            'token': data['token'] ?? '',
+            'anak_id': data['anak_id'] ?? 0,
+            'nama_anak': data['nama_anak'] ?? '',
+            'jenis_kelamin': data['jenis_kelamin'] ?? '',
             'message': data['message'] ?? 'Login berhasil',
           };
         } else {
@@ -201,6 +219,42 @@ class ApiService {
     } finally {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
+    }
+  }
+
+  // ============ PROFIL ORANG TUA ============
+  static Future<Map<String, dynamic>> getProfileOrangTua(int userId) async {
+    try {
+      final response = await get('/orangtua/profile/$userId');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        }
+      }
+      return {};
+    } catch (e) {
+      print('Error getProfileOrangTua: $e');
+      return {};
+    }
+  }
+
+  // ============ PROFIL ORANG TUA (DENGAN ORANGTUA_ID) ============
+  static Future<Map<String, dynamic>> getProfileOrangTuaById(
+    int orangtuaId,
+  ) async {
+    try {
+      final response = await get('/orangtua/profile/$orangtuaId');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['success'] == true) {
+          return data['data'];
+        }
+      }
+      return {};
+    } catch (e) {
+      print('Error getProfileOrangTuaById: $e');
+      return {};
     }
   }
 
@@ -327,23 +381,6 @@ class ApiService {
     } catch (e) {
       print('Error simpan pertumbuhan: $e');
       return false;
-    }
-  }
-
-  // ============ PROFIL ORANG TUA ============
-  static Future<Map<String, dynamic>> getProfileOrangTua(int userId) async {
-    try {
-      final response = await get('/orangtua/profile/$userId');
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
-        if (data['success'] == true) {
-          return data['data'];
-        }
-      }
-      return {};
-    } catch (e) {
-      print('Error getProfileOrangTua: $e');
-      return {};
     }
   }
 
