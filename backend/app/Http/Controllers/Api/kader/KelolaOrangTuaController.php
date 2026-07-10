@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use App\Mail\AkunBaruMail;
 
 class KelolaOrangTuaController extends Controller
@@ -15,10 +16,14 @@ class KelolaOrangTuaController extends Controller
     public function index()
     {
         try {
+            Log::info('=== KelolaOrangTuaController@index dipanggil ===');
+
             $data = DB::table('orang_tua')
                 ->select('orangtua_id', 'nama', 'email', 'no_telp', 'alamat')
                 ->orderBy('nama')
                 ->get();
+
+            Log::info('Data orang tua ditemukan: ' . count($data));
 
             return response()->json([
                 'success' => true,
@@ -26,6 +31,7 @@ class KelolaOrangTuaController extends Controller
                 'data' => $data
             ], 200);
         } catch (\Exception $e) {
+            Log::error('Error KelolaOrangTuaController@index: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Error: ' . $e->getMessage()
@@ -36,6 +42,9 @@ class KelolaOrangTuaController extends Controller
     // POST - Tambah orang tua baru
     public function store(Request $request)
     {
+        Log::info('=== KelolaOrangTuaController@store dipanggil ===');
+        Log::info('Request data: ' . json_encode($request->all()));
+
         $validator = Validator::make($request->all(), [
             'nama' => 'required|string|max:100',
             'email' => 'required|email|unique:orang_tua,email|unique:users,email',
@@ -83,8 +92,7 @@ class KelolaOrangTuaController extends Controller
                     null
                 ));
             } catch (\Exception $mailError) {
-                // Email gagal, tapi data tetap tersimpan
-                \Illuminate\Support\Facades\Log::error('Email gagal dikirim: ' . $mailError->getMessage());
+                Log::error('Email gagal dikirim: ' . $mailError->getMessage());
             }
 
             return response()->json([
@@ -94,6 +102,7 @@ class KelolaOrangTuaController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error KelolaOrangTuaController@store: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menambahkan data: ' . $e->getMessage()
@@ -104,6 +113,10 @@ class KelolaOrangTuaController extends Controller
     // PUT - Update data orang tua
     public function update(Request $request, $id)
     {
+        Log::info('=== KelolaOrangTuaController@update dipanggil ===');
+        Log::info('ID: ' . $id);
+        Log::info('Request data: ' . json_encode($request->all()));
+
         $validator = Validator::make($request->all(), [
             'nama' => 'required|string|max:100',
             'email' => 'required|email',
@@ -156,6 +169,7 @@ class KelolaOrangTuaController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error KelolaOrangTuaController@update: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengubah data: ' . $e->getMessage()
@@ -166,6 +180,9 @@ class KelolaOrangTuaController extends Controller
     // DELETE - Hapus data orang tua
     public function destroy($id)
     {
+        Log::info('=== KelolaOrangTuaController@destroy dipanggil ===');
+        Log::info('ID: ' . $id);
+
         try {
             DB::beginTransaction();
 
@@ -192,6 +209,7 @@ class KelolaOrangTuaController extends Controller
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error KelolaOrangTuaController@destroy: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menghapus data: ' . $e->getMessage()

@@ -14,7 +14,25 @@ class AnakController extends Controller
     public function getDetail($anakId)
     {
         try {
-            $anak = DB::table('anak')->where('anak_id', $anakId)->first();
+            $anak = DB::table('anak')
+                ->join('orang_tua', 'anak.orangtua_id', '=', 'orang_tua.orangtua_id')
+                ->select(
+                    'anak.anak_id',
+                    'anak.nama as nama_anak',
+                    'anak.jenis_kelamin',
+                    'anak.tanggal_lahir',
+                    'anak.berat_badan',
+                    'anak.tinggi_badan',
+                    'anak.lingkar_kepala',
+                    'anak.status_gizi',
+                    'orang_tua.nama as nama_ortu',
+                    'orang_tua.orangtua_id',
+                    'orang_tua.email',
+                    'orang_tua.no_telp',
+                    'orang_tua.alamat'
+                )
+                ->where('anak.anak_id', $anakId)
+                ->first();
             
             if (!$anak) {
                 return response()->json([
@@ -24,22 +42,15 @@ class AnakController extends Controller
             }
             
             // Konversi jenis kelamin untuk response
-            $jk = $anak->jenis_kelamin;
-            if ($jk == 'L') $jk = 'Laki-laki';
-            if ($jk == 'P') $jk = 'Perempuan';
+            if ($anak->jenis_kelamin == 'L') {
+                $anak->jenis_kelamin = 'Laki-laki';
+            } elseif ($anak->jenis_kelamin == 'P') {
+                $anak->jenis_kelamin = 'Perempuan';
+            }
             
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'anak_id' => $anak->anak_id,
-                    'nama_anak' => $anak->nama,
-                    'jenis_kelamin' => $jk,
-                    'tanggal_lahir' => $anak->tanggal_lahir,
-                    'berat_badan' => $anak->berat_badan,
-                    'tinggi_badan' => $anak->tinggi_badan,
-                    'lingkar_kepala' => $anak->lingkar_kepala,
-                    'status_gizi' => $anak->status_gizi ?? 'Normal',
-                ]
+                'data' => $anak
             ]);
         } catch (\Exception $e) {
             Log::error('Error getDetail: ' . $e->getMessage());
@@ -55,13 +66,27 @@ class AnakController extends Controller
     {
         try {
             $anak = DB::table('anak')
-                ->where('orangtua_id', $orangtuaId)
+                ->join('orang_tua', 'anak.orangtua_id', '=', 'orang_tua.orangtua_id')
+                ->select(
+                    'anak.anak_id',
+                    'anak.nama as nama_anak',
+                    'anak.jenis_kelamin',
+                    'anak.tanggal_lahir',
+                    'anak.berat_badan',
+                    'anak.tinggi_badan',
+                    'anak.lingkar_kepala',
+                    'anak.status_gizi',
+                    'orang_tua.nama as nama_ortu'
+                )
+                ->where('anak.orangtua_id', $orangtuaId)
                 ->get();
             
-            // Konversi jenis kelamin untuk setiap anak
             foreach ($anak as $a) {
-                if ($a->jenis_kelamin == 'L') $a->jenis_kelamin = 'Laki-laki';
-                if ($a->jenis_kelamin == 'P') $a->jenis_kelamin = 'Perempuan';
+                if ($a->jenis_kelamin == 'L') {
+                    $a->jenis_kelamin = 'Laki-laki';
+                } elseif ($a->jenis_kelamin == 'P') {
+                    $a->jenis_kelamin = 'Perempuan';
+                }
             }
             
             return response()->json([
@@ -104,7 +129,7 @@ class AnakController extends Controller
     {
         try {
             $validatedData = $request->validate([
-                'orangtua_id' => 'required|integer',
+                'orangtua_id' => 'required|integer|exists:orang_tua,orangtua_id',
                 'nama' => 'required|string|max:255',
                 'jenis_kelamin' => 'required|string',
                 'tanggal_lahir' => 'required|date',
@@ -114,14 +139,13 @@ class AnakController extends Controller
                 'status_gizi' => 'nullable|string',
             ]);
 
-            // Konversi jenis kelamin ke format database (L/P) - HANYA 1 KARAKTER
             $jk = $validatedData['jenis_kelamin'];
             if ($jk == 'Laki-laki' || $jk == 'L') {
                 $jk = 'L';
             } elseif ($jk == 'Perempuan' || $jk == 'P') {
                 $jk = 'P';
             } else {
-                $jk = 'L'; // default
+                $jk = 'L';
             }
 
             $anakId = DB::table('anak')->insertGetId([
@@ -153,11 +177,6 @@ class AnakController extends Controller
     public function update(Request $request, $anakId)
     {
         try {
-            Log::info('=== UPDATE ANAK ===');
-            Log::info('Anak ID: ' . $anakId);
-            Log::info('Request data: ' . json_encode($request->all()));
-            
-            // Cek apakah anak ada
             $anak = DB::table('anak')->where('anak_id', $anakId)->first();
             if (!$anak) {
                 return response()->json([
@@ -176,17 +195,14 @@ class AnakController extends Controller
                 'status_gizi' => 'nullable|string',
             ]);
 
-            // Konversi jenis kelamin ke format database (L/P) - HANYA 1 KARAKTER
             $jk = $validatedData['jenis_kelamin'];
             if ($jk == 'Laki-laki' || $jk == 'L') {
                 $jk = 'L';
             } elseif ($jk == 'Perempuan' || $jk == 'P') {
                 $jk = 'P';
             } else {
-                $jk = 'L'; // default
+                $jk = 'L';
             }
-
-            Log::info('Converted jenis_kelamin to: ' . $jk);
 
             $updated = DB::table('anak')
                 ->where('anak_id', $anakId)
@@ -199,8 +215,6 @@ class AnakController extends Controller
                     'lingkar_kepala' => $validatedData['lingkar_kepala'] ?? $anak->lingkar_kepala ?? 0,
                     'status_gizi' => $validatedData['status_gizi'] ?? $anak->status_gizi ?? 'Normal',
                 ]);
-            
-            Log::info('Update result: ' . ($updated ? 'success' : 'failed'));
             
             if ($updated) {
                 return response()->json([
@@ -221,7 +235,6 @@ class AnakController extends Controller
             ], 422);
         } catch (\Exception $e) {
             Log::error('Error update: ' . $e->getMessage());
-            Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -233,7 +246,6 @@ class AnakController extends Controller
     public function destroy($anakId)
     {
         try {
-            // Cek apakah anak ada
             $anak = DB::table('anak')->where('anak_id', $anakId)->first();
             
             if (!$anak) {
@@ -243,10 +255,7 @@ class AnakController extends Controller
                 ], 404);
             }
             
-            // Hapus data pertumbuhan terkait terlebih dahulu
             DB::table('pertumbuhan')->where('anak_id', $anakId)->delete();
-            
-            // Hapus data anak
             DB::table('anak')->where('anak_id', $anakId)->delete();
             
             return response()->json([
@@ -255,6 +264,47 @@ class AnakController extends Controller
             ]);
         } catch (\Exception $e) {
             Log::error('Error destroy: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // GET semua anak
+    public function getAllAnak()
+    {
+        try {
+            $anak = DB::table('anak')
+                ->join('orang_tua', 'anak.orangtua_id', '=', 'orang_tua.orangtua_id')
+                ->select(
+                    'anak.anak_id',
+                    'anak.nama as nama_anak',
+                    'anak.jenis_kelamin',
+                    'anak.tanggal_lahir',
+                    'anak.berat_badan',
+                    'anak.tinggi_badan',
+                    'anak.lingkar_kepala',
+                    'anak.status_gizi',
+                    'orang_tua.nama as nama_ortu',
+                    'anak.orangtua_id'
+                )
+                ->get();
+
+            foreach ($anak as $a) {
+                if ($a->jenis_kelamin == 'L') {
+                    $a->jenis_kelamin = 'Laki-laki';
+                } elseif ($a->jenis_kelamin == 'P') {
+                    $a->jenis_kelamin = 'Perempuan';
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $anak
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getAllAnak: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
