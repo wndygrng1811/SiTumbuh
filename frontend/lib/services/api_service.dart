@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const baseUrl = "https://situmbuh-backend-production.up.railway.app/api";
+  static const baseUrl =
+      "https://situmbuh-backend-production.up.railway.app/api";
 
   static Future<Map<String, String>> _getHeaders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -92,7 +93,7 @@ class ApiService {
     }
   }
 
-  // ============ AUTH (LOGIN) - DENGAN ORANGTUA_ID ============
+  // ============ AUTH (LOGIN) ============
   static Future<Map<String, dynamic>> login(
     String email,
     String password,
@@ -146,14 +147,12 @@ class ApiService {
         if (data['success'] == true) {
           SharedPreferences prefs = await SharedPreferences.getInstance();
 
-          // ============ SIMPAN SEMUA DATA ============
           await prefs.setString('token', data['token'] ?? '');
           await prefs.setInt('user_id', data['user_id'] ?? 0);
           await prefs.setString('role', data['role'] ?? '');
           await prefs.setString('nama', data['nama'] ?? '');
           await prefs.setString('email', data['email'] ?? '');
 
-          // ============ SIMPAN ORANGTUA_ID ============
           if (data['orangtua_id'] != null) {
             await prefs.setInt('orangtua_id', data['orangtua_id']);
           }
@@ -239,7 +238,6 @@ class ApiService {
     }
   }
 
-  // ============ PROFIL ORANG TUA (DENGAN ORANGTUA_ID) ============
   static Future<Map<String, dynamic>> getProfileOrangTuaById(
     int orangtuaId,
   ) async {
@@ -259,9 +257,12 @@ class ApiService {
   }
 
   // ============ PROFIL KADER ============
-  static Future<Map<String, dynamic>> getProfilKader() async {
+  // PERBAIKI: tambahkan parameter userId
+  static Future<Map<String, dynamic>> getProfilKader(int userId) async {
     try {
-      final response = await get('/kader/profil');
+      final response = await get(
+        '/kader/profil-sederhana/$userId',
+      ); // <- PERBAIKI
       print('=== GET PROFIL KADER ===');
       print('Status: ${response.statusCode}');
       print('Body: ${response.body}');

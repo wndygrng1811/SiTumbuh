@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/api_service.dart';
-import 'edukasi_kader.dart';
 import '../models/kategori_model.dart';
 
 class TambahKategoriKaderPage extends StatefulWidget {
@@ -18,7 +17,6 @@ class TambahKategoriKaderPage extends StatefulWidget {
 class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
     with SingleTickerProviderStateMixin {
   final _namaCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   String _status = 'Draft';
@@ -43,7 +41,6 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
 
     if (widget.isEdit && widget.data != null) {
       _namaCtrl.text = widget.data!.nama;
-      _descCtrl.text = widget.data!.deskripsi;
       _status = widget.data!.status;
     }
   }
@@ -52,7 +49,6 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
   void dispose() {
     _slideCtrl.dispose();
     _namaCtrl.dispose();
-    _descCtrl.dispose();
     super.dispose();
   }
 
@@ -65,28 +61,20 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
     });
 
     try {
-      final data = {
-        'nama': _namaCtrl.text.trim(),
-        'deskripsi': _descCtrl.text.trim(),
-        'status': _status,
-      };
+      // ✅ Hanya kirim field yang ada di tabel: nama dan status
+      final data = {'nama': _namaCtrl.text.trim(), 'status': _status};
 
       http.Response response;
 
-      // Cek apakah ini edit atau tambah
       if (widget.isEdit && widget.data != null) {
-        // Untuk edit, gunakan PUT
         response = await ApiService.put('/kategori/${widget.data!.id}', data);
       } else {
-        // Untuk tambah, gunakan POST
         response = await ApiService.post('/kategori', data);
       }
 
-      // Debug: print response
       print('Response status: ${response.statusCode}');
       print('Response body: ${response.body}');
 
-      // Cek status code
       if (response.statusCode == 200 || response.statusCode == 201) {
         try {
           final result = json.decode(response.body);
@@ -100,18 +88,15 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
             );
             Navigator.pop(context, true);
           } else {
-            // Jika success false, tampilkan pesan error dari server
             final errorMsg = result['message'] ?? 'Gagal menyimpan kategori';
             setState(() => _errorMessage = errorMsg);
             _showSnackbar(errorMsg, Colors.red);
           }
         } catch (e) {
-          // Jika response bukan JSON yang valid
           setState(() => _errorMessage = 'Format response tidak valid');
           _showSnackbar('Format response tidak valid', Colors.red);
         }
       } else {
-        // Status code bukan 200/201
         String errorMsg = 'Gagal menyimpan data (${response.statusCode})';
         try {
           final errorData = json.decode(response.body);
@@ -119,7 +104,6 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
             errorMsg = errorData['message'];
           }
         } catch (e) {
-          // Jika response bukan JSON
           errorMsg = response.body.isNotEmpty ? response.body : errorMsg;
         }
         setState(() => _errorMessage = errorMsg);
@@ -240,15 +224,6 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
                         decoration: _inputDeco(
                           'Contoh: Stunting, Nutrisi, Imunisasi',
                         ),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      _label('Deskripsi (Opsional)'),
-                      TextFormField(
-                        controller: _descCtrl,
-                        maxLines: 3,
-                        decoration: _inputDeco('Jelaskan secara singkat...'),
                       ),
 
                       const SizedBox(height: 20),
@@ -389,7 +364,7 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
                       Icon(Icons.save, size: 16),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'Simpan',
                         style: TextStyle(
@@ -422,20 +397,6 @@ class _TambahKategoriKaderPageState extends State<TambahKategoriKaderPage>
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _label(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF444444),
         ),
       ),
     );
