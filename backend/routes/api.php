@@ -8,9 +8,9 @@ use App\Http\Controllers\Api\AnakController;
 use App\Http\Controllers\Api\EdukasiController;
 use App\Http\Controllers\Api\JadwalController;
 use App\Http\Controllers\Api\Kader\DashboardKaderController;
-use App\Http\Controllers\Api\kader\PertumbuhanController as KaderPertumbuhanController;
+use App\Http\Controllers\Api\Kader\PertumbuhanController as KaderPertumbuhanController;
 use App\Http\Controllers\Api\Kader\KelolaAnakController;
-use App\Http\Controllers\Api\Kader\ProfilKaderController;  
+use App\Http\Controllers\Api\Kader\ProfilKaderController;
 use App\Http\Controllers\Api\Kader\KelolaOrangTuaController;
 use App\Http\Controllers\Api\Kader\KehadiranController;
 use App\Http\Controllers\Api\Kader\LaporanController;
@@ -37,6 +37,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::get('/orangtua/profile/{userId}', [ProfileController::class, 'getProfile']);
 Route::get('/orangtua/{userId}/profile-lengkap', [ProfileController::class, 'getProfileLengkap']);
 Route::put('/orangtua/{userId}/profile-lengkap', [ProfileController::class, 'updateProfileLengkap']);
+
 // =============================================
 // ORANG TUA - ANAK
 // =============================================
@@ -119,7 +120,7 @@ Route::put('/kader/profil/{userId}', [ProfilKaderController::class, 'updateProfi
 // =============================================
 Route::get('/kader/semua-jadwal', [KehadiranController::class, 'getAllJadwal']);
 Route::get('/kehadiran/jadwal/{jadwalId}', [KehadiranController::class, 'getKehadiranByJadwal']);
-Route::post('/kehadiran/simpan-semua', [KehadiranController::class, 'simpanSemuaKehadiran']);   
+Route::post('/kehadiran/simpan-semua', [KehadiranController::class, 'simpanSemuaKehadiran']);
 
 // =============================================
 // KADER - LAPORAN
