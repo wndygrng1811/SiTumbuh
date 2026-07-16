@@ -8,7 +8,7 @@
   "require": {
     "php": "^8.2",
     "laravel/framework": "^12.0",
-    "sendgrid/sendgrid": "^7.9"
+    "symfony/brevo-mailer": "^7.0"
 },
     "require-dev": {
         "fakerphp/faker": "^1.23",

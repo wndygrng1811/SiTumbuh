@@ -35,10 +35,10 @@ return [
         ],
     ],
 
-    // ============ KONFIGURASI SENDGRID ============
-    'sendgrid' => [
-        'api_key' => env('SENDGRID_API_KEY'),
+    // ============ KONFIGURASI BREVO (SENDINBLUE) ============
+    'brevo' => [
+        'api_key' => env('BREVO_API_KEY'),
     ],
-    // =============================================
+    // ========================================================
 
 ];
