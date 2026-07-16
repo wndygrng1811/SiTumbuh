@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:si_tumbuh/services/api_service.dart';
+import 'dart:math';
 
 class DataAnakPage extends StatefulWidget {
   final int anakId;
@@ -26,8 +27,325 @@ class _DataAnakPageState extends State<DataAnakPage> {
     _loadDataAnak();
   }
 
+  // ============ FUNGSI PERHITUNGAN STATUS GIZI ============
+  String _hitungStatusGizi({
+    required double beratBadan,
+    required double tinggiBadan,
+    required double lingkarKepala,
+    required int usiaBulan,
+    required String jenisKelamin,
+  }) {
+    // Jika semua data 0 atau null, kembalikan "Belum Diperiksa"
+    if (beratBadan <= 0 || tinggiBadan <= 0 || lingkarKepala <= 0) {
+      return 'Belum Diperiksa';
+    }
+
+    // ============ PERHITUNGAN Z-SCORE UNTUK BB/U (Berat Badan per Usia) ============
+    double zScoreBB = _hitungZScoreBBU(beratBadan, usiaBulan, jenisKelamin);
+
+    // ============ PERHITUNGAN Z-SCORE UNTUK TB/U (Tinggi Badan per Usia) ============
+    double zScoreTB = _hitungZScoreTBU(tinggiBadan, usiaBulan, jenisKelamin);
+
+    // ============ PERHITUNGAN Z-SCORE UNTUK BB/TB (Berat Badan per Tinggi Badan) ============
+    double zScoreBBTB = _hitungZScoreBBTB(
+      beratBadan,
+      tinggiBadan,
+      jenisKelamin,
+    );
+
+    // ============ DETERMINASI STATUS GIZI ============
+    // Prioritas: Stunting -> Wasting -> Underweight -> Normal
+    if (zScoreTB < -2.0) {
+      return 'Stunting';
+    } else if (zScoreBBTB < -2.0) {
+      return 'Kurang (Wasting)';
+    } else if (zScoreBBTB > 2.0) {
+      return 'Obesitas';
+    } else if (zScoreBB < -2.0) {
+      return 'Underweight';
+    } else if (zScoreBB > 2.0) {
+      return 'Overweight';
+    } else {
+      return 'Normal';
+    }
+  }
+
+  // ============ Z-SCORE BB/U (Berat Badan per Usia) ============
+  double _hitungZScoreBBU(double berat, int usiaBulan, String jenisKelamin) {
+    // Standar WHO untuk BB/U (0-60 bulan)
+    // Menggunakan rumus LMS (Lambda-Mu-Sigma)
+
+    Map<int, Map<String, List<double>>> dataBBU = {
+      // Usia (bulan) -> [L, M, S] untuk Laki-laki dan Perempuan
+      0: {
+        'L': [1.0, 3.3, 0.12],
+        'P': [1.0, 3.2, 0.12],
+      },
+      1: {
+        'L': [1.0, 4.3, 0.13],
+        'P': [1.0, 4.2, 0.13],
+      },
+      2: {
+        'L': [1.0, 5.2, 0.13],
+        'P': [1.0, 5.1, 0.13],
+      },
+      3: {
+        'L': [1.0, 6.0, 0.13],
+        'P': [1.0, 5.8, 0.13],
+      },
+      4: {
+        'L': [1.0, 6.7, 0.13],
+        'P': [1.0, 6.4, 0.13],
+      },
+      5: {
+        'L': [1.0, 7.3, 0.13],
+        'P': [1.0, 7.0, 0.13],
+      },
+      6: {
+        'L': [1.0, 7.9, 0.13],
+        'P': [1.0, 7.5, 0.13],
+      },
+      7: {
+        'L': [1.0, 8.4, 0.13],
+        'P': [1.0, 8.0, 0.13],
+      },
+      8: {
+        'L': [1.0, 8.9, 0.13],
+        'P': [1.0, 8.5, 0.13],
+      },
+      9: {
+        'L': [1.0, 9.3, 0.13],
+        'P': [1.0, 8.9, 0.13],
+      },
+      10: {
+        'L': [1.0, 9.7, 0.13],
+        'P': [1.0, 9.3, 0.13],
+      },
+      11: {
+        'L': [1.0, 10.1, 0.13],
+        'P': [1.0, 9.7, 0.13],
+      },
+      12: {
+        'L': [1.0, 10.5, 0.13],
+        'P': [1.0, 10.0, 0.13],
+      },
+      18: {
+        'L': [1.0, 12.5, 0.12],
+        'P': [1.0, 12.0, 0.12],
+      },
+      24: {
+        'L': [1.0, 14.0, 0.12],
+        'P': [1.0, 13.5, 0.12],
+      },
+      36: {
+        'L': [1.0, 16.0, 0.11],
+        'P': [1.0, 15.5, 0.11],
+      },
+      48: {
+        'L': [1.0, 18.0, 0.11],
+        'P': [1.0, 17.5, 0.11],
+      },
+      60: {
+        'L': [1.0, 20.0, 0.11],
+        'P': [1.0, 19.5, 0.11],
+      },
+    };
+
+    // Cari usia terdekat
+    List<int> ages = dataBBU.keys.toList()..sort();
+    int nearestAge = ages.reduce((a, b) {
+      return (a - usiaBulan).abs() < (b - usiaBulan).abs() ? a : b;
+    });
+
+    if (nearestAge < 0) nearestAge = 0;
+    if (nearestAge > 60) nearestAge = 60;
+
+    String genderKey = jenisKelamin.toLowerCase() == 'laki-laki' ? 'L' : 'P';
+    if (genderKey == 'L' && !dataBBU.containsKey(nearestAge)) {
+      genderKey = 'P';
+    }
+    if (genderKey == 'P' && !dataBBU.containsKey(nearestAge)) {
+      genderKey = 'L';
+    }
+
+    List<double> lms = dataBBU[nearestAge]![genderKey]!;
+    double L = lms[0];
+    double M = lms[1];
+    double S = lms[2];
+
+    // Rumus Z-Score: ((berat/M)^L - 1) / (L * S)
+    if (berat <= 0 || M <= 0) return 0;
+
+    try {
+      double zScore = (pow(berat / M, L).toDouble() - 1) / (L * S);
+      return zScore;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // ============ Z-SCORE TB/U (Tinggi Badan per Usia) ============
+  double _hitungZScoreTBU(double tinggi, int usiaBulan, String jenisKelamin) {
+    // Standar WHO untuk TB/U (0-60 bulan)
+    Map<int, Map<String, List<double>>> dataTBU = {
+      0: {
+        'L': [1.0, 49.9, 0.04],
+        'P': [1.0, 49.1, 0.04],
+      },
+      1: {
+        'L': [1.0, 53.5, 0.04],
+        'P': [1.0, 52.7, 0.04],
+      },
+      2: {
+        'L': [1.0, 56.9, 0.04],
+        'P': [1.0, 56.0, 0.04],
+      },
+      3: {
+        'L': [1.0, 59.9, 0.04],
+        'P': [1.0, 58.9, 0.04],
+      },
+      4: {
+        'L': [1.0, 62.6, 0.04],
+        'P': [1.0, 61.5, 0.04],
+      },
+      5: {
+        'L': [1.0, 65.0, 0.04],
+        'P': [1.0, 63.8, 0.04],
+      },
+      6: {
+        'L': [1.0, 67.2, 0.04],
+        'P': [1.0, 65.9, 0.04],
+      },
+      7: {
+        'L': [1.0, 69.3, 0.04],
+        'P': [1.0, 67.9, 0.04],
+      },
+      8: {
+        'L': [1.0, 71.2, 0.04],
+        'P': [1.0, 69.8, 0.04],
+      },
+      9: {
+        'L': [1.0, 73.0, 0.04],
+        'P': [1.0, 71.5, 0.04],
+      },
+      10: {
+        'L': [1.0, 74.8, 0.04],
+        'P': [1.0, 73.2, 0.04],
+      },
+      11: {
+        'L': [1.0, 76.5, 0.04],
+        'P': [1.0, 74.8, 0.04],
+      },
+      12: {
+        'L': [1.0, 78.1, 0.04],
+        'P': [1.0, 76.4, 0.04],
+      },
+      18: {
+        'L': [1.0, 86.0, 0.04],
+        'P': [1.0, 84.0, 0.04],
+      },
+      24: {
+        'L': [1.0, 93.0, 0.04],
+        'P': [1.0, 91.0, 0.04],
+      },
+      36: {
+        'L': [1.0, 104.0, 0.04],
+        'P': [1.0, 102.0, 0.04],
+      },
+      48: {
+        'L': [1.0, 112.0, 0.04],
+        'P': [1.0, 110.0, 0.04],
+      },
+      60: {
+        'L': [1.0, 119.0, 0.04],
+        'P': [1.0, 117.0, 0.04],
+      },
+    };
+
+    List<int> ages = dataTBU.keys.toList()..sort();
+    int nearestAge = ages.reduce((a, b) {
+      return (a - usiaBulan).abs() < (b - usiaBulan).abs() ? a : b;
+    });
+
+    if (nearestAge < 0) nearestAge = 0;
+    if (nearestAge > 60) nearestAge = 60;
+
+    String genderKey = jenisKelamin.toLowerCase() == 'laki-laki' ? 'L' : 'P';
+    if (genderKey == 'L' && !dataTBU.containsKey(nearestAge)) {
+      genderKey = 'P';
+    }
+    if (genderKey == 'P' && !dataTBU.containsKey(nearestAge)) {
+      genderKey = 'L';
+    }
+
+    List<double> lms = dataTBU[nearestAge]![genderKey]!;
+    double L = lms[0];
+    double M = lms[1];
+    double S = lms[2];
+
+    if (tinggi <= 0 || M <= 0) return 0;
+
+    try {
+      double zScore = (pow(tinggi / M, L).toDouble() - 1) / (L * S);
+      return zScore;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // ============ Z-SCORE BB/TB (Berat Badan per Tinggi Badan) ============
+  double _hitungZScoreBBTB(double berat, double tinggi, String jenisKelamin) {
+    // Standar WHO untuk BB/TB
+    // Perhitungan sederhana menggunakan BMI
+    if (tinggi <= 0) return 0;
+
+    double bmi = berat / ((tinggi / 100) * (tinggi / 100));
+
+    // Standar BMI berdasarkan jenis kelamin dan usia (approximasi)
+    double medianBMI;
+    double sdBMI;
+
+    // Estimasi median dan SD berdasarkan jenis kelamin
+    if (jenisKelamin.toLowerCase() == 'laki-laki') {
+      if (tinggi < 70) {
+        medianBMI = 13.0;
+        sdBMI = 1.5;
+      } else if (tinggi < 80) {
+        medianBMI = 14.5;
+        sdBMI = 1.5;
+      } else if (tinggi < 100) {
+        medianBMI = 16.0;
+        sdBMI = 1.5;
+      } else {
+        medianBMI = 17.5;
+        sdBMI = 1.5;
+      }
+    } else {
+      if (tinggi < 70) {
+        medianBMI = 12.5;
+        sdBMI = 1.5;
+      } else if (tinggi < 80) {
+        medianBMI = 14.0;
+        sdBMI = 1.5;
+      } else if (tinggi < 100) {
+        medianBMI = 15.5;
+        sdBMI = 1.5;
+      } else {
+        medianBMI = 17.0;
+        sdBMI = 1.5;
+      }
+    }
+
+    if (sdBMI <= 0) return 0;
+
+    double zScore = (bmi - medianBMI) / sdBMI;
+    return zScore;
+  }
+
   // ============ LOAD DATA ANAK ============
   Future<void> _loadDataAnak() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -37,16 +355,17 @@ class _DataAnakPageState extends State<DataAnakPage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      // ============ PAKAI ORANGTUA_ID ============
       int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
       int userId = prefs.getInt('user_id') ?? 0;
       int idToUse = orangtuaId > 0 ? orangtuaId : userId;
 
       if (idToUse == 0) {
-        setState(() {
-          _errorMessage = 'Session tidak valid, silakan login ulang';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Session tidak valid, silakan login ulang';
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -69,47 +388,96 @@ class _DataAnakPageState extends State<DataAnakPage> {
         if (data['success'] == true && data['data'] != null) {
           List<dynamic> anakList = data['data'];
 
-          setState(() {
-            dataAnak = anakList.map((item) {
-              return {
-                'anak_id': item['anak_id'],
-                'nama': item['nama'] ?? '',
-                'jk': item['jenis_kelamin'] ?? '',
-                'tgl': item['tanggal_lahir'] ?? '',
-                'berat_lahir': item['berat_badan']?.toString() ?? '-',
-                'tinggi_lahir': item['tinggi_badan']?.toString() ?? '-',
-                'lk_lahir': item['lingkar_kepala']?.toString() ?? '-',
-                'status': item['status_gizi'] ?? 'Normal',
-              };
-            }).toList();
-            _isLoading = false;
-          });
+          if (mounted) {
+            setState(() {
+              dataAnak = anakList.map((item) {
+                // Hitung status gizi berdasarkan data yang ada
+                String statusGizi = item['status_gizi'] ?? 'Normal';
+
+                // Cek apakah data lengkap untuk perhitungan
+                double berat =
+                    double.tryParse(item['berat_badan']?.toString() ?? '0') ??
+                    0;
+                double tinggi =
+                    double.tryParse(item['tinggi_badan']?.toString() ?? '0') ??
+                    0;
+                double lk =
+                    double.tryParse(
+                      item['lingkar_kepala']?.toString() ?? '0',
+                    ) ??
+                    0;
+
+                // Jika semua data 0, status = Belum Diperiksa
+                if (berat == 0 && tinggi == 0 && lk == 0) {
+                  statusGizi = 'Belum Diperiksa';
+                } else if (berat == 0 || tinggi == 0 || lk == 0) {
+                  statusGizi = 'Data Tidak Lengkap';
+                }
+                // Jika data ada tapi status dari API "Normal", tapi seharusnya tidak normal
+                else if (statusGizi == 'Normal') {
+                  // Hitung ulang dengan data yang ada
+                  // Gunakan perhitungan sederhana sebagai fallback
+                  if (tinggi > 0) {
+                    double bmi = berat / ((tinggi / 100) * (tinggi / 100));
+                    if (bmi < 14)
+                      statusGizi = 'Kurang';
+                    else if (bmi > 18)
+                      statusGizi = 'Obesitas';
+                    else
+                      statusGizi = 'Normal';
+                  }
+                }
+
+                return {
+                  'anak_id': item['anak_id'],
+                  'nama': item['nama_anak'] ?? '',
+                  'jk': item['jenis_kelamin'] ?? '',
+                  'tgl': item['tanggal_lahir'] ?? '',
+                  'berat_lahir': item['berat_badan']?.toString() ?? '-',
+                  'tinggi_lahir': item['tinggi_badan']?.toString() ?? '-',
+                  'lk_lahir': item['lingkar_kepala']?.toString() ?? '-',
+                  'status': statusGizi,
+                };
+              }).toList();
+              _isLoading = false;
+            });
+          }
         } else {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+          }
+        }
+      } else if (response.statusCode == 401) {
+        if (mounted) {
           setState(() {
+            _errorMessage = 'Session habis, silakan login ulang';
             _isLoading = false;
           });
         }
-      } else if (response.statusCode == 401) {
-        setState(() {
-          _errorMessage = 'Session habis, silakan login ulang';
-          _isLoading = false;
-        });
       } else {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Gagal memuat data anak';
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Gagal memuat data anak';
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Error: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Error: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
   // ============ CREATE ANAK ============
   Future<void> _createAnak(Map<String, dynamic> data) async {
+    if (!mounted) return;
+
     setState(() {
       _isSaving = true;
     });
@@ -121,18 +489,33 @@ class _DataAnakPageState extends State<DataAnakPage> {
       int userId = prefs.getInt('user_id') ?? 0;
       int idToUse = orangtuaId > 0 ? orangtuaId : userId;
 
+      // Parse data
+      double beratBadan = double.tryParse(data['berat'] ?? '0') ?? 0;
+      double tinggiBadan = double.tryParse(data['tinggi'] ?? '0') ?? 0;
+      double lingkarKepala = double.tryParse(data['lk'] ?? '0') ?? 0;
+
+      // Hitung status gizi berdasarkan data yang diinput
+      String statusGizi = _hitungStatusGiziDariInput(
+        beratBadan: beratBadan,
+        tinggiBadan: tinggiBadan,
+        lingkarKepala: lingkarKepala,
+        tanggalLahir: data['tgl'] ?? '',
+        jenisKelamin: data['jk'] ?? 'Laki-laki',
+      );
+
       final requestBody = {
         'orangtua_id': idToUse,
         'nama': data['nama'] ?? '',
         'jenis_kelamin': data['jk'] ?? 'Laki-laki',
         'tanggal_lahir': data['tgl'] ?? '',
-        'berat_badan': double.tryParse(data['berat'] ?? '0') ?? 0,
-        'tinggi_badan': double.tryParse(data['tinggi'] ?? '0') ?? 0,
-        'lingkar_kepala': double.tryParse(data['lk'] ?? '0') ?? 0,
-        'status_gizi': 'Normal', // Default untuk orang tua
+        'berat_badan': beratBadan,
+        'tinggi_badan': tinggiBadan,
+        'lingkar_kepala': lingkarKepala,
+        'status_gizi': statusGizi, // Kirim status yang sudah dihitung
       };
 
       debugPrint('Create anak request: $requestBody');
+      debugPrint('Status gizi yang dihitung: $statusGizi');
 
       final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/anak'),
@@ -148,16 +531,18 @@ class _DataAnakPageState extends State<DataAnakPage> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _loadDataAnak();
+
         if (widget.onDataChanged != null) {
           widget.onDataChanged!();
         }
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Anak berhasil ditambahkan'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          final anakBaru = dataAnak.isNotEmpty ? dataAnak.last : null;
+          Navigator.pop(context, {
+            'success': true,
+            'data': anakBaru,
+            'action': 'add',
+          });
         }
       } else {
         final responseData = json.decode(response.body);
@@ -172,6 +557,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() {
+          _isSaving = false;
+        });
       }
     } finally {
       if (mounted) {
@@ -182,8 +570,52 @@ class _DataAnakPageState extends State<DataAnakPage> {
     }
   }
 
+  // ============ HITUNG STATUS GIZI DARI INPUT ============
+  String _hitungStatusGiziDariInput({
+    required double beratBadan,
+    required double tinggiBadan,
+    required double lingkarKepala,
+    required String tanggalLahir,
+    required String jenisKelamin,
+  }) {
+    // Jika semua data 0, status = "Belum Diperiksa"
+    if (beratBadan <= 0 && tinggiBadan <= 0 && lingkarKepala <= 0) {
+      return 'Belum Diperiksa';
+    }
+
+    // Jika ada data yang 0 tapi tidak semua
+    if (beratBadan <= 0 || tinggiBadan <= 0 || lingkarKepala <= 0) {
+      return 'Data Tidak Lengkap';
+    }
+
+    // Hitung usia dalam bulan dari tanggal lahir
+    DateTime? tglLahir = DateTime.tryParse(tanggalLahir);
+    if (tglLahir == null) {
+      return 'Data Tidak Lengkap';
+    }
+
+    DateTime now = DateTime.now();
+    int usiaBulan =
+        (now.year - tglLahir.year) * 12 + (now.month - tglLahir.month);
+    if (usiaBulan < 0) usiaBulan = 0;
+    if (usiaBulan > 60) usiaBulan = 60; // Maksimal 60 bulan (5 tahun)
+
+    // Hitung status gizi menggunakan Z-Score
+    String status = _hitungStatusGizi(
+      beratBadan: beratBadan,
+      tinggiBadan: tinggiBadan,
+      lingkarKepala: lingkarKepala,
+      usiaBulan: usiaBulan,
+      jenisKelamin: jenisKelamin,
+    );
+
+    return status;
+  }
+
   // ============ UPDATE ANAK ============
   Future<void> _updateAnak(int anakId, Map<String, dynamic> data) async {
+    if (!mounted) return;
+
     setState(() {
       _isSaving = true;
     });
@@ -196,15 +628,32 @@ class _DataAnakPageState extends State<DataAnakPage> {
         throw Exception('Token tidak ditemukan, silakan login ulang');
       }
 
+      // Parse data
+      double beratBadan = double.tryParse(data['berat'] ?? '0') ?? 0;
+      double tinggiBadan = double.tryParse(data['tinggi'] ?? '0') ?? 0;
+      double lingkarKepala = double.tryParse(data['lk'] ?? '0') ?? 0;
+
+      // Hitung status gizi berdasarkan data yang diinput
+      String statusGizi = _hitungStatusGiziDariInput(
+        beratBadan: beratBadan,
+        tinggiBadan: tinggiBadan,
+        lingkarKepala: lingkarKepala,
+        tanggalLahir: data['tgl'] ?? '',
+        jenisKelamin: data['jk'] ?? 'Laki-laki',
+      );
+
       final requestBody = {
         'nama': data['nama'] ?? '',
         'jenis_kelamin': data['jk'] ?? 'Laki-laki',
         'tanggal_lahir': data['tgl'] ?? '',
-        'berat_badan': double.tryParse(data['berat'] ?? '0') ?? 0,
-        'tinggi_badan': double.tryParse(data['tinggi'] ?? '0') ?? 0,
-        'lingkar_kepala': double.tryParse(data['lk'] ?? '0') ?? 0,
-        'status_gizi': data['status'] ?? 'Normal',
+        'berat_badan': beratBadan,
+        'tinggi_badan': tinggiBadan,
+        'lingkar_kepala': lingkarKepala,
+        'status_gizi': statusGizi, // Kirim status yang sudah dihitung
       };
+
+      debugPrint('Update anak request: $requestBody');
+      debugPrint('Status gizi yang dihitung: $statusGizi');
 
       final response = await http.put(
         Uri.parse('${ApiService.baseUrl}/anak/$anakId'),
@@ -222,16 +671,18 @@ class _DataAnakPageState extends State<DataAnakPage> {
         final responseData = json.decode(response.body);
         if (responseData['success'] == true) {
           await _loadDataAnak();
+
           if (widget.onDataChanged != null) {
             widget.onDataChanged!();
           }
+
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Data anak berhasil diupdate'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            Navigator.pop(context, {
+              'success': true,
+              'data': requestBody,
+              'anak_id': anakId,
+              'action': 'update',
+            });
           }
         } else {
           throw Exception(
@@ -252,6 +703,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() {
+          _isSaving = false;
+        });
       }
     } finally {
       if (mounted) {
@@ -286,6 +740,8 @@ class _DataAnakPageState extends State<DataAnakPage> {
 
     if (confirm != true) return;
 
+    if (!mounted) return;
+
     setState(() {
       _isSaving = true;
     });
@@ -307,19 +763,17 @@ class _DataAnakPageState extends State<DataAnakPage> {
         setState(() {
           dataAnak.removeAt(index);
         });
+
         if (widget.onDataChanged != null) {
           widget.onDataChanged!();
         }
+
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data anak berhasil dihapus'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        if (anakId == widget.anakId && mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context, {
+            'success': true,
+            'anak_id': anakId,
+            'action': 'delete',
+          });
         }
       } else {
         final responseData = json.decode(response.body);
@@ -334,6 +788,9 @@ class _DataAnakPageState extends State<DataAnakPage> {
             backgroundColor: Colors.red,
           ),
         );
+        setState(() {
+          _isSaving = false;
+        });
       }
     } finally {
       if (mounted) {
@@ -466,9 +923,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         ),
                       ),
                       onTap: () async {
-                        // ============ MAX DATE = HARI INI ============
                         DateTime maxDate = DateTime.now();
-                        // ============ MIN DATE = 10 TAHUN YANG LALU ============
                         DateTime minDate = DateTime.now().subtract(
                           const Duration(days: 365 * 10),
                         );
@@ -516,7 +971,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        hintText: "Contoh: 3.5",
+                        hintText: "Contoh: 3.5 (isi 0 jika belum diketahui)",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Colors.grey),
@@ -542,7 +997,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        hintText: "Contoh: 50",
+                        hintText: "Contoh: 50 (isi 0 jika belum diketahui)",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Colors.grey),
@@ -568,7 +1023,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         decimal: true,
                       ),
                       decoration: InputDecoration(
-                        hintText: "Contoh: 34",
+                        hintText: "Contoh: 34 (isi 0 jika belum diketahui)",
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                           borderSide: const BorderSide(color: Colors.grey),
@@ -579,7 +1034,34 @@ class _DataAnakPageState extends State<DataAnakPage> {
                         ),
                       ),
                     ),
-                    // ============ STATUS GIZI DIHAPUS ============
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Status gizi akan dihitung otomatis berdasarkan data yang diisi',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -657,7 +1139,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  // ============ EDIT ANAK FORM ============
+  // ============ EDIT ANAK FORM (DETAIL) ============
   void _showEditAnakForm(int index) async {
     final anak = dataAnak[index];
     TextEditingController tglController = TextEditingController(
@@ -846,14 +1328,30 @@ class _DataAnakPageState extends State<DataAnakPage> {
                             ? Colors.green.shade50
                             : statusGizi == 'Stunting'
                             ? Colors.red.shade50
-                            : Colors.orange.shade50,
+                            : statusGizi == 'Kurang' ||
+                                  statusGizi == 'Kurang (Wasting)'
+                            ? Colors.orange.shade50
+                            : statusGizi == 'Obesitas' ||
+                                  statusGizi == 'Overweight'
+                            ? Colors.purple.shade50
+                            : statusGizi == 'Belum Diperiksa'
+                            ? Colors.grey.shade50
+                            : Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: statusGizi == 'Normal'
                               ? Colors.green.shade200
                               : statusGizi == 'Stunting'
                               ? Colors.red.shade200
-                              : Colors.orange.shade200,
+                              : statusGizi == 'Kurang' ||
+                                    statusGizi == 'Kurang (Wasting)'
+                              ? Colors.orange.shade200
+                              : statusGizi == 'Obesitas' ||
+                                    statusGizi == 'Overweight'
+                              ? Colors.purple.shade200
+                              : statusGizi == 'Belum Diperiksa'
+                              ? Colors.grey.shade200
+                              : Colors.grey.shade200,
                         ),
                       ),
                       child: Text(
@@ -863,7 +1361,15 @@ class _DataAnakPageState extends State<DataAnakPage> {
                               ? Colors.green.shade700
                               : statusGizi == 'Stunting'
                               ? Colors.red.shade700
-                              : Colors.orange.shade700,
+                              : statusGizi == 'Kurang' ||
+                                    statusGizi == 'Kurang (Wasting)'
+                              ? Colors.orange.shade700
+                              : statusGizi == 'Obesitas' ||
+                                    statusGizi == 'Overweight'
+                              ? Colors.purple.shade700
+                              : statusGizi == 'Belum Diperiksa'
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade700,
                           fontWeight: FontWeight.w500,
                         ),
                         textAlign: TextAlign.center,
@@ -878,7 +1384,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // ============ TANGGAL LAHIR READ ONLY (TIDAK BISA DIUBAH) ============
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -918,212 +1423,262 @@ class _DataAnakPageState extends State<DataAnakPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      appBar: AppBar(
-        title: const Text(
-          "Data Anak",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, {'success': false});
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        appBar: AppBar(
+          title: const Text(
+            "Data Anak",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: const Color(0xFFD86487),
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              Navigator.pop(context, {'success': false});
+            },
+          ),
         ),
-        backgroundColor: const Color(0xFFD86487),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            if (widget.onDataChanged != null) {
-              widget.onDataChanged!();
-            }
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage.isNotEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _errorMessage,
-                    style: const TextStyle(color: Colors.red),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadDataAnak,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD86487),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage.isNotEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.shade300,
                     ),
-                    child: const Text('Coba Lagi'),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _loadDataAnak,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD86487),
+                      ),
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                children: [
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: dataAnak.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.people_outline,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text('Belum ada data anak'),
+                                SizedBox(height: 8),
+                                Text('Tekan tombol + untuk menambahkan'),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: dataAnak.length,
+                            itemBuilder: (context, index) {
+                              final anak = dataAnak[index];
+                              final status = anak["status"] ?? 'Normal';
+
+                              // Warna status
+                              Color statusColor;
+                              Color statusBgColor;
+                              if (status == 'Normal') {
+                                statusColor = Colors.green.shade700;
+                                statusBgColor = Colors.green.shade50;
+                              } else if (status == 'Stunting') {
+                                statusColor = Colors.red.shade700;
+                                statusBgColor = Colors.red.shade50;
+                              } else if (status == 'Kurang' ||
+                                  status == 'Kurang (Wasting)') {
+                                statusColor = Colors.orange.shade700;
+                                statusBgColor = Colors.orange.shade50;
+                              } else if (status == 'Obesitas' ||
+                                  status == 'Overweight') {
+                                statusColor = Colors.purple.shade700;
+                                statusBgColor = Colors.purple.shade50;
+                              } else if (status == 'Belum Diperiksa') {
+                                statusColor = Colors.grey.shade700;
+                                statusBgColor = Colors.grey.shade50;
+                              } else {
+                                statusColor = Colors.grey.shade700;
+                                statusBgColor = Colors.grey.shade50;
+                              }
+
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 16),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      blurRadius: 6,
+                                      color: Colors.black12,
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              anak["nama"] ?? '',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: Color(0xFFD86487),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              anak["jk"] ?? '',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                    vertical: 4,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: statusBgColor,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: statusColor
+                                                      .withOpacity(0.3),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                status,
+                                                style: TextStyle(
+                                                  color: statusColor,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.visibility,
+                                                color: Color(0xFFD86487),
+                                              ),
+                                              onPressed: () =>
+                                                  _showEditAnakForm(index),
+                                            ),
+                                            IconButton(
+                                              icon: const Icon(
+                                                Icons.delete,
+                                                color: Colors.red,
+                                              ),
+                                              onPressed: () => _deleteAnak(
+                                                anak['anak_id'],
+                                                index,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Divider(),
+                                    const SizedBox(height: 12),
+                                    _buildDetail(
+                                      "Tanggal lahir",
+                                      anak["tgl"] ?? '',
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildDetail(
+                                      "Berat badan lahir",
+                                      anak["berat_lahir"] != '-' &&
+                                              anak["berat_lahir"] != null
+                                          ? "${anak["berat_lahir"]} kg"
+                                          : "Belum ada data",
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildDetail(
+                                      "Tinggi badan lahir",
+                                      anak["tinggi_lahir"] != '-' &&
+                                              anak["tinggi_lahir"] != null
+                                          ? "${anak["tinggi_lahir"]} cm"
+                                          : "Belum ada data",
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildDetail(
+                                      "Lingkar kepala lahir",
+                                      anak["lk_lahir"] != '-' &&
+                                              anak["lk_lahir"] != null
+                                          ? "${anak["lk_lahir"]} cm"
+                                          : "Belum ada data",
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD86487),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => _showTambahAnakForm(),
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        label: const Text(
+                          "Tambah Anak",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
-            )
-          : Column(
-              children: [
-                const SizedBox(height: 16),
-                Expanded(
-                  child: dataAnak.isEmpty
-                      ? const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text('Belum ada data anak'),
-                              SizedBox(height: 8),
-                              Text('Tekan tombol + untuk menambahkan'),
-                            ],
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: dataAnak.length,
-                          itemBuilder: (context, index) {
-                            final anak = dataAnak[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 16),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    blurRadius: 6,
-                                    color: Colors.black12,
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            anak["nama"] ?? '',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                              color: Color(0xFFD86487),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            anak["jk"] ?? '',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      Row(
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.visibility,
-                                              color: Color(0xFFD86487),
-                                            ),
-                                            onPressed: () =>
-                                                _showEditAnakForm(index),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(
-                                              Icons.delete,
-                                              color: Colors.red,
-                                            ),
-                                            onPressed: () => _deleteAnak(
-                                              anak['anak_id'],
-                                              index,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Divider(),
-                                  const SizedBox(height: 12),
-                                  _buildDetail(
-                                    "Tanggal lahir",
-                                    anak["tgl"] ?? '',
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildDetail(
-                                    "Berat badan lahir",
-                                    anak["berat_lahir"] != '-' &&
-                                            anak["berat_lahir"] != null
-                                        ? "${anak["berat_lahir"]} kg"
-                                        : "Belum ada data",
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildDetail(
-                                    "Tinggi badan lahir",
-                                    anak["tinggi_lahir"] != '-' &&
-                                            anak["tinggi_lahir"] != null
-                                        ? "${anak["tinggi_lahir"]} cm"
-                                        : "Belum ada data",
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildDetail(
-                                    "Lingkar kepala lahir",
-                                    anak["lk_lahir"] != '-' &&
-                                            anak["lk_lahir"] != null
-                                        ? "${anak["lk_lahir"]} cm"
-                                        : "Belum ada data",
-                                  ),
-                                  const SizedBox(height: 8),
-                                  _buildDetail(
-                                    "Status gizi",
-                                    anak["status"] ?? 'Normal',
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD86487),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => _showTambahAnakForm(),
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      label: const Text(
-                        "Tambah Anak",
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+      ),
     );
   }
 

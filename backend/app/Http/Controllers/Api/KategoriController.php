@@ -19,7 +19,6 @@ class KategoriController extends Controller
                 return [
                     'id' => (int)$item->id,
                     'nama' => $item->nama,
-                    'deskripsi' => $item->deskripsi ?? '',
                     'status' => $item->status ?? 'Draft',
                     'created_at' => $item->created_at,
                     'updated_at' => $item->updated_at,
@@ -44,7 +43,6 @@ class KategoriController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'nama' => 'required|string|min:3|max:100|unique:kategori,nama',
-                'deskripsi' => 'nullable|string',
                 'status' => 'required|in:Draft,Dipublikasikan',
             ]);
 
@@ -57,7 +55,6 @@ class KategoriController extends Controller
             
             $data = [
                 'nama' => $request->nama,
-                'deskripsi' => $request->deskripsi ?? '',
                 'status' => $request->status ?? 'Draft',
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -94,7 +91,6 @@ class KategoriController extends Controller
             
             $validator = Validator::make($request->all(), [
                 'nama' => 'required|string|min:3|max:100|unique:kategori,nama,' . $id,
-                'deskripsi' => 'nullable|string',
                 'status' => 'required|in:Draft,Dipublikasikan',
             ]);
 
@@ -107,7 +103,6 @@ class KategoriController extends Controller
             
             $data = [
                 'nama' => $request->nama,
-                'deskripsi' => $request->deskripsi ?? '',
                 'status' => $request->status ?? 'Draft',
                 'updated_at' => now(),
             ];

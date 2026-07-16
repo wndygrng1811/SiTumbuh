@@ -60,6 +60,8 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadAllData() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -86,10 +88,12 @@ class _ProfilePageState extends State<ProfilePage> {
       }
     } catch (e) {
       debugPrint('Error loading data: $e');
-      setState(() {
-        _errorMessage = 'Gagal memuat data: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Gagal memuat data: $e';
+          _isLoading = false;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -104,19 +108,19 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
 
-      // ============ PAKAI ORANGTUA_ID ATAU USER_ID ============
       int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
       int userId = prefs.getInt('user_id') ?? 0;
       String? token = prefs.getString('token');
 
-      // ============ FALLBACK: PAKAI USER_ID JIKA ORANGTUA_ID 0 ============
       int idToUse = orangtuaId > 0 ? orangtuaId : userId;
 
       if (idToUse == 0) {
-        setState(() {
-          _errorMessage = 'Session tidak valid, silakan login ulang';
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Session tidak valid, silakan login ulang';
+            _isLoading = false;
+          });
+        }
         return;
       }
 
@@ -142,7 +146,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
           String noHpValue = userData['no_hp']?.toString() ?? '';
 
-          // Simpan ke SharedPreferences
           await prefs.setString(
             'nama',
             userData['nama_lengkap'] ?? userData['nama'] ?? '',
@@ -160,32 +163,40 @@ class _ProfilePageState extends State<ProfilePage> {
             });
           }
         } else {
+          if (mounted) {
+            setState(() {
+              _errorMessage = data['message'] ?? 'Gagal memuat data profil';
+              _isLoading = false;
+            });
+          }
+        }
+      } else if (response.statusCode == 404) {
+        if (mounted) {
           setState(() {
-            _errorMessage = data['message'] ?? 'Gagal memuat data profil';
+            _errorMessage =
+                'Data profil tidak ditemukan. Silakan lengkapi data di menu "Profil Lengkap".';
             _isLoading = false;
           });
         }
-      } else if (response.statusCode == 404) {
-        setState(() {
-          _errorMessage =
-              'Data profil tidak ditemukan. Silakan lengkapi data di menu "Profil Lengkap".';
-          _isLoading = false;
-        });
       } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Gagal memuat data (${response.statusCode})';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _errorMessage = 'Gagal memuat data (${response.statusCode})';
+          _errorMessage = 'Terjadi kesalahan: $e';
           _isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
-        _isLoading = false;
-      });
     }
   }
 
-  Future<void> _loadSelectedFromPrefs() async {
+  void _loadSelectedFromPrefs() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int savedAnakId = prefs.getInt('anak_id') ?? 0;
     String savedNamaAnak = prefs.getString('nama_anak') ?? '';
@@ -207,7 +218,6 @@ class _ProfilePageState extends State<ProfilePage> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      // ============ PAKAI ORANGTUA_ID ATAU USER_ID ============
       int orangtuaId = prefs.getInt('orangtua_id') ?? 0;
       int userId = prefs.getInt('user_id') ?? 0;
       int idToUse = orangtuaId > 0 ? orangtuaId : userId;
@@ -236,7 +246,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 return {
                   'anak_id': item['anak_id'],
-                  'nama': item['nama'] ?? '',
+                  'nama': item['nama_anak'] ?? '',
                   'jenis_kelamin': jk,
                   'tanggal_lahir': item['tanggal_lahir'] ?? '',
                 };
@@ -333,6 +343,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  // ============ REFRESH DATA ============
   Future<void> _refreshData() async {
     if (mounted) {
       setState(() {
@@ -340,15 +351,67 @@ class _ProfilePageState extends State<ProfilePage> {
       });
     }
 
-    await _loadUserDataFromApi();
-    await _loadListAnak();
-    if (_selectedAnakId != 0) {
-      await _loadDataAnakFromTableAnak(_selectedAnakId);
+    try {
+      await _loadUserDataFromApi();
+      await _loadListAnak();
+
+      // ============ PASTIKAN ANAK YANG DIPILIH MASIH ADA ============
+      if (_listAnak.isNotEmpty) {
+        bool found = _listAnak.any((a) => a['anak_id'] == _selectedAnakId);
+
+        if (!found) {
+          _selectedAnakId = _listAnak[0]['anak_id'];
+          _selectedNamaAnak = _listAnak[0]['nama'];
+          _selectedJenisKelamin = _listAnak[0]['jenis_kelamin'];
+
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setInt('anak_id', _selectedAnakId);
+          await prefs.setString('nama_anak', _selectedNamaAnak);
+          await prefs.setString('jenis_kelamin', _selectedJenisKelamin);
+        }
+      }
+
+      if (_selectedAnakId != 0) {
+        await _loadDataAnakFromTableAnak(_selectedAnakId);
+      }
+    } catch (e) {
+      debugPrint('Error refreshing data: $e');
     }
 
     if (mounted) {
       setState(() {
         _isRefreshing = false;
+      });
+    }
+  }
+
+  // ============ UPDATE DATA ANAK ============
+  void _updateChildData(Map<String, dynamic> newData) {
+    if (mounted) {
+      setState(() {
+        if (newData.containsKey('nama_anak')) {
+          namaLengkapAnak = newData['nama_anak'];
+          _selectedNamaAnak = newData['nama_anak'];
+        }
+        if (newData.containsKey('jenis_kelamin')) {
+          jk = newData['jenis_kelamin'];
+          _selectedJenisKelamin = newData['jenis_kelamin'];
+        }
+        if (newData.containsKey('tanggal_lahir')) {
+          tanggalLahir = newData['tanggal_lahir'];
+        }
+        if (newData.containsKey('berat_badan')) {
+          beratLahir = newData['berat_badan']?.toString() ?? '-';
+        }
+        if (newData.containsKey('tinggi_badan')) {
+          tinggiLahir = newData['tinggi_badan']?.toString() ?? '-';
+        }
+        if (newData.containsKey('lingkar_kepala')) {
+          lingkarKepalaLahir = newData['lingkar_kepala']?.toString() ?? '-';
+        }
+        if (newData.containsKey('status_gizi')) {
+          statusGiziLahir = newData['status_gizi'] ?? 'Normal';
+        }
       });
     }
   }
@@ -744,6 +807,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // ============ BUILD MENU ITEMS ============
   Widget _buildMenuItems(BuildContext context) {
     final List<Map<String, dynamic>> menus = [
       {
@@ -764,18 +828,61 @@ class _ProfilePageState extends State<ProfilePage> {
       {
         'icon': Icons.people_outline,
         'title': 'Data anak',
-        'onTap': () {
-          Navigator.push(
+        'onTap': () async {
+          // ============ TUNGGU HASIL DARI DATA ANAK PAGE ============
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => DataAnakPage(
                 anakId: _selectedAnakId,
                 onDataChanged: () {
-                  _refreshData();
+                  // Internal callback
                 },
               ),
             ),
           );
+
+          // ============ PROSES HASIL ============
+          if (result != null && result['success'] == true) {
+            // Refresh data setelah kembali dari DataAnakPage
+            await _refreshData();
+
+            // Handle berdasarkan action
+            if (result['action'] == 'add' && result['data'] != null) {
+              final anakBaru = result['data'];
+              // Pilih anak yang baru ditambahkan
+              if (anakBaru != null && anakBaru['anak_id'] != null) {
+                _onAnakChanged(anakBaru['anak_id']);
+              }
+            } else if (result['action'] == 'delete') {
+              final int deletedId = result['anak_id'];
+              if (deletedId == _selectedAnakId) {
+                // Jika anak yang dihapus adalah anak yang sedang dipilih
+                if (_listAnak.isNotEmpty) {
+                  _onAnakChanged(_listAnak[0]['anak_id']);
+                } else {
+                  if (mounted) {
+                    setState(() {
+                      _selectedAnakId = 0;
+                      _selectedNamaAnak = '';
+                      _selectedJenisKelamin = '';
+                      namaLengkapAnak = '';
+                      tanggalLahir = '';
+                      beratLahir = '';
+                      tinggiLahir = '';
+                      lingkarKepalaLahir = '';
+                      statusGiziLahir = '';
+                    });
+                  }
+                }
+              }
+            } else if (result['action'] == 'update') {
+              // Refresh data anak yang diupdate
+              if (_selectedAnakId != 0) {
+                await _loadDataAnakFromTableAnak(_selectedAnakId);
+              }
+            }
+          }
         },
       },
       {
