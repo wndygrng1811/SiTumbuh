@@ -27,6 +27,6 @@ class AkunBaruMail extends Mailable
     {
         return $this->from(env('MAIL_FROM_ADDRESS', 'noreply@situmbuh.com'), 'SiTumbuh')
                     ->subject('Selamat! Akun SiTumbuh Anda Telah Dibuat')
-                    ->view('emails.akun_baru');  // 🔥 PASTIKAN INI BENAR
+                    ->view('emails.akun_baru');
     }
 }

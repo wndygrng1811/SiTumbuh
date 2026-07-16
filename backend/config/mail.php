@@ -49,6 +49,12 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        // ============ KONFIGURASI SENDGRID ============
+        'sendgrid' => [
+            'transport' => 'sendgrid',
+        ],
+        // =============================================
+
         'ses' => [
             'transport' => 'ses',
         ],
