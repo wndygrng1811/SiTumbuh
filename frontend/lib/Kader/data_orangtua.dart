@@ -353,7 +353,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Password akan dikirim otomatis ke email orang tua.',
+                          'Password akan dikirim otomatis via WhatsApp ke nomor orang tua.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue.shade700,

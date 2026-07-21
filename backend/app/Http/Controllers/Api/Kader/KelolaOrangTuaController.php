@@ -83,49 +83,45 @@ class KelolaOrangTuaController extends Controller
 
             DB::commit();
 
-            // =====================
-// Kirim WhatsApp
-// =====================
-try {
+            // Kirim WhatsApp
+            try {
+                $nomor = preg_replace('/[^0-9]/', '', $request->telepon);
 
-    $nomor = preg_replace('/[^0-9]/', '', $request->telepon);
+                if (substr($nomor, 0, 1) == '0') {
+                    $nomor = '62' . substr($nomor, 1);
+                }
 
-    if (substr($nomor, 0, 1) == '0') {
-        $nomor = '62' . substr($nomor, 1);
-    }
+                $pesan =
+                    "*Selamat, akun SiTumbuh berhasil dibuat!*\n\n" .
+                    "Halo {$request->nama},\n\n" .
+                    "Berikut informasi akun Anda:\n\n" .
+                    "Email : {$request->email}\n" .
+                    "Password : {$plainPassword}\n\n" .
+                    "Silakan login ke aplikasi SiTumbuh.\n\n" .
+                    "Mohon segera ubah password setelah login.\n\n" .
+                    "Terima kasih.";
 
-    $pesan =
-        "*Selamat, akun SiTumbuh berhasil dibuat!*\n\n" .
-        "Halo {$request->nama},\n\n" .
-        "Berikut informasi akun Anda:\n\n" .
-        "Email : {$request->email}\n" .
-        "Password : {$plainPassword}\n\n" .
-        "Silakan login ke aplikasi SiTumbuh.\n\n" .
-        "Mohon segera ubah password setelah login.\n\n" .
-        "Terima kasih.";
+                $response = Http::asForm()
+                    ->withHeaders([
+                        'Authorization' => env('FONNTE_TOKEN'),
+                    ])
+                    ->post('https://api.fonnte.com/send', [
+                        'target' => $nomor,
+                        'message' => $pesan,
+                    ]);
 
-    $response = Http::asForm()
-        ->withHeaders([
-            'Authorization' => env('FONNTE_TOKEN'),
-        ])
-        ->post('https://api.fonnte.com/send', [
-            'target' => $nomor,
-            'message' => $pesan,
-        ]);
+                Log::info('Fonnte Response: ' . $response->body());
 
-    Log::info('Fonnte Response: ' . $response->body());
-
-} catch (\Throwable $e) {
-
-    Log::error('WhatsApp gagal dikirim: ' . $e->getMessage());
-
-}
+            } catch (\Throwable $e) {
+                Log::error('WhatsApp gagal dikirim: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Data orang tua berhasil ditambahkan. Notifikasi WhatsApp telah dikirim.',
                 'data' => DB::table('orang_tua')->where('orangtua_id', $id)->first()
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error KelolaOrangTuaController@store: ' . $e->getMessage());
@@ -193,6 +189,7 @@ try {
                 'success' => true,
                 'message' => 'Data orang tua berhasil diubah'
             ], 200);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error KelolaOrangTuaController@update: ' . $e->getMessage());
@@ -220,7 +217,6 @@ try {
                 ], 404);
             }
 
-            // Hapus user jika ada
             if ($orangTua->user_id) {
                 DB::table('users')->where('user_id', $orangTua->user_id)->delete();
             }
@@ -233,6 +229,7 @@ try {
                 'success' => true,
                 'message' => 'Data orang tua berhasil dihapus'
             ], 200);
+
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error KelolaOrangTuaController@destroy: ' . $e->getMessage());
