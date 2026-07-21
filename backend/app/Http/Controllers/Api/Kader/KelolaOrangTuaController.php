@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use App\Mail\AkunBaruMail;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class KelolaOrangTuaController extends Controller
 {
@@ -48,7 +48,7 @@ class KelolaOrangTuaController extends Controller
         $validator = Validator::make($request->all(), [
             'nama' => 'required|string|max:100',
             'email' => 'required|email|unique:orang_tua,email|unique:users,email',
-            'telepon' => 'nullable|string|max:15',
+            'telepon' => 'required|string|max:15',
             'alamat' => 'nullable|string',
             'password' => 'nullable|string|min:6',
         ]);
@@ -64,7 +64,7 @@ class KelolaOrangTuaController extends Controller
         try {
             DB::beginTransaction();
 
-            $plainPassword = $request->password ?? '123456';
+            $plainPassword = $request->password ?? Str::random(8);
 
             $userId = DB::table('users')->insertGetId([
                 'nama' => $request->nama,
@@ -83,21 +83,47 @@ class KelolaOrangTuaController extends Controller
 
             DB::commit();
 
-            // Kirim email notifikasi
-            try {
-                Mail::to($request->email)->send(new AkunBaruMail(
-                    $request->nama,
-                    $request->email,
-                    $plainPassword,
-                    null
-                ));
-            } catch (\Exception $mailError) {
-                Log::error('Email gagal dikirim: ' . $mailError->getMessage());
-            }
+            // =====================
+// Kirim WhatsApp
+// =====================
+try {
+
+    $nomor = preg_replace('/[^0-9]/', '', $request->telepon);
+
+    if (substr($nomor, 0, 1) == '0') {
+        $nomor = '62' . substr($nomor, 1);
+    }
+
+    $pesan =
+        "*Selamat, akun SiTumbuh berhasil dibuat!*\n\n" .
+        "Halo {$request->nama},\n\n" .
+        "Berikut informasi akun Anda:\n\n" .
+        "Email : {$request->email}\n" .
+        "Password : {$plainPassword}\n\n" .
+        "Silakan login ke aplikasi SiTumbuh.\n\n" .
+        "Mohon segera ubah password setelah login.\n\n" .
+        "Terima kasih.";
+
+    $response = Http::asForm()
+        ->withHeaders([
+            'Authorization' => env('FONNTE_TOKEN'),
+        ])
+        ->post('https://api.fonnte.com/send', [
+            'target' => $nomor,
+            'message' => $pesan,
+        ]);
+
+    Log::info('Fonnte Response: ' . $response->body());
+
+} catch (\Throwable $e) {
+
+    Log::error('WhatsApp gagal dikirim: ' . $e->getMessage());
+
+}
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data orang tua berhasil ditambahkan. Email notifikasi telah dikirim.',
+                'message' => 'Data orang tua berhasil ditambahkan. Notifikasi WhatsApp telah dikirim.',
                 'data' => DB::table('orang_tua')->where('orangtua_id', $id)->first()
             ], 201);
         } catch (\Exception $e) {
@@ -120,7 +146,7 @@ class KelolaOrangTuaController extends Controller
         $validator = Validator::make($request->all(), [
             'nama' => 'required|string|max:100',
             'email' => 'required|email',
-            'telepon' => 'nullable|string|max:15',
+            'telepon' => 'required|string|max:15',
             'alamat' => 'nullable|string',
         ]);
 
