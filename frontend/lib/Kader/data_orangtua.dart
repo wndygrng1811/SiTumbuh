@@ -353,7 +353,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Password akan dikirim otomatis via WhatsApp ke nomor orang tua.',
+                          'Kata sandi akan dikirim otomatis via WhatsApp ke nomor orang tua.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue.shade700,
@@ -516,7 +516,7 @@ class _KelolaDaftarOrangTuaPageState extends State<KelolaDaftarOrangTuaPage> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _loadData();
         _showSuccessSnackbar(
-          'Data orang tua berhasil ditambahkan! Password dikirim ke email.',
+          'Data orang tua berhasil ditambahkan! Password telah dikirim melalui WhatsApp.',
         );
       } else {
         final error = json.decode(response.body);

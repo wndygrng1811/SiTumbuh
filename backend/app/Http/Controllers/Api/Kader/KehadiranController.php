@@ -36,7 +36,7 @@ class KehadiranController extends Controller
         }
     }
 
-    // 2. GET - Ambil kehadiran berdasarkan jadwal_id
+    // 2. GET - Ambil kehadiran berdasarkan jadwal_id (dari tabel pertumbuhan)
     public function getKehadiranByJadwal($jadwalId)
     {
         try {
@@ -86,11 +86,12 @@ class KehadiranController extends Controller
         }
     }
 
-    // 3. POST - Simpan semua kehadiran (massal)
+    // 3. POST - Simpan semua kehadiran (massal) ke tabel kehadiran
     public function simpanSemuaKehadiran(Request $request)
     {
         try {
             Log::info('=== simpanSemuaKehadiran dipanggil ===');
+            Log::info('Request data: ' . json_encode($request->all()));
             
             $request->validate([
                 'jadwal_id' => 'required|integer|exists:jadwal,jadwal_id',
@@ -100,40 +101,67 @@ class KehadiranController extends Controller
             ]);
 
             $jadwalId = $request->jadwal_id;
+            $kehadiranList = $request->kehadiran;
+
+            Log::info('Jadwal ID: ' . $jadwalId);
+            Log::info('Jumlah kehadiran: ' . count($kehadiranList));
 
             DB::beginTransaction();
 
-            foreach ($request->kehadiran as $item) {
+            foreach ($kehadiranList as $item) {
+                // Konversi status sesuai ENUM di database
+                // ENUM: 'Hadir' dan 'Tidak Hadir'
+                $status = $item['status'] === 'hadir' ? 'Hadir' : 'Tidak Hadir';
+                
+                Log::info('Processing anak_id: ' . $item['anak_id'] . ', status: ' . $status);
+
+                // Cek apakah data sudah ada
                 $existing = DB::table('kehadiran')
                     ->where('anak_id', $item['anak_id'])
                     ->where('jadwal_id', $jadwalId)
                     ->first();
 
                 if ($existing) {
+                    // Update jika sudah ada
                     DB::table('kehadiran')
                         ->where('anak_id', $item['anak_id'])
                         ->where('jadwal_id', $jadwalId)
                         ->update([
-                            'status' => $item['status']
+                            'status' => $status
                         ]);
+                    Log::info('Updated kehadiran for anak_id: ' . $item['anak_id']);
                 } else {
+                    // Insert jika belum ada
                     DB::table('kehadiran')->insert([
                         'anak_id' => $item['anak_id'],
                         'jadwal_id' => $jadwalId,
-                        'status' => $item['status']
+                        'status' => $status
                     ]);
+                    Log::info('Inserted kehadiran for anak_id: ' . $item['anak_id']);
                 }
             }
 
             DB::commit();
 
+            Log::info('=== Kehadiran berhasil disimpan ===');
+
             return response()->json([
                 'success' => true,
                 'message' => 'Data kehadiran berhasil disimpan'
             ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation Error: ' . json_encode($e->errors()));
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal: ' . json_encode($e->errors())
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
+
             Log::error('Error simpanSemuaKehadiran: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal menyimpan: ' . $e->getMessage()

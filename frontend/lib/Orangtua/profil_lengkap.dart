@@ -206,11 +206,22 @@ class _ProfilLengkapPageState extends State<ProfilLengkapPage> {
     }
 
     String noHpValue = _noHpController.text.trim();
-    if (noHpValue.isNotEmpty && !_isValidPhone(noHpValue)) {
+
+    if (noHpValue.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Nomor HP wajib diisi'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!_isValidPhone(noHpValue)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Nomor HP harus 10-13 digit dan diawali 08, 62, atau +62',
+            'Nomor HP harus menggunakan format Indonesia yang valid',
           ),
           backgroundColor: Colors.red,
         ),

@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     if (password.isEmpty) {
-      _showSnackbar('Password tidak boleh kosong', Colors.red);
+      _showSnackbar('Kata sandi tidak boleh kosong', Colors.red);
       return;
     }
 
@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     if (result['success'] == true) {
-      _showSnackbar('Login berhasil!', Colors.green);
+      _showSnackbar('Berhasil masuk!', Colors.green);
 
       // ============ SIMPAN DATA KE SHAREDPREFERENCES ============
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -115,7 +115,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     } else {
       _showSnackbar(
-        result['message'] ?? 'Email atau password salah',
+        result['message'] ?? 'Email atau kata sandi salah',
         Colors.red,
       );
     }
@@ -381,7 +381,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                 )
                               : const Text(
-                                  "Login",
+                                  "Masuk",
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.bold,

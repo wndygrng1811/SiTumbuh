@@ -977,6 +977,16 @@ class _LaporanPageState extends State<LaporanPage> {
   }
 
   Future<void> _handleCetak() async {
+    if (_filteredData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak ada data untuk periode yang dipilih.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isExporting = true);
 
     try {
@@ -1026,26 +1036,21 @@ class _LaporanPageState extends State<LaporanPage> {
       sheet.appendRow(headerRow);
 
       // Data
-      if (_filteredData.isEmpty) {
-        sheet.appendRow([excel.TextCellValue('Tidak ada data')]);
-      } else {
-        for (int i = 0; i < _filteredData.length; i++) {
-          final item = _filteredData[i];
-          sheet.appendRow([
-            excel.TextCellValue((i + 1).toString()),
-            excel.TextCellValue(item['nama_anak'] ?? '-'),
-            excel.TextCellValue(
-              item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
-            ),
-            excel.TextCellValue((item['tinggi_badan'] ?? 0).toStringAsFixed(1)),
-            excel.TextCellValue((item['berat_badan'] ?? 0).toStringAsFixed(1)),
-            excel.TextCellValue(
-              (item['lingkar_kepala'] ?? 0).toStringAsFixed(1),
-            ),
-            excel.TextCellValue(item['status_gizi'] ?? 'Normal'),
-            excel.TextCellValue(item['nama_ortu'] ?? '-'),
-          ]);
-        }
+      // Data
+      for (int i = 0; i < _filteredData.length; i++) {
+        final item = _filteredData[i];
+        sheet.appendRow([
+          excel.TextCellValue((i + 1).toString()),
+          excel.TextCellValue(item['nama_anak'] ?? '-'),
+          excel.TextCellValue(
+            item['jenis_kelamin'] == 'L' ? 'Laki-laki' : 'Perempuan',
+          ),
+          excel.TextCellValue((item['tinggi_badan'] ?? 0).toStringAsFixed(1)),
+          excel.TextCellValue((item['berat_badan'] ?? 0).toStringAsFixed(1)),
+          excel.TextCellValue((item['lingkar_kepala'] ?? 0).toStringAsFixed(1)),
+          excel.TextCellValue(item['status_gizi'] ?? 'Normal'),
+          excel.TextCellValue(item['nama_ortu'] ?? '-'),
+        ]);
       }
 
       // Auto-fit column widths

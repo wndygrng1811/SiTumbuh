@@ -536,14 +536,21 @@ class _DataAnakPageState extends State<DataAnakPage> {
           widget.onDataChanged!();
         }
 
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data anak berhasil ditambahkan'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
         if (mounted) {
-          final anakBaru = dataAnak.isNotEmpty ? dataAnak.last : null;
-          Navigator.pop(context, {
-            'success': true,
-            'data': anakBaru,
-            'action': 'add',
-          });
-        }
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(
+      content: Text('Data anak berhasil ditambahkan'),
+      backgroundColor: Colors.green,
+    ),
+  );
+}
       } else {
         final responseData = json.decode(response.body);
         throw Exception(responseData['message'] ?? 'Gagal menambahkan anak');
@@ -1052,7 +1059,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
                           SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Status gizi akan dihitung otomatis berdasarkan data yang diisi',
+                              'Status gizi dihitung berdasarkan data yang diisi. Jika belum ada hasil pemeriksaan, isi 0 pada semua kolom agar status menjadi "Belum Diperiksa".',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.blue,
