@@ -792,6 +792,317 @@ class _DataAnakPageState extends State<DataAnakPage> {
     });
   }
 
+  // ============ SHOW TAMBAH FORM (DIALOG) ============
+  void _showTambahForm() {
+    _resetForm();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE85D75).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.person_add_rounded,
+                    color: Color(0xFFE85D75),
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Tambah Data Anak',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // DROPDOWN ORANG TUA
+                  _buildOrangTuaDropdown(setDialogState),
+                  const SizedBox(height: 12),
+
+                  // NAMA ANAK
+                  _buildFormField(
+                    label: 'Nama Anak',
+                    hint: 'Masukkan nama anak',
+                    icon: Icons.person_outline_rounded,
+                    controller: _namaCtrl,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // JENIS KELAMIN
+                  _buildGenderSelector(setDialogState),
+                  const SizedBox(height: 12),
+
+                  // TANGGAL LAHIR
+                  _buildFormField(
+                    label: 'Tanggal Lahir',
+                    hint: 'Pilih tanggal lahir',
+                    icon: Icons.calendar_today_rounded,
+                    controller: _tglCtrl,
+                    readOnly: true,
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2010),
+                        lastDate: DateTime.now(),
+                        builder: (ctx, child) => Theme(
+                          data: Theme.of(ctx).copyWith(
+                            colorScheme: const ColorScheme.light(
+                              primary: Color(0xFFE85D75),
+                              onPrimary: Colors.white,
+                              onSurface: Color(0xFF2D2D2D),
+                            ),
+                          ),
+                          child: child!,
+                        ),
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          _selectedTanggal = picked;
+                          _tglCtrl.text = picked
+                              .toIso8601String()
+                              .split('T')
+                              .first;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // BERAT & TINGGI
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildFormField(
+                          label: 'Berat Badan',
+                          hint: 'kg (0 jika belum diketahui)',
+                          icon: Icons.monitor_weight_rounded,
+                          controller: _bbCtrl,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildFormField(
+                          label: 'Tinggi Badan',
+                          hint: 'cm (0 jika belum diketahui)',
+                          icon: Icons.height_rounded,
+                          controller: _tbCtrl,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // LINGKAR KEPALA
+                  _buildFormField(
+                    label: 'Lingkar Kepala',
+                    hint: 'cm (0 jika belum diketahui)',
+                    icon: Icons.face_6_rounded,
+                    controller: _lkCtrl,
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // INFO STATUS GIZI
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Status gizi akan dihitung otomatis berdasarkan data yang diisi',
+                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  _resetForm();
+                  Navigator.pop(context);
+                },
+                child: const Text('Batal', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: _isSubmitting
+                    ? null
+                    : () {
+                        if (_selectedOrangTuaId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Pilih orang tua terlebih dahulu'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        if (_selectedJk == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Pilih jenis kelamin'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context);
+                        _tambahAnak();
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFE85D75),
+                  foregroundColor: Colors.white,
+                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Simpan'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ============ WIDGET ORANG TUA DROPDOWN ============
+  Widget _buildOrangTuaDropdown(StateSetter setDialogState) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Orang Tua',
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          ),
+          child: DropdownButtonFormField<int>(
+            value: _selectedOrangTuaId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              prefixIcon: Icon(
+                Icons.family_restroom_rounded,
+                color: Color(0xFFE85D75),
+                size: 20,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              hintText: 'Pilih orang tua',
+              hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            items: orangTuaList.map((ortu) {
+              return DropdownMenuItem<int>(
+                value: ortu['orangtua_id'],
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE85D75).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.person_rounded,
+                        size: 16,
+                        color: Color(0xFFE85D75),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        ortu['nama'],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF1A1A1A),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setDialogState(() {
+                _selectedOrangTuaId = value;
+              });
+            },
+            dropdownColor: Colors.white,
+            icon: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE85D75).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFFE85D75),
+                size: 20,
+              ),
+            ),
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // ============ SHOW EDIT FORM ============
   void _showEditForm(Map<String, dynamic> anak) {
     // Reset dulu
@@ -1229,409 +1540,65 @@ class _DataAnakPageState extends State<DataAnakPage> {
     );
   }
 
-  // ============ SHOW TAMBAH FORM ============
-  void _showTambahForm() {
-    _resetForm();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _buildFormBottomSheet(),
+  // ============ BUILD FORM FIELD ============
+  Widget _buildFormField({
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextEditingController? controller,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200, width: 0.5),
+          ),
+          child: TextFormField(
+            controller: controller,
+            readOnly: readOnly,
+            onTap: onTap,
+            keyboardType: keyboardType,
+            style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              prefixIcon: Icon(icon, color: const Color(0xFFE85D75), size: 20),
+              suffixIcon: readOnly
+                  ? Icon(
+                      Icons.arrow_drop_down_rounded,
+                      color: Colors.grey.shade400,
+                    )
+                  : null,
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  // ============ BUILD FORM BOTTOM SHEET ============
-  Widget _buildFormBottomSheet() {
-    final formKey = GlobalKey<FormState>();
-
-    return StatefulBuilder(
-      builder: (context, setSheetState) {
-        return AnimatedPadding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          child: Container(
-            height: MediaQuery.of(context).size.height * 0.78,
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE85D75).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Icon(
-                          Icons.person_add_rounded,
-                          color: Color(0xFFE85D75),
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Tambah Data Anak',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A1A1A),
-                            ),
-                          ),
-                          Text(
-                            'Isi data anak untuk pemantauan',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Form(
-                        key: formKey,
-                        child: Column(
-                          children: [
-                            // DROPDOWN ORANG TUA
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade50,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: Colors.grey.shade200,
-                                  width: 0.5,
-                                ),
-                              ),
-                              child: DropdownButtonFormField<int>(
-                                value: _selectedOrangTuaId,
-                                isExpanded: true,
-                                decoration: InputDecoration(
-                                  labelText: 'Orang Tua',
-                                  labelStyle: const TextStyle(
-                                    color: Color(0xFF555555),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  prefixIcon: const Icon(
-                                    Icons.family_restroom_rounded,
-                                    color: Color(0xFFE85D75),
-                                    size: 20,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 14,
-                                  ),
-                                  hintText: 'Pilih orang tua',
-                                  hintStyle: TextStyle(
-                                    color: Colors.grey.shade400,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                items: orangTuaList.map((ortu) {
-                                  return DropdownMenuItem<int>(
-                                    value: ortu['orangtua_id'],
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 32,
-                                          height: 32,
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFFE85D75,
-                                            ).withOpacity(0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.person_rounded,
-                                            size: 16,
-                                            color: Color(0xFFE85D75),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            ortu['nama'],
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              color: Color(0xFF1A1A1A),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (value) {
-                                  setSheetState(() {
-                                    _selectedOrangTuaId = value;
-                                  });
-                                },
-                                validator: (value) {
-                                  if (value == null) {
-                                    return 'Pilih orang tua terlebih dahulu';
-                                  }
-                                  return null;
-                                },
-                                dropdownColor: Colors.white,
-                                icon: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(
-                                      0xFFE85D75,
-                                    ).withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.keyboard_arrow_down_rounded,
-                                    color: Color(0xFFE85D75),
-                                    size: 20,
-                                  ),
-                                ),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF1A1A1A),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-
-                            // NAMA ANAK
-                            _buildFormField(
-                              label: 'Nama Anak',
-                              hint: 'Masukkan nama anak',
-                              icon: Icons.person_outline_rounded,
-                              controller: _namaCtrl,
-                              validator: (v) => v?.isEmpty ?? true
-                                  ? 'Nama anak harus diisi'
-                                  : null,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // JENIS KELAMIN
-                            _buildGenderSelector(setSheetState),
-                            const SizedBox(height: 12),
-
-                            // TANGGAL LAHIR
-                            _buildFormField(
-                              label: 'Tanggal Lahir',
-                              hint: 'Pilih tanggal lahir',
-                              icon: Icons.calendar_today_rounded,
-                              controller: _tglCtrl,
-                              readOnly: true,
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: DateTime.now(),
-                                  firstDate: DateTime(2010),
-                                  lastDate: DateTime.now(),
-                                  builder: (ctx, child) => Theme(
-                                    data: Theme.of(ctx).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                        primary: Color(0xFFE85D75),
-                                        onPrimary: Colors.white,
-                                        onSurface: Color(0xFF2D2D2D),
-                                      ),
-                                    ),
-                                    child: child!,
-                                  ),
-                                );
-                                if (picked != null) {
-                                  setSheetState(() {
-                                    _selectedTanggal = picked;
-                                    _tglCtrl.text = picked
-                                        .toIso8601String()
-                                        .split('T')
-                                        .first;
-                                  });
-                                }
-                              },
-                              validator: (v) => v?.isEmpty ?? true
-                                  ? 'Tanggal lahir harus diisi'
-                                  : null,
-                            ),
-                            const SizedBox(height: 12),
-
-                            // BERAT & TINGGI
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildFormField(
-                                    label: 'Berat Badan',
-                                    hint: 'kg (0 jika belum diketahui)',
-                                    icon: Icons.monitor_weight_rounded,
-                                    controller: _bbCtrl,
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _buildFormField(
-                                    label: 'Tinggi Badan',
-                                    hint: 'cm (0 jika belum diketahui)',
-                                    icon: Icons.height_rounded,
-                                    controller: _tbCtrl,
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-
-                            // LINGKAR KEPALA
-                            _buildFormField(
-                              label: 'Lingkar Kepala',
-                              hint: 'cm (0 jika belum diketahui)',
-                              icon: Icons.face_6_rounded,
-                              controller: _lkCtrl,
-                              keyboardType: TextInputType.number,
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.shade200),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    color: Colors.blue,
-                                    size: 20,
-                                  ),
-                                  SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      'Status gizi akan dihitung otomatis berdasarkan data yang diisi',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // TOMBOL
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: OutlinedButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      side: BorderSide(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'Batal',
-                                      style: TextStyle(
-                                        color: Color(0xFF555555),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: ElevatedButton(
-                                    onPressed: _isSubmitting
-                                        ? null
-                                        : () {
-                                            if (formKey.currentState!
-                                                .validate()) {
-                                              Navigator.pop(context);
-                                              _tambahAnak();
-                                            }
-                                          },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFE85D75),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      elevation: 2,
-                                    ),
-                                    child: _isSubmitting
-                                        ? const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Simpan',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildGenderSelector(StateSetter setSheetState) {
+  Widget _buildGenderSelector(StateSetter setDialogState) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1649,7 +1616,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
             Expanded(
               child: GestureDetector(
                 onTap: () {
-                  setSheetState(() {
+                  setDialogState(() {
                     _selectedJk = 'Laki-laki';
                   });
                 },
@@ -1700,7 +1667,7 @@ class _DataAnakPageState extends State<DataAnakPage> {
             Expanded(
               child: GestureDetector(
                 onTap: () {
-                  setSheetState(() {
+                  setDialogState(() {
                     _selectedJk = 'Perempuan';
                   });
                 },
@@ -1748,65 +1715,6 @@ class _DataAnakPageState extends State<DataAnakPage> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFormField({
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextEditingController? controller,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200, width: 0.5),
-          ),
-          child: TextFormField(
-            controller: controller,
-            readOnly: readOnly,
-            onTap: onTap,
-            keyboardType: keyboardType,
-            style: const TextStyle(fontSize: 14, color: Color(0xFF1A1A1A)),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-              prefixIcon: Icon(icon, color: const Color(0xFFE85D75), size: 20),
-              suffixIcon: readOnly
-                  ? Icon(
-                      Icons.arrow_drop_down_rounded,
-                      color: Colors.grey.shade400,
-                    )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-            ),
-            validator: validator,
-          ),
         ),
       ],
     );
