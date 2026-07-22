@@ -255,14 +255,35 @@ class AnakController extends Controller
                 ], 404);
             }
             
-            DB::table('pertumbuhan')->where('anak_id', $anakId)->delete();
-            DB::table('anak')->where('anak_id', $anakId)->delete();
+            // Mulai transaksi
+            DB::beginTransaction();
+            
+            // Hapus data kehadiran terkait
+            DB::table('kehadiran')
+                ->where('anak_id', $anakId)
+                ->delete();
+            
+            // Hapus data pertumbuhan terkait
+            DB::table('pertumbuhan')
+                ->where('anak_id', $anakId)
+                ->delete();
+            
+            // Hapus data anak
+            DB::table('anak')
+                ->where('anak_id', $anakId)
+                ->delete();
+            
+            // Commit transaksi
+            DB::commit();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Data anak berhasil dihapus'
             ]);
         } catch (\Exception $e) {
+            // Rollback transaksi jika terjadi error
+            DB::rollBack();
+            
             Log::error('Error destroy: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
